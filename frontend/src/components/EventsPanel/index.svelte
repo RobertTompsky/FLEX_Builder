@@ -41,8 +41,7 @@
                                 class="progress-line file"
                                 onclick={() => toggle(`args-${ev.argsId}`)}
                             >
-                                {expanded.has(`args-${ev.argsId}`) ? "▾" : "▸"} □
-                                code.js
+                                {expanded.has(`args-${ev.argsId}`) ? "▾" : "▸"} □ code.js
                             </button>
 
                             {#if expanded.has(`args-${ev.argsId}`)}

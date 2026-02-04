@@ -68,7 +68,7 @@
             { role: "user", content: text },
             {
                 role: "assistant",
-                content: "Ожидание сервера",
+                content: "Ожидание ответа",
                 status: "in_progress",
             },
         );
@@ -102,8 +102,6 @@
                 if (!last) return;
 
                 if (ev.event === "init") {
-                    last.content = ev.data;
-
                     eventsState.events.push({
                         type: "init",
                         message: ev.data,

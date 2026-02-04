@@ -65,7 +65,7 @@ app
     '/mcp',
     zValidator('json', z.object({
       query: z.string().nullable(),
-      model: z.string().min(1),
+      model: z.string(),
       prompt: z.string().nullable()
     })),
     async (c) => {

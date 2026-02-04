@@ -1,22 +1,22 @@
 import OpenAI from "openai";
 import type {
-    FunctionTool,
-    ResponseInputItem,
-    ResponseFunctionToolCallItem
+  FunctionTool,
+  ResponseInputItem,
+  ResponseFunctionToolCallItem
 } from "openai/resources/responses/responses.js";
 import { z } from "zod";
 import { type SandboxAction, createApi } from "@code/actions";
 import { CodeGenSchema } from "@code/schemas";
 
 type AgentEvent =
-    | { type: "init"; message: string }
-    | { type: "text_delta"; delta: string }
-    | { type: "text_end"; responseId: string; fullText: string }
-    | { type: "arguments_delta"; toolRound: number; delta: string; id: string }
-    | { type: "tool_start"; toolRound: number; callId: string; name: string; args?: string, argsId: string }
-    | { type: "tool_result"; toolRound: number; callId: string; name: string; outputPreview?: string }
-    | { type: "done"; message: string }
-    | { type: "error"; message: string };
+  | { type: "init"; message: string }
+  | { type: "text_delta"; delta: string }
+  | { type: "text_end"; responseId: string; fullText: string }
+  | { type: "arguments_delta"; toolRound: number; delta: string; id: string }
+  | { type: "tool_start"; toolRound: number; callId: string; name: string; args?: string, argsId: string }
+  | { type: "tool_result"; toolRound: number; callId: string; name: string; outputPreview?: string }
+  | { type: "done"; message: string }
+  | { type: "error"; message: string };
 
 type Emit<E> = (ev: E) => void | Promise<void>
 
@@ -32,7 +32,7 @@ export type Config = {
 }
 
 function errMsg(e: unknown) {
-    return e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+  return e instanceof Error ? `${e.name}: ${e.message}` : String(e);
 }
 
 export async function agent(
@@ -118,7 +118,7 @@ export async function agent(
         }
 
         if (ev.type === 'error') {
-          safeEmit({
+          await safeEmit({
             type: 'error',
             message: ev.message
           })
@@ -126,19 +126,6 @@ export async function agent(
       }
 
       const final = await rspStream.finalResponse()
-
-      for (const it of final.output ?? []) {
-        if (it.type === "function_call") {
-          config.messages.push({
-            id: it.id,
-            type: "function_call",
-            name: it.name,
-            arguments: it.arguments,
-            call_id: it.call_id,
-            status: "completed",
-          } as ResponseFunctionToolCallItem)
-        } else config.messages.push(it)
-      }
 
       if (!final.id) {
         await safeEmit({
@@ -149,10 +136,20 @@ export async function agent(
       }
 
       for (const item of final.output ?? []) {
+
         if (item.type === "function_call") {
           const args = CodeGenSchema.parse(
             JSON.parse(item.arguments ?? "{}")
           )
+
+          config.messages.push({
+            id: item.id,
+            type: "function_call",
+            name: item.name,
+            arguments: item.arguments,
+            call_id: item.call_id,
+            status: "completed",
+          } as ResponseFunctionToolCallItem);
 
           await safeEmit({
             type: "tool_start",
@@ -187,15 +184,15 @@ export async function agent(
             name: item.name,
             outputPreview: stdout.slice(0, 2000)
           })
+        } else {
+          config.messages.push(item);
         }
       }
-
-      const finalText = roundText.trim()
 
       await safeEmit({
         type: "text_end",
         responseId: final.id,
-        fullText: finalText
+        fullText: roundText
       })
 
       if (toolResults.length === 0 || toolRound >= toolRounds) {
