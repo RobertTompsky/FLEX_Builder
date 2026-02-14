@@ -1,0 +1,226 @@
+/* ╔══════════════════════════════════════╗
+   ║         BIOS SETUP UTILITY          ║
+   ╚══════════════════════════════════════╝ */
+
+.bios {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #0c0c3a;
+  border: 2px solid #4444aa;
+  border-radius: 4px;
+  overflow: hidden;
+  font-family: Consolas, "Courier New", monospace;
+  box-shadow:
+    0 0 20px rgba(68, 68, 170, 0.15),
+    inset 0 0 30px rgba(0, 0, 30, 0.5);
+}
+
+/* ═══ Header ═══ */
+.bios-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  background: linear-gradient(180deg, #1a1a6e 0%, #12124a 100%);
+  border-bottom: 1px solid #5555cc;
+}
+
+.bios-logo {
+  color: #ffcc00;
+  font-size: 8px;
+  font-weight: bold;
+  text-shadow: 0 0 6px rgba(255, 204, 0, 0.5);
+}
+
+.bios-title {
+  color: #ccccff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.bios-ver {
+  margin-left: auto;
+  color: #7777bb;
+  font-size: 10px;
+}
+
+/* ═══ Body ═══ */
+.bios-body {
+  flex: 1;
+  padding: 10px 12px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.bios-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ═══ Row ═══ */
+.bios-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bios-row.col {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.bios-label {
+  color: #aaaaee;
+  font-size: 11px;
+  font-weight: 500;
+  min-width: 90px;
+  white-space: nowrap;
+}
+
+.bios-label::before {
+  content: "► ";
+  color: #ffcc00;
+  font-size: 9px;
+}
+
+/* ═══ Divider ═══ */
+.bios-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #4444aa, transparent);
+  margin: 4px 0;
+}
+
+/* ═══ Inputs ═══ */
+.bios-input,
+.bios-select,
+.bios-textarea {
+  flex: 1;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 11px;
+  padding: 4px 8px;
+  background: #08082a;
+  color: #ffffff;
+  border: 1px solid #3333aa;
+  border-radius: 2px;
+  transition: all 0.15s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.bios-input:focus,
+.bios-select:focus,
+.bios-textarea:focus {
+  outline: none;
+  border-color: #ffcc00;
+  box-shadow: 0 0 6px rgba(255, 204, 0, 0.2);
+  background: #0a0a35;
+}
+
+.bios-input::placeholder,
+.bios-textarea::placeholder {
+  color: #4444aa;
+}
+
+.bios-select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237777bb'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 24px;
+}
+
+.bios-select:disabled {
+  color: #555599;
+  cursor: default;
+  opacity: 0.6;
+}
+
+.bios-select option {
+  background: #0c0c3a;
+  color: #ffffff;
+  font-family: Consolas, "Courier New", monospace;
+}
+
+.bios-textarea {
+  resize: vertical;
+  min-height: 48px;
+  line-height: 1.4;
+}
+
+/* ═══ Skills ═══ */
+.bios-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  width: 100%;
+}
+
+.bios-chip {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 10px;
+  padding: 3px 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #08082a;
+  color: #8888cc;
+  border: 1px solid #3333aa;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bios-chip:hover {
+  border-color: #6666cc;
+  color: #ccccff;
+}
+
+.bios-chip.active {
+  background: #1a1a7a;
+  color: #ffcc00;
+  border-color: #ffcc00;
+  text-shadow: 0 0 4px rgba(255, 204, 0, 0.3);
+}
+
+.bios-chip-indicator {
+  font-size: 8px;
+}
+
+.bios-hint {
+  font-size: 10px;
+  color: #5555aa;
+  font-style: italic;
+}
+
+/* ═══ Error ═══ */
+.bios-error {
+  padding: 4px 8px;
+  font-size: 10px;
+  color: #ff4444;
+  background: rgba(255, 0, 0, 0.08);
+  border: 1px solid #660000;
+  border-radius: 2px;
+  font-weight: 600;
+}
+
+/* ═══ Footer ═══ */
+.bios-footer {
+  display: flex;
+  gap: 16px;
+  padding: 4px 12px;
+  background: linear-gradient(180deg, #12124a 0%, #1a1a6e 100%);
+  border-top: 1px solid #5555cc;
+  font-size: 9px;
+  color: #7777bb;
+}
+
+.bios-footer span {
+  letter-spacing: 0.5px;
+}

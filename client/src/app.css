@@ -1,0 +1,127 @@
+:root {
+  --bg: #11d1d1;
+  --window-bg: #d4d0c8;
+  --border-light: #ffffff;
+  --border-dark: #808080;
+  --border-deep: #404040;
+  --accent: #000080;
+  --font: "MS Sans Serif", "Tahoma", sans-serif;
+}
+
+/* ===== Base layout ===== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background:
+    /* горизонтальные линии сетки */
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 59px,
+      rgba(229, 69, 160, 0.07) 59px,
+      rgba(229, 69, 160, 0.07) 60px
+    ),
+    /* вертикальные линии сетки */
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 59px,
+      rgba(229, 69, 160, 0.07) 59px,
+      rgba(229, 69, 160, 0.07) 60px
+    );
+  background-color: var(--bg);
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* ===== Vaporpunk decor ===== */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  pointer-events: none;
+  border: 1px solid rgba(229, 69, 160, 0.15);
+}
+
+/* ромб слева */
+body::before {
+  width: 120px;
+  height: 120px;
+  bottom: 8%;
+  left: 6%;
+  transform: rotate(45deg);
+  box-shadow:
+    0 0 20px rgba(229, 69, 160, 0.08),
+    inset 0 0 20px rgba(229, 69, 160, 0.04);
+}
+
+/* кольцо справа */
+body::after {
+  width: 180px;
+  height: 180px;
+  top: 6%;
+  right: 4%;
+  border-radius: 50%;
+  box-shadow:
+    0 0 30px rgba(100, 80, 220, 0.08),
+    inset 0 0 30px rgba(100, 80, 220, 0.04);
+  border-color: rgba(100, 80, 220, 0.12);
+}
+
+/* ===== Meta-module shell ===== */
+.app {
+  height: 80vh;
+  width: 60vw;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+
+  /* корпус модуля — тёмный металлик */
+  background: #e6e9e7;
+  padding: 10px;
+
+  border-top: 3px solid #7a7a8a;
+  border-left: 3px solid #7a7a8a;
+  border-right: 3px solid #2a2a34;
+  border-bottom: 3px solid #2a2a34;
+  /* box-shadow:
+    inset 1px 1px 0 #8a8a9a,
+    inset -1px -1px 0 #3a3a44,
+    3px 3px 0 #000000; */
+
+  position: relative;
+}
+
+/* Болтики по углам */
+.app::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    /* top-left */
+    radial-gradient(circle 3px at 6px 6px, #3a3a44 2px, #6a6a7a 2px, #6a6a7a 3px, transparent 3px),
+    /* top-right */
+    radial-gradient(circle 3px at calc(100% - 6px) 6px, #3a3a44 2px, #6a6a7a 2px, #6a6a7a 3px, transparent 3px),
+    /* bottom-left */
+    radial-gradient(circle 3px at 6px calc(100% - 6px), #3a3a44 2px, #6a6a7a 2px, #6a6a7a 3px, transparent 3px),
+    /* bottom-right */
+    radial-gradient(circle 3px at calc(100% - 6px) calc(100% - 6px), #3a3a44 2px, #6a6a7a 2px, #6a6a7a 3px, transparent 3px);
+}
+
+.right-panel {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 8px;
+  width: 30%;
+  height: 100%;
+}

@@ -1,0 +1,194 @@
+/* ╔══════════════════════════════════════╗
+   ║      AWARD BIOS EVENT MONITOR      ║
+   ╚══════════════════════════════════════╝ */
+
+.aw {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #1111aa;
+  border: 2px solid #5555dd;
+  border-radius: 4px;
+  overflow: hidden;
+  font-family: Consolas, "Courier New", monospace;
+  box-shadow:
+    0 0 16px rgba(80, 80, 220, 0.12),
+    inset 0 0 20px rgba(0, 0, 60, 0.3);
+}
+
+/* ═══ Header ═══ */
+.aw-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 10px;
+  background: #cccccc;
+  border-bottom: 2px solid #5555dd;
+  color: #1111aa;
+}
+
+.aw-header-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.aw-header-count {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* ═══ Screen ═══ */
+.aw-screen {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 10px;
+  padding-bottom: 16px;
+  box-sizing: border-box;
+  background: #1111aa;
+  color: #ffffff;
+}
+
+/* ═══ Empty ═══ */
+.aw-empty {
+  color: #8888cc;
+  font-size: 11px;
+}
+
+/* ═══ Lines ═══ */
+.aw-line {
+  display: block;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 1px 4px;
+  color: #ffffff;
+}
+
+.aw-dim {
+  color: #8888cc;
+  font-size: 10px;
+  margin-left: 6px;
+}
+
+/* ═══ Init ═══ */
+.aw-init {
+  color: #ffffff;
+  font-weight: bold;
+}
+
+/* ═══ Tool ═══ */
+.aw-tool {
+  color: #ffff55;
+}
+
+/* ═══ Done ═══ */
+.aw-done {
+  color: #55ff55;
+  font-weight: bold;
+}
+
+/* ═══ Error ═══ */
+.aw-error {
+  color: #ff5555;
+  font-weight: bold;
+}
+
+/* ═══ File (expand) ═══ */
+.aw-file {
+  all: unset;
+  display: block;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 1px 4px 1px 16px;
+  color: #aaaaff;
+  cursor: pointer;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.aw-file:hover {
+  background: #ffffff;
+  color: #1111aa;
+}
+
+.aw-file:focus {
+  outline: 1px dotted #ffffff;
+  outline-offset: -1px;
+}
+
+/* ═══ Code block ═══ */
+.aw-code {
+  margin: 2px 0 4px 16px;
+  background: #000088;
+  border: 1px solid #5555dd;
+  overflow-x: auto;
+  color: #55ff55;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.aw-code pre {
+  margin: 0;
+  padding: 6px 8px;
+  background: none;
+  border: none;
+}
+
+.aw-code code {
+  display: block;
+  white-space: pre;
+  word-break: normal;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0;
+}
+
+/* ═══ Detail ═══ */
+.aw-detail {
+  margin: 2px 0 4px 16px;
+  padding: 4px 8px;
+  background: #000088;
+  border: 1px solid #5555dd;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  color: #aaaaff;
+  max-height: 140px;
+  overflow: auto;
+}
+
+/* ═══ Footer ═══ */
+.aw-footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 10px;
+  background: #cccccc;
+  border-top: 2px solid #5555dd;
+  font-size: 9px;
+  color: #1111aa;
+  letter-spacing: 0.5px;
+}
+
+/* ═══ Scrollbar ═══ */
+.aw-screen::-webkit-scrollbar {
+  width: 10px;
+}
+
+.aw-screen::-webkit-scrollbar-track {
+  background: #000088;
+}
+
+.aw-screen::-webkit-scrollbar-thumb {
+  background: #cccccc;
+  border: 1px solid #5555dd;
+}
+
+.aw-screen::-webkit-scrollbar-thumb:hover {
+  background: #ffffff;
+}

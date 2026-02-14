@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "moduleDetection": "force",
+    "target": "ESNext",
+    "module": "preserve",
+    "esModuleInterop": true,
+    "strict": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "hono/jsx",
+  }
+}

@@ -1,0 +1,106 @@
+/* message block */
+.msg {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
+    color: #d8d8d8;
+    display: block;
+    line-height: 1.45;
+}
+
+/* tag label */
+.msg-tag {
+    display: inline-block;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+}
+
+.msg.user .msg-tag {
+    color: #00ff00;
+}
+
+.msg.assistant .msg-tag {
+    color: #8aa7ff;
+}
+
+/* message text */
+.msg-text {
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.45;
+}
+
+/* markdown inline */
+.msg-text p {
+    margin: 0;
+}
+
+.msg-text p:empty,
+.msg-text p>br:only-child {
+    display: none;
+}
+
+/* lists */
+.msg-text ul,
+.msg-text ol {
+    display: flex;
+    flex-direction: column;
+    list-style-position: inside;
+    margin: 4px 0 0;
+    padding: 0;
+}
+
+.msg-text li {
+    margin: 0;
+    padding: 0;
+}
+
+/* code */
+.msg-text pre {
+    background: #0d0d0d;
+    overflow: auto;
+}
+
+.msg-text code {
+    background: #111;
+    border: 1px solid #333;
+    padding: 0 2px;
+}
+
+.msg-text pre,
+.msg-text code {
+  white-space: pre-wrap;
+}
+
+/* links / hr */
+.msg-text a {
+    color: #8aa7ff;
+    text-decoration: underline;
+}
+
+.msg-text hr {
+    border: none;
+    border-top: 1px solid #888;
+    border-bottom: 1px solid #222;
+}
+
+/* typing effect */
+.msg.assistant[data-status="in_progress"] .msg-text {
+    opacity: 0.75;
+}
+
+@keyframes block-spin {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(90deg); }
+  50% { transform: rotate(180deg); }
+  75% { transform: rotate(270deg); }
+}
+
+.msg.assistant[data-status="in_progress"]
+.msg-text p:last-child::after {
+  content: "■";
+  display: inline-block;
+  margin-left: 4px;
+  animation: block-spin 1s steps(4) infinite;
+  vertical-align: baseline;
+}
