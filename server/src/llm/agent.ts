@@ -102,12 +102,9 @@ export async function agent(
 
       if (allowedSkills.length > 0) {
         const skillsTree = allowedSkills
-          .map((name) => {
-            const dir = path.join(skills.baseDir, name);
-            return `${name}/\n${readDirTree(dir, "  ")}`;
-          })
+          .map(name => readDirTree(path.join(skills.baseDir, name)))
           .join("");
-
+        
         const skillsDirName = path.relative(SRC_DIR, SKILLS_DIR)
 
         const runTsTool: FunctionTool = {
@@ -203,7 +200,9 @@ export async function agent(
         return config
       }
 
-      for (const item of final.output ?? []) {
+      const outputItems = final.output ?? []
+
+      for (const item of outputItems) {
 
         if (item.type === "function_call") {
           const args = CodeGenSchema.parse(
@@ -274,7 +273,7 @@ export async function agent(
         return config;
       }
 
-      if (toolRound >= toolRounds) {
+      if (toolRound > toolRounds) {
         await safeEmit({
           type: "error",
           data: { message: `Tool rounds limit reached (${toolRounds})` }
