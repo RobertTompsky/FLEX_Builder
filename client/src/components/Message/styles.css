@@ -7,12 +7,10 @@
     line-height: 1.45;
 }
 
-/* tag label */
+/* tag label (inline inside first <p>) */
 .msg-tag {
-    display: inline-block;
     font-size: 10px;
     letter-spacing: 0.5px;
-    margin-bottom: 2px;
 }
 
 .msg.user .msg-tag {
@@ -34,6 +32,11 @@
 .msg-text p {
     margin: 0;
 }
+
+.msg-text p:first-child {
+    display: inline;
+}
+
 
 .msg-text p:empty,
 .msg-text p>br:only-child {
@@ -82,6 +85,13 @@
     border: none;
     border-top: 1px solid #888;
     border-bottom: 1px solid #222;
+}
+
+.msg-text blockquote {
+    border-left: 2px solid #888;
+    padding-left: 10px;
+    margin-left: 0;
+    margin-right: 0;
 }
 
 /* typing effect */

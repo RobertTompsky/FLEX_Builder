@@ -10,28 +10,12 @@
     import { eventsState } from "../../store/index.svelte";
     import "./styles.css";
 
-    $effect(() => {
-        const last = getLastAssistantMsg(agentState.messages);
-        if (!messagesEl || !last) return;
-
-        if (last.status === "in_progress" && isNearBottom(messagesEl)) {
-            scrollToBottom();
-        }
-    });
-
     let query = $state("");
     let messagesEl: HTMLElement | null = null;
 
     let retryCount = 0;
     const MAX_RETRIES = 3;
     let controller: AbortController | null = null;
-
-    function isNearBottom(
-        el: HTMLElement,
-        threshold = 40, // px
-    ) {
-        return el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
-    }
 
     function getLastAssistantMsg(messages: UIMessage[]) {
         for (let i = messages.length - 1; i >= 0; i--) {
@@ -87,7 +71,6 @@
         controller = new AbortController();
 
         await tick();
-        scrollToBottom();
         let hasStartedAnswer = false;
 
         await fetchEventSource("http://localhost:3000/mcp", {
@@ -173,14 +156,6 @@
         } catch (e) {
             console.error("Failed to clear history", e);
         }
-    }
-
-    async function scrollToBottom() {
-        await tick();
-        messagesEl?.scrollTo({
-            top: messagesEl.scrollHeight,
-            behavior: "smooth",
-        });
     }
 </script>
 

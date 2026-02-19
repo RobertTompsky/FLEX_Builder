@@ -10,8 +10,7 @@ export const md = MarkdownIt({
 
     highlight(code, lang) {
         if (lang && hljs.getLanguage(lang)) {
-            return `<pre><code class="hljs language-${lang}">${hljs.highlight(code, { language: lang, ignoreIllegals: true }).value
-                }</code></pre>`;
+            return `<pre><code class="hljs language-${lang}">${hljs.highlight(code, { language: lang, ignoreIllegals: true }).value}</code></pre>`;
         }
 
         const auto = hljs.highlightAuto(code);
