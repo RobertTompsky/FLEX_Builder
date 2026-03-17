@@ -9,13 +9,17 @@
   let tag = $derived(props.role === "user" ? "С/USERS/USER>" : "ASSISTANT>");
 
   const rendered = $derived(() => {
-    const html = md.render(props.content).trimEnd();
+    const raw = md.render(props.content ?? "").trimEnd();
+    const safe = raw || "<p></p>";
     const tagHtml = `<span class="msg-tag">${tag}</span> `;
-    return html.replace(/^(<(?:p|ol|ul|li|h[1-6]|div|blockquote)[^>]*>)/, `$1${tagHtml}`);
+    return safe.replace(
+      /^(<(?:p|ol|ul|li|h[1-6]|div|blockquote)[^>]*>)/,
+      `$1${tagHtml}`
+    );
   });
 </script>
 
-<div class="msg {props.role}" data-status={props.status}>
+<div class="msg {props.role} {props.status === 'incomplete' ? 'is-incomplete' : ''}" data-status={props.status}>
   <div class="msg-text">
     {@html rendered()}
   </div>

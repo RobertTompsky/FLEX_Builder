@@ -27,7 +27,8 @@
                 <select
                     class="bios-select"
                     bind:value={agentState.model}
-                    disabled={infoState.loading || infoState.models.length === 0}
+                    disabled={infoState.loading ||
+                        infoState.models.length === 0}
                 >
                     <option value="">
                         {#if infoState.loading}
@@ -55,8 +56,24 @@
                     min="1"
                     max="10"
                     placeholder="3"
+                    disabled={agentState.pause}
                 />
             </div>
+
+            <label class="bios-check">
+                <input
+                    class="bios-check-input"
+                    type="checkbox"
+                    checked={agentState.pause}
+                    onchange={(e) => {
+                        agentState.pause = (
+                            e.currentTarget as HTMLInputElement
+                        ).checked;
+                    }}
+                />
+                <span class="bios-check-box" aria-hidden="true"></span>
+                <span class="bios-check-label">Pause</span>
+            </label>
 
             <div class="bios-divider"></div>
 

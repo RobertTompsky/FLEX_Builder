@@ -6,7 +6,8 @@ export type AgentEvent =
   | { type: "arguments_delta"; data: { toolRound: number; delta: string; id: string } }
   | { type: "tool_start"; data: { toolRound: number; callId: string; name: string; args?: string; argsId: string } }
   | { type: "tool_result"; data: { toolRound: number; callId: string; name: string; outputPreview?: string } }
-  | { type: "done"; data: { message: string } }
+  | { type: "end"; data: { message: string } }
+  | { type: "pause"; data: { reason: string } }
   | { type: "error"; data: { message: string } };
 
 export type UIMessage = {
@@ -22,4 +23,6 @@ export interface AgentState {
   toolRounds: number,
   skills: string[];
   messages: UIMessage[];
+  pause?: boolean
+  runId: string | null
 }

@@ -106,7 +106,7 @@ export const fetchCrypto = async ({ ticker, name, quantity }: z.infer<typeof cry
             content: [
                 {
                     type: "text",
-                    text: "Failed to retrieve cryptocurrency data",
+                    text: `Failed to retrieve cryptocurrency data: ${error}`,
                 },
             ],
         }

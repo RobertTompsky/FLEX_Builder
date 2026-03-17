@@ -8,7 +8,7 @@ const ENV_WHITELIST = [
   "PATH", "PATHEXT", "SYSTEMROOT", "TEMP", "TMP",
   "HOMEDRIVE", "HOMEPATH", "USERPROFILE",
   "APPDATA", "LOCALAPPDATA", "COMSPEC",
-  "TAVILY_API_KEY",
+  "TAVILY_API_KEY", "OPENAI_API_KEY"
 ];
 
 const sandboxEnv: Record<string, string> = {};

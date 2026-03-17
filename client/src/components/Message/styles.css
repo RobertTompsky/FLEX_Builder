@@ -21,6 +21,32 @@
     color: #8aa7ff;
 }
 
+.msg.assistant.is-incomplete > :last-child::after {
+    content: "_";
+    display: inline-block;
+    margin-left: 2px;
+    font-family: "Courier New", monospace;
+    font-weight: 700;
+    line-height: 1;
+    vertical-align: baseline;
+    position: relative;
+    top: -4px;
+    animation: terminal-caret-blink 0.9s steps(1, end) infinite;
+}
+
+@keyframes terminal-caret-blink {
+
+    0%,
+    49% {
+        opacity: 1;
+    }
+
+    50%,
+    100% {
+        opacity: 0;
+    }
+}
+
 /* message text */
 .msg-text {
     white-space: normal;
@@ -72,7 +98,7 @@
 
 .msg-text pre,
 .msg-text code {
-  white-space: pre-wrap;
+    white-space: pre-wrap;
 }
 
 /* links / hr */
@@ -100,17 +126,19 @@
 }
 
 @keyframes block-spin {
-  0% { transform: rotate(0deg); }
-  25% { transform: rotate(90deg); }
-  50% { transform: rotate(180deg); }
-  75% { transform: rotate(270deg); }
-}
+    0% {
+        transform: rotate(0deg);
+    }
 
-.msg.assistant[data-status="in_progress"]
-.msg-text p:last-child::after {
-  content: "■";
-  display: inline-block;
-  margin-left: 4px;
-  animation: block-spin 1s steps(4) infinite;
-  vertical-align: baseline;
+    25% {
+        transform: rotate(90deg);
+    }
+
+    50% {
+        transform: rotate(180deg);
+    }
+
+    75% {
+        transform: rotate(270deg);
+    }
 }

@@ -7,6 +7,7 @@ export const agentState = $state<AgentState>({
     skills: [],
     toolRounds: 3,
     messages: [],
+    runId: null
 });
 
 export const eventsState = $state<{

@@ -9,11 +9,14 @@ import crypto from "crypto";
 type Checkpoint = {
   id: string
   createdAt: number
-  messages: ResponseInputItem[]
+  data: {
+    messages: ResponseInputItem[]
+    runId: string
+  }
 }
 
 type Checkpointer = {
-  save(messages: ResponseInput): Promise<Checkpoint>
+  save(data: Checkpoint['data']): Promise<Checkpoint>
   load(): Promise<Checkpoint | null>
   clear(): Promise<void>
 }
@@ -30,13 +33,13 @@ export function createCheckpointer(
     `${Date.now()}-${crypto.randomUUID()}`
 
   return {
-    async save(messages) {
+    async save(data) {
       await ensureDir()
 
       const cp: Checkpoint = {
         id: makeId(),
         createdAt: Date.now(),
-        messages
+        data
       }
 
       const file = path.join(dir, `${cp.id}.json`)

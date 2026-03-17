@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import type {
   FunctionTool,
   ResponseInputItem,
-  ResponseFunctionToolCallItem
+  ResponseFunctionToolCallItem,
 } from "openai/resources/responses/responses.js";
 import { z } from "zod";
 import fs from "fs";
@@ -17,26 +17,31 @@ export const CodeGenSchema = z.object({
     .max(10_000, "Code is too large")
 })
 
-type AgentEvent =
-  | { type: "init"; data: { message: string } }
+export type AgentEvent =
+  | { type: "init"; data: { message: string, runId: string } }
   | { type: "text_delta"; data: { delta: string } }
   | { type: "text_end"; data: { responseId: string; fullText: string } }
   | { type: "output_item.added"; data: { toolRound: number; id: string; callId: string; name: string } }
   | { type: "arguments_delta"; data: { toolRound: number; delta: string; id: string } }
   | { type: "tool_start"; data: { toolRound: number; callId: string; name: string; args?: string; argsId: string } }
   | { type: "tool_result"; data: { toolRound: number; callId: string; name: string; outputPreview?: string } }
-  | { type: "done"; data: { message: string } }
+  | { type: "end"; data: { message: string } }
+  | { type: "pause"; data: { reason: string } }
   | { type: "error"; data: { message: string } };
 
-type Emit<E> = (ev: E) => void | Promise<void>
+export type Emit<E> = (ev: E) => void | Promise<void>
 
 export type Config = {
   messages: ResponseInputItem[],
   model: string
   skills?: {
     baseDir: string
-    allowed: string[]
+    allowed: {
+      name: string,
+      description?: string
+    }[]
   },
+  pause?: boolean,
   opts?: {
     toolRounds?: number
     sandboxTimeout?: number,
@@ -52,7 +57,7 @@ export async function agent(
   config: Config,
   emit?: Emit<AgentEvent>
 ): Promise<Config> {
-  const { model, skills } = config
+  const { model, skills, pause } = config
   const opts = (config.opts ??= {})
   const {
     toolRounds = 3,
@@ -76,8 +81,6 @@ export async function agent(
   try {
     if (config.messages.length === 0) throw Error('No messages provided')
 
-    await safeEmit({ type: "init", data: { message: "INIT" } })
-
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
     let openaiTools: FunctionTool[] = []
@@ -93,7 +96,7 @@ export async function agent(
         .map((entry) => entry.name);
 
       const allSkills = new Set(entries);
-      const allowedSkills = [...new Set(skills.allowed.map((s) => s.trim()).filter(Boolean))];
+      const allowedSkills = [...new Set(skills.allowed.map((s) => s.name.trim()).filter(Boolean))];
       const unknownSkills = allowedSkills.filter((name) => !allSkills.has(name));
 
       if (unknownSkills.length > 0) {
@@ -102,10 +105,22 @@ export async function agent(
 
       if (allowedSkills.length > 0) {
         const skillsTree = allowedSkills
-          .map(name => readDirTree(path.join(skills.baseDir, name)))
-          .join("");
-        
-        const skillsDirName = path.relative(SRC_DIR, SKILLS_DIR)
+          .map((name) => {
+            const tree = readDirTree(path.join(skills.baseDir, name));
+            const desc = skills.allowed.find((s) => s.name === name)?.description?.trim();
+
+            return [
+              `Skill name: ${name}`,
+              `Skill description: ${desc || "No description provided."}`,
+              `Skill file tree:`,
+              "```text",
+              tree,
+              "```",
+            ].join("\n");
+          })
+          .join("\n\n");
+
+        const skillsDirName = path.relative(SRC_DIR, SKILLS_DIR);
 
         const runTsTool: FunctionTool = {
           type: "function",
@@ -113,9 +128,18 @@ export async function agent(
           strict: true,
           description: `
           Execute TypeScript code in a sandboxed Bun process.
-          Working directory is the project root. The "${skillsDirName}" directory contains available skill functions for handling user tasks.
+          Working directory is the project root. 
           
-          Structure of the skills directory:         
+          All available skills are located inside the "${skillsDirName}" directory.
+          Each subdirectory inside this directory represents one skill.
+          A skill may contain one or more TypeScript files that you can read and import.
+
+          Each skill block below contains:
+          - skill name
+          - optional description
+          - file tree
+
+          Available skills:
           ${skillsTree}
           
           Rules:
@@ -135,14 +159,12 @@ export async function agent(
       }
     }
 
-
     let toolRound = 1
 
     while (true) {
       throwIfAborted()
 
       let roundText = ""
-      const toolResults: ResponseInputItem.FunctionCallOutput[] = []
 
       const rspStream = openai.responses.stream({
         model,
@@ -202,6 +224,8 @@ export async function agent(
 
       const outputItems = final.output ?? []
 
+      const pendingTools: ResponseFunctionToolCallItem[] = []
+
       for (const item of outputItems) {
 
         if (item.type === "function_call") {
@@ -209,14 +233,16 @@ export async function agent(
             JSON.parse(item.arguments ?? "{}")
           )
 
-          config.messages.push({
+          const toolCall = {
             id: item.id,
             type: "function_call",
             name: item.name,
             arguments: item.arguments,
             call_id: item.call_id,
             status: "completed",
-          } as ResponseFunctionToolCallItem);
+          } as ResponseFunctionToolCallItem
+
+          config.messages.push(toolCall);
 
           await safeEmit({
             type: "tool_start",
@@ -229,12 +255,45 @@ export async function agent(
             }
           })
 
+          pendingTools.push(toolCall)
+        } else config.messages.push(item)
+      }
+
+      if (roundText.length > 0) {
+        await safeEmit({
+          type: "text_end",
+          data: {
+            responseId: final.id,
+            fullText: roundText
+          }
+        })
+      }
+
+      if (pendingTools.length > 0 && pause) {
+
+        await safeEmit({
+          type: "pause",
+          data: { reason: "tool_calls" }
+        })
+
+        return config
+      }
+
+      const toolResults: ResponseInputItem.FunctionCallOutput[] = []
+
+      for (const item of pendingTools) {
+
+        if (item.type === "function_call") {
+          const args = CodeGenSchema.parse(
+            JSON.parse(item.arguments ?? "{}")
+          )
+
           throwIfAborted()
 
           const { stdout } = await executeCode(
             args.code,
             sandboxTimeout,
-            skills?.allowed ?? []
+            skills?.allowed.map(s => s.name) ?? []
           )
 
           const toolMsg: ResponseInputItem.FunctionCallOutput = {
@@ -260,16 +319,8 @@ export async function agent(
         }
       }
 
-      await safeEmit({
-        type: "text_end",
-        data: {
-          responseId: final.id,
-          fullText: roundText
-        }
-      })
-
       if (toolResults.length === 0) {
-        await safeEmit({ type: "done", data: { message: "END" } });
+        await safeEmit({ type: "end", data: { message: "END" } });
         return config;
       }
 
@@ -284,7 +335,15 @@ export async function agent(
       toolRound++
     }
   } catch (e) {
-    await safeEmit({ type: "error", data: { message: errMsg(e) } })
+    if (signal?.aborted) {
+      return config
+    }
+
+    await safeEmit({
+      type: "error",
+      data: { message: errMsg(e) }
+    });
+
     return config
   }
 }
