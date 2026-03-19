@@ -1,21 +1,10 @@
 import { agent } from "../../llm/agent";
-import fs from 'fs'
 import { SKILLS_DIR } from "../../data";
 import z from "zod";
+import { getSkillsRegistry } from "../../lib/utils/getSkillsRegistry";
 
-export function getAllowedSkills(baseDir: string) {
-  return fs
-    .readdirSync(baseDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && entry.name !== 'og')
-    .map((entry) => ({
-      name: entry.name
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
-
-// Use this array to fill `allowed` field in the `config` object if agent needs all skills to complete task. 
-// Otherwise read this array via console.log and choose only necessary skills.  
-export const allowedSkills = getAllowedSkills(SKILLS_DIR)
+// Read this array via console.log and choose only necessary skills.  
+export const allowedSkills = getSkillsRegistry(SKILLS_DIR).filter(skill => skill.access === 'public')
 
 if (allowedSkills.length === 0) throw new Error("No allowed skills found");
 
@@ -27,10 +16,8 @@ const PublicAgentConfigSchema = z.object({
       status: z.literal("completed"),
     })
   ).min(1, { error: 'Expected at least one message' }),
-  model: z.literal("gpt-5.2-chat-latest"),
   skills: z.object({
-    // baseDir: z.literal('/skills'),
-    allowed: z.array(
+    available: z.array(
       z.object({
         name: z.enum(allowedSkills.map(s => s.name))
       })
@@ -44,12 +31,28 @@ export type PublicAgentConfig = z.infer<typeof PublicAgentConfigSchema>
 export async function callAgent(config: PublicAgentConfig) {
   const parsed = PublicAgentConfigSchema.parse(config);
 
+  const allowedSkillsMap = new Map(
+    allowedSkills.map((skill) => [skill.name, skill]),
+  );
+
   const agentConfig = {
     ...parsed,
+    model: 'gpt-5.4-mini',
     skills: parsed.skills
       ? {
-        ...parsed.skills,
         baseDir: SKILLS_DIR,
+        available: parsed.skills.available.map(({ name }) => {
+          const skill = allowedSkillsMap.get(name);
+
+          if (!skill) {
+            throw new Error(`Unknown allowed skill: ${name}`);
+          }
+
+          return {
+            name: skill.name,
+            description: skill.description,
+          };
+        }),
       }
       : undefined,
   };

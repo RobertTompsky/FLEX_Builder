@@ -27,16 +27,17 @@ Runs an agent with the provided configuration.
 
 ### `allowedSkills`
 
-Array of available skill objects that may be passed to the `allowed` field.
+Array of available skill objects that may be passed to the `available` field.
 
-Import and use this value when choosing which skills to allow.
+Before selecting skills for a sub-agent, use `console.log(allowedSkills)` to inspect which specific skills are available.
+
+Only include skills that exist in `allowedSkills` and are needed to complete the task.
 
 ## Input contract
 
-The input **must strictly match** the `PublicAgentConfig` interface defined in the `callAgent.ts` file. 
-**Must** read this file before filling input object.
+The input **must strictly match** the `PublicAgentConfig` interface defined in the `callAgent.ts` file.  
+**Must** read this file before filling the input object.
 
-Do not add extra fields.
+Do not add extra fields.  
 Do not use unsupported values.
-Only pass skills that exist in `allowedSkills`.
 

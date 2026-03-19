@@ -13,6 +13,7 @@ import type {
 } from 'openai/resources/responses/responses.js';
 import { executeCode } from './code/executeCode';
 import path from 'path';
+import { getSkillsRegistry } from './lib/utils/getSkillsRegistry';
 
 const app = new Hono()
 
@@ -213,7 +214,7 @@ app
                 content: [
                   body.prompt ?? '',
                   "For all external data you **must** read only files from the skills directory to discover tools and call the appropriate one.",
-                  "Consider having all needed functions in the skills directory. You can use them directly by imports."
+                  "Consider having all needed functions and info in the skills directory. You can use them directly by imports."
                 ].join('\n'),
                 status: 'completed'
               },
@@ -221,32 +222,13 @@ app
                 ? []
                 : [{
                   role: "user",
-                  content: body.query ?? '',
+                  content: body.query,
                   status: 'completed'
                 } as UIMessage])
             ],
             skills: {
               baseDir: SKILLS_DIR,
-              allowed: fs
-                .readdirSync(SKILLS_DIR, { withFileTypes: true })
-                .filter((entry) => entry.isDirectory())
-                .map((entry) => {
-                  const name = entry.name;
-
-                  if (name !== "og") {
-                    return { name };
-                  }
-
-                  const readmePath = path.join(SKILLS_DIR, name, "README.md");
-                  let description: string | undefined;
-
-                  if (fs.existsSync(readmePath)) {
-                    description = fs.readFileSync(readmePath, "utf8").trim();
-                  }
-
-                  return description ? { name, description } : { name };
-                })
-                .sort((a, b) => a.name.localeCompare(b.name)),
+              available: getSkillsRegistry(SKILLS_DIR).filter(skill => body.skills?.includes(skill.name))
             },
             pause: body.pause,
             opts: {

@@ -36,7 +36,7 @@ export type Config = {
   model: string
   skills?: {
     baseDir: string
-    allowed: {
+    available: {
       name: string,
       description?: string
     }[]
@@ -96,7 +96,7 @@ export async function agent(
         .map((entry) => entry.name);
 
       const allSkills = new Set(entries);
-      const allowedSkills = [...new Set(skills.allowed.map((s) => s.name.trim()).filter(Boolean))];
+      const allowedSkills = [...new Set(skills.available.map((s) => s.name.trim()).filter(Boolean))];
       const unknownSkills = allowedSkills.filter((name) => !allSkills.has(name));
 
       if (unknownSkills.length > 0) {
@@ -107,7 +107,7 @@ export async function agent(
         const skillsTree = allowedSkills
           .map((name) => {
             const tree = readDirTree(path.join(skills.baseDir, name));
-            const desc = skills.allowed.find((s) => s.name === name)?.description?.trim();
+            const desc = skills.available.find((s) => s.name === name)?.description?.trim();
 
             return [
               `Skill name: ${name}`,
@@ -293,7 +293,7 @@ export async function agent(
           const { stdout } = await executeCode(
             args.code,
             sandboxTimeout,
-            skills?.allowed.map(s => s.name) ?? []
+            skills?.available.map(s => s.name) ?? []
           )
 
           const toolMsg: ResponseInputItem.FunctionCallOutput = {

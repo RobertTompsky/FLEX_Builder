@@ -6,7 +6,6 @@
     import { callAgent } from "../../api/callAgent";
 
     let query = $state("");
-    let messagesEl: HTMLElement | null = null;
 
     async function send(e: Event) {
         e.preventDefault()
@@ -48,7 +47,7 @@
     </header>
 
     <div class="window-body">
-        <section class="messages" bind:this={messagesEl}>
+        <section class="messages">
             {#each agentState.messages as m}
                 <Message content={m.content} role={m.role} status={m.status} />
             {/each}
