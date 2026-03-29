@@ -7,7 +7,6 @@
 
     let approved = $state<Set<string>>(new Set<string>());
     let expanded = $state<Set<string>>(new Set<string>());
-    let bodyEl: HTMLElement | null = null;
 
     type Status = "idle" | "running" | "paused" | "done" | "error";
 
@@ -88,7 +87,7 @@
         <span class="aw-header-count">[{eventsState.events.length}]</span>
     </div>
 
-    <div class="aw-screen" bind:this={bodyEl}>
+    <div class="aw-screen">
         {#if eventsState.events.length === 0}
             <div class="aw-empty">No events recorded</div>
         {:else}

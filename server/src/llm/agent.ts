@@ -32,6 +32,7 @@ export type AgentEvent =
 export type Emit<E> = (ev: E) => void | Promise<void>
 
 export type Config = {
+  name?: string,
   messages: ResponseInputItem[],
   model: string
   skills?: {
@@ -132,7 +133,7 @@ export async function agent(
           
           All available skills are located inside the "${skillsDirName}" directory.
           Each subdirectory inside this directory represents one skill.
-          A skill may contain one or more TypeScript files that you can read and import.
+          A skill may contain one or more TypeScript files that you can read and import
 
           Each skill block below contains:
           - skill name

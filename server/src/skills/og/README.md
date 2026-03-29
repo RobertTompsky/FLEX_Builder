@@ -29,7 +29,7 @@ Runs an agent with the provided configuration.
 
 Array of available skill objects that may be passed to the `available` field.
 
-Before selecting skills for a sub-agent, use `console.log(allowedSkills)` to inspect which specific skills are available.
+Before selecting skills for a sub-agent, **use `console.log(allowedSkills)`** to inspect which specific skills are available.
 
 Only include skills that exist in `allowedSkills` and are needed to complete the task.
 

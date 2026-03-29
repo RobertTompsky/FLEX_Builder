@@ -108,8 +108,7 @@ app
       console.log(body)
 
       if (body.query && body.toolCallIds?.length) {
-        console.log('test stop - query and toolCalls found')
-        return c.text('test stop')
+        return c.text('Found both query and toolCallIds in req.body')
       }
 
       let history = (await checkpointer.load())?.data.messages.filter(

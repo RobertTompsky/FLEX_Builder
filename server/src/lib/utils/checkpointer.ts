@@ -1,5 +1,4 @@
 import type {
-  ResponseInput,
   ResponseInputItem,
 } from "openai/resources/responses/responses.js";
 import fs from "fs-extra"
