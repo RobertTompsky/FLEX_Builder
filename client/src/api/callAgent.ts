@@ -62,12 +62,13 @@ export const callAgent = async (
         agentState.messages.push(
             {
                 role: "user",
-                content: query
+                content: query,
+                status: 'completed'
             },
             {
                 role: "assistant",
                 content: "",
-                status: "incomplete",
+                status: "in_progress",
             }
         );
     }

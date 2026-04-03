@@ -8,6 +8,7 @@ export type AgentEvent =
   | { type: "tool_result"; data: { toolRound: number; callId: string; name: string; outputPreview?: string } }
   | { type: "end"; data: { message: string } }
   | { type: "pause"; data: { reason: string } }
+  | { type: "stop"; data: { runId?: string; reason: string } }
   | { type: "error"; data: { message: string } };
 
 export type UIMessage = {

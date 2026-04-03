@@ -21,7 +21,7 @@
     color: #8aa7ff;
 }
 
-.msg.assistant.is-incomplete > :last-child::after {
+.msg.assistant.msg.assistant[data-status="in_progress"] > :last-child::after {
     content: "_";
     display: inline-block;
     margin-left: 2px;
