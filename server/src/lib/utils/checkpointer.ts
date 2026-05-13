@@ -10,7 +10,6 @@ type Checkpoint = {
   createdAt: number
   data: {
     messages: ResponseInputItem[]
-    runId: string
   }
 }
 

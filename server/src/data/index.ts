@@ -7,12 +7,6 @@ export const SRC_DIR = path.resolve(DATA_DIR, "..");
 export const SKILLS_DIR = path.join(SRC_DIR, "skills");
 export const ARTIFACTS_DIR = path.join(SRC_DIR, "artifacts");
 
-export const ALLOWED_FILE_FOLDERS = new Set([
-  path.resolve(ARTIFACTS_DIR),
-  path.resolve(SKILLS_DIR),
-]);
-
-
 export const MODELS = [
     'gpt-5.4-mini',
     'gpt-5.2-chat-latest',

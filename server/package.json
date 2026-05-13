@@ -6,9 +6,9 @@
   "dependencies": {
     "@hono/zod-validator": "^0.7.6",
     "fs-extra": "^11.3.4",
-    "hono": "^4.12.7",
-    "openai": "^6.27.0",
-    "zod": "^4.3.6"
+    "hono": "^4.12.16",
+    "openai": "^6.35.0",
+    "zod": "^4.4.1"
   },
   "devDependencies": {
     "@types/bun": "latest",

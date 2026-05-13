@@ -2,9 +2,14 @@ import path from 'path'
 import fs from 'fs-extra'
 import type z from 'zod';
 import type { ReadSchema, WriteSchema } from './schemas';
+import { ARTIFACTS_DIR, SKILLS_DIR } from '../../data';
 
 const REGISTRY_FILE = "registry.json";
 const HISTORY_FILE = "history.jsonl";
+
+export const ALLOWED_FOLDERS = [ARTIFACTS_DIR, SKILLS_DIR].map((x) =>
+  path.resolve(x),
+);
 
 export type ArtifactOperationType = "create" | "update" | "read";
 

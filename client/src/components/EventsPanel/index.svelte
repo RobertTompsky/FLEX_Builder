@@ -1,14 +1,18 @@
 <script lang="ts">
-    import { callAgent } from "../../api/callAgent";
+    import {
+        callAgent,
+        processToolCalls,
+        stopAgent,
+    } from "../../api/callAgent";
     import type { AgentEvent } from "../../lib/types";
     import { md } from "../../lib/utils/markdown";
-    import { eventsState } from "../../store/index.svelte";
+    import { eventsState, agentState } from "../../store/index.svelte";
     import "./styles.css";
 
     let approved = $state<Set<string>>(new Set<string>());
     let expanded = $state<Set<string>>(new Set<string>());
 
-    type Status = "idle" | "running" | "paused" | "done" | "error";
+    type Status = "idle" | "running" | "paused" | "done" | "error" | "stopped";
 
     const STATUS_LABELS: Record<Status, string> = {
         idle: "Idle",
@@ -16,6 +20,7 @@
         paused: "Paused",
         done: "Complete",
         error: "Error",
+        stopped: "Stopped",
     };
 
     let status = $derived.by<Status>(() => {
@@ -24,6 +29,7 @@
         if (!last) return "idle";
         if (last.type === "error") return "error";
         if (last.type === "pause") return "paused";
+        if (last.type === "stop") return "stopped";
         if (last.type === "end") return "done";
 
         return "running";
@@ -165,6 +171,89 @@
                     <div class="aw-line aw-done">✓ {ev.data.message}</div>
                 {/if}
 
+                <!-- {#if ev.type === "pause"}
+                    <div class="aw-pause">
+                        <div class="aw-line aw-pause-title">‖ PAUSED</div>
+                        <div class="aw-line aw-pause-reason">
+                            Reason: <span>{ev.data.reason}</span>
+                        </div>
+
+                        <div class="aw-btn-group">
+                            <button
+                                type="button"
+                                class={`aw-resume ${approved.size === 0 ? "aw-resume-back" : "aw-resume-run"}`}
+                                onclick={async () => {
+                                    const ids = [...approved];
+
+                                    const toolResultIds = new Set(
+                                        eventsState.events
+                                            .filter(
+                                                (ev) =>
+                                                    ev.type === "tool_result",
+                                            )
+                                            .map((ev) => ev.data.callId),
+                                    );
+
+                                    const keepCall = (callId: string) =>
+                                        toolResultIds.has(callId) ||
+                                        approved.has(callId);
+
+                                    eventsState.events =
+                                        eventsState.events.filter((ev) => {
+                                            if (ev.type === "pause")
+                                                return false;
+
+                                            if (
+                                                ev.type === "tool_start" ||
+                                                ev.type === "output_item.added"
+                                            ) {
+                                                return keepCall(ev.data.callId);
+                                            }
+
+                                            if (ev.type === "arguments_delta") {
+                                                const added =
+                                                    eventsState.events.find(
+                                                        (e) =>
+                                                            e.type ===
+                                                                "output_item.added" &&
+                                                            e.data.id ===
+                                                                ev.data.id,
+                                                    );
+
+                                                return added?.type !==
+                                                    "output_item.added"
+                                                    ? true
+                                                    : keepCall(
+                                                          added.data.callId,
+                                                      );
+                                            }
+
+                                            return true;
+                                        });
+
+                                    await processToolCalls(ids);
+
+                                    approved = new Set();
+
+                                    if (ids.length > 0) {
+                                        await callAgent({ query: null });
+                                    }
+                                }}
+                            >
+                                {approved.size === 0
+                                    ? "BACK"
+                                    : `Resume [${approved.size}]`}
+                            </button>
+                            <button
+                                class="aw-btn-stop"
+                                onclick={async () => {
+                                    await stopAgent(agentState.runId!);
+                                }}>STOP</button
+                            >
+                        </div>
+                    </div>
+                {/if} -->
+
                 {#if ev.type === "pause"}
                     <div class="aw-pause">
                         <div class="aw-line aw-pause-title">‖ PAUSED</div>
@@ -172,61 +261,93 @@
                             Reason: <span>{ev.data.reason}</span>
                         </div>
 
-                        <button
-                            type="button"
-                            class={`aw-resume ${approved.size === 0 ? "aw-resume-back" : "aw-resume-run"}`}
-                            onclick={() => {
-                                const toolResultIds = new Set(
-                                    eventsState.events
-                                        .filter(
-                                            (ev) => ev.type === "tool_result",
-                                        )
-                                        .map((ev) => ev.data.callId),
-                                );
+                        <div class="aw-pause-controls">
+                            <button
+                                type="button"
+                                class={`aw-resume ${approved.size === 0 ? "aw-resume-back" : "aw-resume-run"}`}
+                                onclick={async () => {
+                                    const ids = [...approved];
 
-                                const keepCall = (callId: string) =>
-                                    toolResultIds.has(callId) ||
-                                    approved.has(callId);
+                                    const toolResultIds = new Set(
+                                        eventsState.events
+                                            .filter(
+                                                (ev) =>
+                                                    ev.type === "tool_result",
+                                            )
+                                            .map((ev) => ev.data.callId),
+                                    );
 
-                                eventsState.events = eventsState.events.filter(
-                                    (ev) => {
-                                        if (ev.type === "pause") return false;
+                                    const keepCall = (callId: string) =>
+                                        toolResultIds.has(callId) ||
+                                        approved.has(callId);
 
-                                        if (
-                                            ev.type === "tool_start" ||
-                                            ev.type === "output_item.added"
-                                        ) {
-                                            return keepCall(ev.data.callId);
-                                        }
+                                    eventsState.events =
+                                        eventsState.events.filter((ev) => {
+                                            if (ev.type === "pause")
+                                                return false;
 
-                                        if (ev.type === "arguments_delta") {
-                                            const added =
-                                                eventsState.events.find(
-                                                    (e) =>
-                                                        e.type ===
-                                                            "output_item.added" &&
-                                                        e.data.id ===
-                                                            ev.data.id,
-                                                );
+                                            if (
+                                                ev.type === "tool_start" ||
+                                                ev.type === "output_item.added"
+                                            ) {
+                                                return keepCall(ev.data.callId);
+                                            }
 
-                                            return added?.type !==
-                                                "output_item.added"
-                                                ? true
-                                                : keepCall(added.data.callId);
-                                        }
+                                            if (ev.type === "arguments_delta") {
+                                                const added =
+                                                    eventsState.events.find(
+                                                        (e) =>
+                                                            e.type ===
+                                                                "output_item.added" &&
+                                                            e.data.id ===
+                                                                ev.data.id,
+                                                    );
 
-                                        return true;
-                                    },
-                                );
+                                                return added?.type !==
+                                                    "output_item.added"
+                                                    ? true
+                                                    : keepCall(
+                                                          added.data.callId,
+                                                      );
+                                            }
 
-                                callAgent({ toolCallIds: [...approved] });
-                                approved = new Set();
-                            }}
-                        >
-                            {approved.size === 0
-                                ? "BACK"
-                                : `Resume [${approved.size}]`}
-                        </button>
+                                            return true;
+                                        });
+
+                                    await processToolCalls(ids);
+
+                                    approved = new Set();
+
+                                    if (ids.length > 0) {
+                                        await callAgent({ query: null });
+                                    }
+                                }}
+                            >
+                                {approved.size === 0
+                                    ? "BACK"
+                                    : `Resume [${approved.size}]`}
+                            </button>
+
+                            <button
+                                type="button"
+                                class="aw-stop-button"
+                                onclick={async () => {
+                                    await stopAgent(agentState.runId!);
+                                    approved = new Set();
+                                }}
+                            >
+                                STOP
+                            </button>
+                        </div>
+                    </div>
+                {/if}
+
+                {#if ev.type === "stop"}
+                    <div class="aw-stop">
+                        <div class="aw-line aw-stop-title">■ STOP</div>
+                        <div class="aw-line aw-stop-reason">
+                            Reason: <span>{ev.data.reason}</span>
+                        </div>
                     </div>
                 {/if}
 

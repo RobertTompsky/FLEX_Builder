@@ -1,4 +1,4 @@
-import { fetchEventSource, type EventSourceMessage } from "@microsoft/fetch-event-source";
+import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { agentState, eventsState } from "../store/index.svelte";
 import type { AgentEvent, UIMessage } from "../lib/types";
 import { tick } from "svelte";
@@ -25,38 +25,19 @@ function upsertAssistantErr(
     }
 }
 
-function parseSSE(ev: EventSourceMessage): AgentEvent {
-    return {
-        type: ev.event,
-        data: JSON.parse(ev.data),
-    } as AgentEvent;
-}
-
 export const callAgent = async (
-    { query, toolCallIds }: { query?: string, toolCallIds?: string[] }
+    { query }: { query: string | null }
 ) => {
-    console.log(toolCallIds)
-    const isResume = Array.isArray(toolCallIds)
+    const isResume = query === null
 
-    if (!query && !isResume) {
+    if (!isResume && !query.trim()) {
         return;
     }
 
     const MAX_RETRIES = 3;
     let retryCount = 0;
     let msg: UIMessage | null = null;
-    let runId: string;
-
-    if (isResume) {
-        if (!agentState.runId) {
-            console.error("Resume called without runId");
-            return;
-        }
-        runId = agentState.runId;
-    } else {
-        runId = crypto.randomUUID();
-        agentState.runId = runId;
-    }
+    let runId = crypto.randomUUID();
 
     if (query) {
         agentState.messages.push(
@@ -78,9 +59,11 @@ export const callAgent = async (
         msg = last;
     }
 
+    agentState.runId = runId
+
     streamBuffer.setMessage(msg);
 
-    if (controller) {
+    if (controller && !controller.signal.aborted) {
         controller.abort();
     }
     controller = new AbortController();
@@ -94,7 +77,6 @@ export const callAgent = async (
         toolRounds: agentState.toolRounds,
         skills: agentState.skills,
         pause: agentState.pause,
-        toolCallIds,
         runId
     };
 
@@ -108,28 +90,42 @@ export const callAgent = async (
             if (!isResume) {
                 eventsState.events = []
             }
-            console.log(toolCallIds)
         },
         onmessage(ev) {
             if (!msg) return;
 
-            const event = parseSSE(ev);
+            const event = {
+                type: ev.event,
+                data: JSON.parse(ev.data),
+            } as AgentEvent;
 
             switch (event.type) {
                 case "text_delta":
-                    if (msg.status!== 'in_progress') msg.status = "in_progress";
+                    if (msg.status !== 'in_progress') msg.status = "in_progress";
                     streamBuffer.push(event.data.delta);
                     return;
 
                 case "end":
+                    controller = null;
                     msg.status = "completed";
                     eventsState.events.push(event);
                     agentState.runId = null;
                     return;
 
                 case "error":
+                    controller = null;
                     msg.status = "incomplete";
                     msg.content = event.data.message;
+                    eventsState.events.push(event);
+                    agentState.runId = null;
+                    return;
+
+                case "stop":
+                    controller = null;
+                    if (!msg.content.trim()) {
+                        msg.content = "[ STOPPED BY USER ]";
+                    }
+                    msg.status = "incomplete";
                     eventsState.events.push(event);
                     agentState.runId = null;
                     return;
@@ -141,20 +137,21 @@ export const callAgent = async (
 
         onclose() {
             if (!msg) return;
-
-            if (eventsState.events.at(-1)?.type === "pause") {
-                msg.status = "incomplete";
-            } else if (msg.status !== "incomplete") {
-                msg.status = "completed";
-            }
+            console.log("[client] sse closed; last event =", eventsState.events.at(-1)?.type);
         },
 
         onerror(err) {
+            if (controller?.signal.aborted || !agentState.runId) {
+                console.log("[client] SSE aborted/finished");
+                throw err;
+            }
+
             retryCount++;
             console.error("SSE error:", err);
 
             if (retryCount >= MAX_RETRIES) {
                 controller?.abort();
+                controller = null;
                 agentState.runId = null;
                 upsertAssistantErr(msg, "Сервер недоступен.", "incomplete");
                 eventsState.events.push({
@@ -171,4 +168,76 @@ export const callAgent = async (
             );
         },
     });
+}
+
+export async function stopAgent(runId: string) {
+    if (!runId) return;
+
+    await fetchEventSource(`http://localhost:3000/runs/${runId}/stop`, {
+        method: "POST",
+
+        onmessage(ev) {
+            const event = {
+                type: ev.event,
+                data: JSON.parse(ev.data),
+            } as AgentEvent;
+
+            if (
+                event.type === "stop" &&
+                event.data.reason === "paused_cleanup"
+            ) {
+                eventsState.events = eventsState.events.filter(
+                    (e) => e.type !== "pause",
+                );
+            }
+            eventsState.events.push(event);
+            const last = agentState.messages.at(-1);
+
+            if (last?.role === "assistant" && last.status === "in_progress") {
+                last.content = 'Stopped by user'
+                last.status = "incomplete";
+            }
+        },
+
+        onerror(err) {
+            console.error("Failed to stop run on server", err);
+            throw err;
+        },
+    });
+}
+
+export async function processToolCalls(toolCallIds: string[]) {
+    await fetchEventSource(`http://localhost:3000/handleToolcalls`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            toolCallIds,
+            skills: agentState.skills,
+        }),
+        onmessage(ev) {
+            const event = {
+                type: ev.event,
+                data: JSON.parse(ev.data),
+            } as AgentEvent;
+
+            eventsState.events.push(event);
+        },
+        onerror(err) {
+            console.error("processToolCalls error", err);
+            throw err;
+        },
+    });
+}
+
+export async function clearHistory() {
+    try {
+        const res = await fetch("http://localhost:3000/clearHistory");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        agentState.messages = [];
+        eventsState.events = [];
+    } catch (e) {
+        console.error("Failed to clear history", e);
+    }
 }

@@ -13,23 +13,25 @@ export function getSkillsRegistry(baseDir: string): SkillInfo[] {
     return fs
         .readdirSync(baseDir, { withFileTypes: true })
         .filter((entry) => entry.isDirectory())
-        .map((entry) => {
-            const name = entry.name;
-            const metaPath = path.join(baseDir, name, "skill.meta.json");
+        .map(
+            (entry) => {
+                const name = entry.name;
+                const metaPath = path.join(baseDir, name, "skill.meta.json");
 
-            if (!fs.existsSync(metaPath)) {
-                throw new Error(`Missing skill.meta.json for skill "${name}"`);
+                if (!fs.existsSync(metaPath)) {
+                    throw new Error(`Missing skill.meta.json for skill "${name}"`);
+                }
+
+                const meta = SkillMetaSchema.parse(
+                    JSON.parse(fs.readFileSync(metaPath, "utf8")),
+                );
+
+                return {
+                    name,
+                    description: meta.description,
+                    access: meta.access,
+                };
             }
-
-            const meta = SkillMetaSchema.parse(
-                JSON.parse(fs.readFileSync(metaPath, "utf8")),
-            );
-
-            return {
-                name,
-                description: meta.description,
-                access: meta.access,
-            };
-        })
+        )
         .sort((a, b) => a.name.localeCompare(b.name));
 }

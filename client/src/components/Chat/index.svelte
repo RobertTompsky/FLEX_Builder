@@ -1,29 +1,26 @@
 <script lang="ts">
     import { agentState, infoState } from "../../store/index.svelte";
     import Message from "../Message/index.svelte";
-    import { eventsState } from "../../store/index.svelte";
     import "./styles.css";
-    import { callAgent } from "../../api/callAgent";
+    import { callAgent, clearHistory, stopAgent } from "../../api/callAgent";
 
     let query = $state("");
 
+    const lastMessage = $derived(agentState.messages.at(-1));
+
     async function send(e: Event) {
-        e.preventDefault()
-        const text = query.trim();
-        if (!text) return;
+        e.preventDefault();
+        if (
+            lastMessage?.role === "assistant" &&
+            lastMessage.status === "in_progress"
+        ) {
+            await stopAgent(agentState.runId!);
+        } else {
+            const text = query.trim();
+            if (!text) return;
 
-        query = ""; // очищаем поле сразу
-        await callAgent({ query: text });
-    }
-
-    async function clearHistory() {
-        try {
-            const res = await fetch("http://localhost:3000/clearHistory");
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            agentState.messages = [];
-            eventsState.events = [];
-        } catch (e) {
-            console.error("Failed to clear history", e);
+            query = ""; // очищаем поле сразу
+            await callAgent({ query: text });
         }
     }
 </script>
@@ -60,7 +57,7 @@
                 placeholder="Введите сообщение..."
                 onkeydown={async (e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
-                        send(e)
+                        send(e);
                     }
                 }}
             ></textarea>
@@ -70,7 +67,9 @@
                 onclick={async (e) => await send(e)}
                 disabled={!!infoState.error || infoState.loading}
             >
-                [ SEND ]
+                {lastMessage?.status === "in_progress"
+                    ? "[ STOP ]"
+                    : "[ SEND ]"}
             </button>
         </footer>
     </div>

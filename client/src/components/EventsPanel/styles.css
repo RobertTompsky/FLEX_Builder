@@ -4,6 +4,7 @@
 
 .aw {
   display: flex;
+  /* width: 100%; */
   flex-direction: column;
   min-height: 0;
   background: #1111aa;
@@ -176,6 +177,9 @@
   border-top: 1px solid #5555dd;
   background: rgba(0, 0, 80, 0.18);
   padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .aw-pause-title {
@@ -191,13 +195,40 @@
   color: #ffffff;
 }
 
+.aw-stop {
+  margin-top: 10px;
+  padding: 8px 6px 0 6px;
+  border-top: 1px solid #aa7744;
+  background: rgba(80, 40, 0, 0.18);
+  padding: 4px;
+}
+
+.aw-stop-title {
+  color: #ffcc55;
+  font-weight: bold;
+}
+
+.aw-stop-reason {
+  color: #ffbb88;
+}
+
+.aw-stop-reason span {
+  color: #ffffff;
+}
+
+.aw-btn-group {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+}
+
 .aw-btn,
 .aw-resume {
   all: unset;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 84px;
+  /* min-width: 84px; */
   height: 20px;
   padding: 0 10px;
   box-sizing: border-box;
@@ -264,9 +295,74 @@
   box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.12);
 }
 
+.aw-pause-controls {
+  width: 50%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* margin-bottom: 4px; */
+  padding: 1px 4px;
+}
+
+.aw-pause-controls button {
+  flex: 1;
+}
+
+.aw-stop-button {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  /* min-width: 72px; */
+  height: 20px;
+  padding: 0 10px;
+  box-sizing: border-box;
+
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+
+  cursor: pointer;
+  user-select: none;
+
+  background: #aa2222;
+  color: #ffffff;
+
+  border-top: 1px solid #ff8888;
+  border-left: 1px solid #ff8888;
+  border-right: 1px solid #440000;
+  border-bottom: 1px solid #440000;
+
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 255, 255, 0.2),
+    0 0 6px rgba(255, 80, 80, 0.25);
+}
+
+.aw-stop-button::before {
+  content: "■ ";
+  margin-right: 4px;
+}
+
+.aw-stop-button:hover {
+  background: #cc3333;
+}
+
+.aw-stop-button:active {
+  border-top: 1px solid #440000;
+  border-left: 1px solid #440000;
+  border-right: 1px solid #ff8888;
+  border-bottom: 1px solid #ff8888;
+  transform: translate(1px, 1px);
+  box-shadow: inset 1px 1px 0 rgba(0, 0, 0, 0.35);
+}
+
 /* resume/back */
 .aw-resume {
-  margin: 6px 0 0 4px;
+  /* margin: 6px 0 0 4px; */
   color: #1111aa;
 }
 

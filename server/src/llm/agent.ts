@@ -10,26 +10,13 @@ import { executeCode } from "../code/executeCode";
 import { readDirTree } from "../lib/utils/readDirTree";
 import path from "path";
 import { SKILLS_DIR, SRC_DIR } from "../data";
+import type { Emit, AgentEvent } from "./types";
 
 export const CodeGenSchema = z.object({
   code: z.string()
     .min(1)
     .max(10_000, "Code is too large")
 })
-
-export type AgentEvent =
-  | { type: "init"; data: { message: string, runId: string } }
-  | { type: "text_delta"; data: { delta: string } }
-  | { type: "text_end"; data: { responseId: string; fullText: string } }
-  | { type: "output_item.added"; data: { toolRound: number; id: string; callId: string; name: string } }
-  | { type: "arguments_delta"; data: { toolRound: number; delta: string; id: string } }
-  | { type: "tool_start"; data: { toolRound: number; callId: string; name: string; args?: string; argsId: string } }
-  | { type: "tool_result"; data: { toolRound: number; callId: string; name: string; outputPreview?: string } }
-  | { type: "end"; data: { message: string } }
-  | { type: "pause"; data: { reason: string } }
-  | { type: "error"; data: { message: string } };
-
-export type Emit<E> = (ev: E) => void | Promise<void>
 
 export type Config = {
   name?: string,
@@ -68,8 +55,8 @@ export async function agent(
 
   const safeEmit: Emit<AgentEvent> = emit
     ? async (ev) => {
-      if (signal?.aborted) return
-      await emit(ev)
+      if (signal?.aborted && ev.type !== "stop") return;
+      await emit(ev);
     }
     : async () => { }
 
@@ -81,6 +68,17 @@ export async function agent(
 
   try {
     if (config.messages.length === 0) throw Error('No messages provided')
+
+    const lastMessage = config.messages.at(-1);
+
+    if (lastMessage && "role" in lastMessage && lastMessage.role === "user") {
+      await safeEmit({
+        type: "init",
+        data: {
+          message: "INIT",
+        },
+      });
+    }
 
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
@@ -167,13 +165,21 @@ export async function agent(
 
       let roundText = ""
 
-      const rspStream = openai.responses.stream({
-        model,
-        input: config.messages,
-        tools: openaiTools,
-      })
+      const rspStream = openai.responses.stream(
+        {
+          model,
+          input: config.messages,
+          tools: openaiTools,
+
+        },
+        {
+          signal
+        }
+      )
 
       for await (const ev of rspStream) {
+        throwIfAborted();
+
         if (ev.type === "response.output_text.delta") {
           const d = ev.delta
           roundText += d
@@ -212,6 +218,8 @@ export async function agent(
           })
         }
       }
+
+      throwIfAborted();
 
       const final = await rspStream.finalResponse()
 
@@ -257,7 +265,9 @@ export async function agent(
           })
 
           pendingTools.push(toolCall)
-        } else config.messages.push(item)
+        } else if (item.type === "message" || item.type === "reasoning") {
+          config.messages.push(item as ResponseInputItem);
+        }
       }
 
       if (roundText.length > 0) {
@@ -336,8 +346,18 @@ export async function agent(
       toolRound++
     }
   } catch (e) {
+    console.log("[agent catch]", errMsg(e), "aborted=", signal?.aborted);
+
     if (signal?.aborted) {
-      return config
+      // console.log("[agent stop emit] start");
+      // if (emit) {
+      //   await emit({
+      //     type: "stop",
+      //     data: { reason: "aborted" }
+      //   });
+      // }
+      // console.log("[agent stop emit] done");
+      return config;
     }
 
     await safeEmit({
