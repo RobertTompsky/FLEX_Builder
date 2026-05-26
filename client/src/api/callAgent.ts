@@ -4,6 +4,8 @@ import type { AgentEvent, UIMessage } from "../lib/types";
 import { tick } from "svelte";
 import { createStreamBuffer } from "../lib/utils/createStreamBuffer";
 
+const URL = 'http://localhost:3000'
+
 let controller: AbortController | null = null;
 
 const streamBuffer = createStreamBuffer();
@@ -80,7 +82,7 @@ export const callAgent = async (
         runId
     };
 
-    await fetchEventSource(`http://localhost:3000/mcp/${runId}`, {
+    await fetchEventSource(`${URL}/mcp/${runId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -173,7 +175,7 @@ export const callAgent = async (
 export async function stopAgent(runId: string) {
     if (!runId) return;
 
-    await fetchEventSource(`http://localhost:3000/runs/${runId}/stop`, {
+    await fetchEventSource(`${URL}/runs/${runId}/stop`, {
         method: "POST",
 
         onmessage(ev) {
@@ -182,21 +184,27 @@ export async function stopAgent(runId: string) {
                 data: JSON.parse(ev.data),
             } as AgentEvent;
 
-            if (
-                event.type === "stop" &&
-                event.data.reason === "paused_cleanup"
-            ) {
+            if (event.type === "stop") {
                 eventsState.events = eventsState.events.filter(
                     (e) => e.type !== "pause",
                 );
-            }
-            eventsState.events.push(event);
-            const last = agentState.messages.at(-1);
+                eventsState.events.push(event);
+                const last = agentState.messages.at(-1);
 
-            if (last?.role === "assistant" && last.status === "in_progress") {
-                last.content = 'Stopped by user'
+                if (!last) throw Error('Last message is not from AI')
+
+                const hasStartedText = last.content.trim().length > 0;
+
+                if (!hasStartedText) {
+                    last.content = "[ STOPPED BY USER ]";
+                }
+
                 last.status = "incomplete";
+                agentState.runId = null;
+                return;
             }
+
+            eventsState.events.push(event);
         },
 
         onerror(err) {
@@ -207,7 +215,7 @@ export async function stopAgent(runId: string) {
 }
 
 export async function processToolCalls(toolCallIds: string[]) {
-    await fetchEventSource(`http://localhost:3000/handleToolcalls`, {
+    await fetchEventSource(`${URL}/handleToolcalls`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -233,7 +241,7 @@ export async function processToolCalls(toolCallIds: string[]) {
 
 export async function clearHistory() {
     try {
-        const res = await fetch("http://localhost:3000/clearHistory");
+        const res = await fetch(`${URL}/clearHistory`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         agentState.messages = [];
         eventsState.events = [];

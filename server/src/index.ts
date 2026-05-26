@@ -144,7 +144,9 @@ app
             async (ev) => await writeAgentSSE(ev)
           )
 
-          await checkpointer.save({ messages: result.messages })
+          if (!ac.signal.aborted) {
+            await checkpointer.save({ messages: result.messages })
+          }
         } finally {
           runs.delete(runId);
         }

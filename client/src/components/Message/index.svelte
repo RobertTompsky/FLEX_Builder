@@ -19,7 +19,10 @@
 </script>
 
 <div
-  class="msg {props.role} {props.status === 'in_progress' ? 'in_progress' : ''}"
+  class="msg {props.role} {props.status === 'in_progress' ||
+  props.status === 'incomplete'
+    ? props.status
+    : ''}"
   data-status={props.status}
 >
   <div class="msg-text">

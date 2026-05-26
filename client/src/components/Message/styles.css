@@ -121,7 +121,7 @@
 }
 
 /* typing effect */
-.msg.assistant[data-status="in_progress"] .msg-text {
+.msg.assistant:is([data-status="in_progress"], [data-status="incomplete"]) .msg-text {
     opacity: 0.75;
 }
 
