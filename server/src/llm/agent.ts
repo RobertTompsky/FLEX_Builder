@@ -142,7 +142,7 @@ export async function agent(
           ${skillsTree}
           
           Rules:
-          - Before calling a skill function, read its source file to understand the input schema:
+          - Before calling a skill function for the first time, *ALWAYS* read its source file to understand the input schema:
           - Import skill functions with relative paths, WITHOUT file extensions:
           - Always use "./${skillsDirName}/..." as the base path for both imports and file reads.
           - Output results using console.log(...)

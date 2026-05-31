@@ -283,8 +283,10 @@ app
     if (pendingTools.length > 0) {
       for (let i = history.length - 1; i >= 0; i--) {
         const item = history[i];
+
         if ("role" in item && item.role === "user") {
-          history = history.slice(0, i + 1);
+          history = history.slice(0, i);
+          break;
         }
       }
       await checkpointer.save({ messages: history });
