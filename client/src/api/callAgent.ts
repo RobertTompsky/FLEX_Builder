@@ -1,6 +1,6 @@
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { agentState, eventsState } from "../store/index.svelte";
-import type { AgentEvent, UIMessage } from "../lib/types";
+import type { AgentEvent, UIMessage, UploadEvent } from "../lib/types";
 import { tick } from "svelte";
 import { createStreamBuffer } from "../lib/utils/createStreamBuffer";
 
@@ -28,11 +28,12 @@ function upsertAssistantErr(
 }
 
 export const callAgent = async (
-    { query }: { query: string | null }
+    { query, files }: { query: string | null, files?: string[] }
 ) => {
     const isResume = query === null
+    const hasFiles = files && files.length > 0
 
-    if (!isResume && !query.trim()) {
+    if (!isResume && !query?.trim() && !hasFiles) {
         return;
     }
 
@@ -41,18 +42,18 @@ export const callAgent = async (
     let msg: UIMessage | null = null;
     let runId = crypto.randomUUID();
 
-    if (query) {
+    if (!isResume) {
         agentState.messages.push(
             {
                 role: "user",
-                content: query,
-                status: 'completed'
+                content: query?.trim() || `[ ${files?.length ?? 0} file(s) uploaded ]`,
+                status: "completed",
             },
             {
                 role: "assistant",
                 content: "",
                 status: "in_progress",
-            }
+            },
         );
     }
 
@@ -76,6 +77,7 @@ export const callAgent = async (
         query,
         model: agentState.model,
         prompt: agentState.prompt,
+        files,
         toolRounds: agentState.toolRounds,
         skills: agentState.skills,
         pause: agentState.pause,
@@ -89,7 +91,11 @@ export const callAgent = async (
         signal: controller?.signal,
         async onopen() {
             retryCount = 0;
-            if (!isResume) {
+
+            if (
+                !isResume &&
+                !hasFiles
+            ) {
                 eventsState.events = []
             }
         },
@@ -97,11 +103,11 @@ export const callAgent = async (
             if (!msg) return;
 
             const event = {
-                type: ev.event,
+                event: ev.event,
                 data: JSON.parse(ev.data),
             } as AgentEvent;
 
-            switch (event.type) {
+            switch (event.event) {
                 case "text_delta":
                     if (msg.status !== 'in_progress') msg.status = "in_progress";
                     streamBuffer.push(event.data.delta);
@@ -139,7 +145,7 @@ export const callAgent = async (
 
         onclose() {
             if (!msg) return;
-            console.log("[client] sse closed; last event =", eventsState.events.at(-1)?.type);
+            console.log("[client] sse closed; last event =", eventsState.events.at(-1)?.event);
         },
 
         onerror(err) {
@@ -157,7 +163,7 @@ export const callAgent = async (
                 agentState.runId = null;
                 upsertAssistantErr(msg, "Сервер недоступен.", "incomplete");
                 eventsState.events.push({
-                    type: "error",
+                    event: "error",
                     data: { message: "Сервер недоступен" },
                 });
                 throw err;
@@ -180,13 +186,13 @@ export async function stopAgent(runId: string) {
 
         onmessage(ev) {
             const event = {
-                type: ev.event,
+                event: ev.event,
                 data: JSON.parse(ev.data),
             } as AgentEvent;
 
-            if (event.type === "stop") {
+            if (event.event === "stop") {
                 eventsState.events = eventsState.events.filter(
-                    (e) => e.type !== "pause",
+                    (e) => e.event !== "pause",
                 );
                 eventsState.events.push(event);
                 const last = agentState.messages.at(-1);
@@ -226,7 +232,7 @@ export async function processToolCalls(toolCallIds: string[]) {
         }),
         onmessage(ev) {
             const event = {
-                type: ev.event,
+                event: ev.event,
                 data: JSON.parse(ev.data),
             } as AgentEvent;
 
@@ -248,4 +254,34 @@ export async function clearHistory() {
     } catch (e) {
         console.error("Failed to clear history", e);
     }
+}
+
+export async function uploadFiles(files: File[]) {
+    const formData = new FormData()
+
+    for (const file of files) {
+        formData.append("files", file)
+    }
+
+    await fetchEventSource(`${URL}/upload`, {
+        method: "POST",
+        body: formData,
+
+        onmessage(ev) {
+            const event = {
+                event: ev.event,
+                data: JSON.parse(ev.data),
+            } as UploadEvent
+
+            eventsState.events.push(event)
+            console.log(event)
+        },
+
+        onerror(err) {
+            console.error("uploadFiles error", err)
+            throw err
+        },
+    })
+
+    return eventsState.events.filter(e => e.event === 'upload_done')
 }

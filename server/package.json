@@ -1,17 +1,21 @@
 {
-  "name": "bun",
+  "name": "elysia",
+  "version": "1.0.50",
   "scripts": {
-    "dev": "bun run --hot src/index.ts"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "bun run --watch src/index.ts"
   },
   "dependencies": {
-    "@hono/zod-validator": "^0.8.0",
+    "@elysia/cors": "^1.4.2",
+    "@types/fs-extra": "^11.0.4",
+    "dotenv": "^17.4.2",
+    "elysia": "latest",
     "fs-extra": "^11.3.5",
-    "hono": "^4.12.18",
-    "openai": "^6.37.0",
+    "openai": "^6.42.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/bun": "latest",
-    "@types/fs-extra": "^11.0.4"
-  }
+    "bun-types": "latest"
+  },
+  "module": "src/index.js"
 }

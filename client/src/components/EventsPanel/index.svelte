@@ -6,7 +6,11 @@
     } from "../../api/callAgent";
     import type { AgentEvent } from "../../lib/types";
     import { md } from "../../lib/utils/markdown";
-    import { eventsState, agentState } from "../../store/index.svelte";
+    import {
+        eventsState,
+        agentState,
+        type AppEvent,
+    } from "../../store/index.svelte";
     import "./styles.css";
 
     let approved = $state<Set<string>>(new Set<string>());
@@ -27,38 +31,38 @@
         const last = eventsState.events.at(-1);
 
         if (!last) return "idle";
-        if (last.type === "error") return "error";
-        if (last.type === "pause") return "paused";
-        if (last.type === "stop") return "stopped";
-        if (last.type === "end") return "done";
+        if (last.event === "error") return "error";
+        if (last.event === "pause") return "paused";
+        if (last.event === "stop") return "stopped";
+        if (last.event === "end") return "done";
 
         return "running";
     });
 
-    function buildEvents(events: AgentEvent[]) {
+    function buildEvents(events: AppEvent[]) {
         const argsMap = new Map<string, string>();
         const toolCalls = new Map<string, AgentEvent>();
         const results = new Map<string, string>();
 
         for (const ev of events) {
-            if (ev.type === "arguments_delta") {
+            if (ev.event === "arguments_delta") {
                 argsMap.set(
                     ev.data.id,
                     (argsMap.get(ev.data.id) ?? "") + ev.data.delta,
                 );
             }
 
-            if (ev.type === "tool_start") {
+            if (ev.event === "tool_start") {
                 toolCalls.set(ev.data.callId, ev);
             }
 
-            if (ev.type === "tool_result") {
+            if (ev.event === "tool_result") {
                 results.set(ev.data.callId, ev.data.outputPreview ?? "");
             }
         }
 
         return events.map((ev) => {
-            if (ev.type !== "output_item.added") return ev;
+            if (ev.event !== "output_item.added") return ev;
 
             return {
                 ...ev,
@@ -98,13 +102,24 @@
             <div class="aw-empty">No events recorded</div>
         {:else}
             {#each views as ev}
-                {#if ev.type === "init"}
-                    <div class="aw-line aw-init">► {ev.data.message}</div>
+                {#if ev.event === "upload_start"}
+                    <div class="aw-line aw-upload">
+                        UPLOAD: {ev.data.name}
+                    </div>
                 {/if}
 
-                {#if ev.type === "output_item.added"}
+                {#if ev.event === "upload_done"}
+                    <div class="aw-line aw-upload-done">
+                        UPLOADED: {ev.data.filename}
+                    </div>
+                {/if}
+                {#if ev.event === "init"}
+                    <div class="aw-line aw-init">{ev.data.message}</div>
+                {/if}
+
+                {#if ev.event === "output_item.added"}
                     <div class="aw-line aw-tool">
-                        ■ TOOL: {ev.data.name}
+                        TOOL: {ev.data.name}
                         <!-- <span class="aw-dim">Round {ev.data.toolRound}</span> -->
                     </div>
 
@@ -131,7 +146,7 @@
                         {/if}
                     {/if}
 
-                    {#if !ev.result && eventsState.events.at(-1)?.type === "pause"}
+                    {#if !ev.result && eventsState.events.at(-1)?.event === "pause"}
                         <div class="aw-actions">
                             <button
                                 type="button"
@@ -167,94 +182,11 @@
                     {/if}
                 {/if}
 
-                {#if ev.type === "end"}
-                    <div class="aw-line aw-done">✓ {ev.data.message}</div>
+                {#if ev.event === "end"}
+                    <div class="aw-line aw-done">{ev.data.message}</div>
                 {/if}
 
-                <!-- {#if ev.type === "pause"}
-                    <div class="aw-pause">
-                        <div class="aw-line aw-pause-title">‖ PAUSED</div>
-                        <div class="aw-line aw-pause-reason">
-                            Reason: <span>{ev.data.reason}</span>
-                        </div>
-
-                        <div class="aw-btn-group">
-                            <button
-                                type="button"
-                                class={`aw-resume ${approved.size === 0 ? "aw-resume-back" : "aw-resume-run"}`}
-                                onclick={async () => {
-                                    const ids = [...approved];
-
-                                    const toolResultIds = new Set(
-                                        eventsState.events
-                                            .filter(
-                                                (ev) =>
-                                                    ev.type === "tool_result",
-                                            )
-                                            .map((ev) => ev.data.callId),
-                                    );
-
-                                    const keepCall = (callId: string) =>
-                                        toolResultIds.has(callId) ||
-                                        approved.has(callId);
-
-                                    eventsState.events =
-                                        eventsState.events.filter((ev) => {
-                                            if (ev.type === "pause")
-                                                return false;
-
-                                            if (
-                                                ev.type === "tool_start" ||
-                                                ev.type === "output_item.added"
-                                            ) {
-                                                return keepCall(ev.data.callId);
-                                            }
-
-                                            if (ev.type === "arguments_delta") {
-                                                const added =
-                                                    eventsState.events.find(
-                                                        (e) =>
-                                                            e.type ===
-                                                                "output_item.added" &&
-                                                            e.data.id ===
-                                                                ev.data.id,
-                                                    );
-
-                                                return added?.type !==
-                                                    "output_item.added"
-                                                    ? true
-                                                    : keepCall(
-                                                          added.data.callId,
-                                                      );
-                                            }
-
-                                            return true;
-                                        });
-
-                                    await processToolCalls(ids);
-
-                                    approved = new Set();
-
-                                    if (ids.length > 0) {
-                                        await callAgent({ query: null });
-                                    }
-                                }}
-                            >
-                                {approved.size === 0
-                                    ? "BACK"
-                                    : `Resume [${approved.size}]`}
-                            </button>
-                            <button
-                                class="aw-btn-stop"
-                                onclick={async () => {
-                                    await stopAgent(agentState.runId!);
-                                }}>STOP</button
-                            >
-                        </div>
-                    </div>
-                {/if} -->
-
-                {#if ev.type === "pause"}
+                {#if ev.event === "pause"}
                     <div class="aw-pause">
                         <div class="aw-line aw-pause-title">‖ PAUSED</div>
                         <div class="aw-line aw-pause-reason">
@@ -272,7 +204,7 @@
                                         eventsState.events
                                             .filter(
                                                 (ev) =>
-                                                    ev.type === "tool_result",
+                                                    ev.event === "tool_result",
                                             )
                                             .map((ev) => ev.data.callId),
                                     );
@@ -283,27 +215,29 @@
 
                                     eventsState.events =
                                         eventsState.events.filter((ev) => {
-                                            if (ev.type === "pause")
+                                            if (ev.event === "pause")
                                                 return false;
 
                                             if (
-                                                ev.type === "tool_start" ||
-                                                ev.type === "output_item.added"
+                                                ev.event === "tool_start" ||
+                                                ev.event === "output_item.added"
                                             ) {
                                                 return keepCall(ev.data.callId);
                                             }
 
-                                            if (ev.type === "arguments_delta") {
+                                            if (
+                                                ev.event === "arguments_delta"
+                                            ) {
                                                 const added =
                                                     eventsState.events.find(
                                                         (e) =>
-                                                            e.type ===
+                                                            e.event ===
                                                                 "output_item.added" &&
                                                             e.data.id ===
                                                                 ev.data.id,
                                                     );
 
-                                                return added?.type !==
+                                                return added?.event !==
                                                     "output_item.added"
                                                     ? true
                                                     : keepCall(
@@ -342,18 +276,18 @@
                     </div>
                 {/if}
 
-                {#if ev.type === "stop"}
+                {#if ev.event === "stop"}
                     <div class="aw-stop">
-                        <div class="aw-line aw-stop-title">■ STOP</div>
+                        <div class="aw-line aw-stop-title">STOP</div>
                         <div class="aw-line aw-stop-reason">
                             Reason: <span>{ev.data.reason}</span>
                         </div>
                     </div>
                 {/if}
 
-                {#if ev.type === "error"}
+                {#if ev.event === "error"}
                     <div class="aw-line aw-error">
-                        ✕ ERROR: {ev.data.message}
+                        ERROR: {ev.data.message}
                     </div>
                 {/if}
             {/each}

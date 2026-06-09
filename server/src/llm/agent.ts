@@ -55,7 +55,7 @@ export async function agent(
 
   const safeEmit: Emit<AgentEvent> = emit
     ? async (ev) => {
-      if (signal?.aborted && ev.type !== "stop") return;
+      if (signal?.aborted && ev.event !== "stop") return;
       await emit(ev);
     }
     : async () => { }
@@ -73,9 +73,9 @@ export async function agent(
 
     if (lastMessage && "role" in lastMessage && lastMessage.role === "user") {
       await safeEmit({
-        type: "init",
+        event: "init",
         data: {
-          message: "INIT",
+          message: "AGENT START",
         },
       });
     }
@@ -183,12 +183,12 @@ export async function agent(
         if (ev.type === "response.output_text.delta") {
           const d = ev.delta
           roundText += d
-          await safeEmit({ type: "text_delta", data: { delta: d } })
+          await safeEmit({ event: "text_delta", data: { delta: d } })
         }
 
         if (ev.type === 'response.function_call_arguments.delta') {
           await safeEmit({
-            type: 'arguments_delta',
+            event: 'arguments_delta',
             data: {
               delta: ev.delta,
               toolRound,
@@ -200,7 +200,7 @@ export async function agent(
         if (ev.type === 'response.output_item.added') {
           if (ev.item.type === 'function_call') {
             await safeEmit({
-              type: 'output_item.added',
+              event: 'output_item.added',
               data: {
                 name: ev.item.name,
                 toolRound,
@@ -213,7 +213,7 @@ export async function agent(
 
         if (ev.type === 'error') {
           await safeEmit({
-            type: 'error',
+            event: 'error',
             data: { message: ev.message }
           })
         }
@@ -225,7 +225,7 @@ export async function agent(
 
       if (!final.id) {
         await safeEmit({
-          type: "error",
+          event: "error",
           data: { message: "Missing response.completed" }
         })
         return config
@@ -254,7 +254,7 @@ export async function agent(
           config.messages.push(toolCall);
 
           await safeEmit({
-            type: "tool_start",
+            event: "tool_start",
             data: {
               toolRound,
               callId: item.call_id,
@@ -272,7 +272,7 @@ export async function agent(
 
       if (roundText.length > 0) {
         await safeEmit({
-          type: "text_end",
+          event: "text_end",
           data: {
             responseId: final.id,
             fullText: roundText
@@ -283,7 +283,7 @@ export async function agent(
       if (pendingTools.length > 0 && pause) {
 
         await safeEmit({
-          type: "pause",
+          event: "pause",
           data: { reason: "tool_calls" }
         })
 
@@ -317,7 +317,7 @@ export async function agent(
           config.messages.push(toolMsg)
 
           await safeEmit({
-            type: "tool_result",
+            event: "tool_result",
             data: {
               toolRound,
               callId: item.call_id,
@@ -331,13 +331,13 @@ export async function agent(
       }
 
       if (toolResults.length === 0) {
-        await safeEmit({ type: "end", data: { message: "END" } });
+        await safeEmit({ event: "end", data: { message: "AGENT END" } });
         return config;
       }
 
       if (toolRound > toolRounds) {
         await safeEmit({
-          type: "error",
+          event: "error",
           data: { message: `Tool rounds limit reached (${toolRounds})` }
         });
         return config;
@@ -361,7 +361,7 @@ export async function agent(
     }
 
     await safeEmit({
-      type: "error",
+      event: "error",
       data: { message: errMsg(e) }
     });
 

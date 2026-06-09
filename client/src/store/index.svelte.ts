@@ -10,11 +10,19 @@ export const agentState = $state<AgentState>({
     runId: null
 });
 
+export type UploadEvent =
+    | { event: 'upload_start', data: { name: string } }
+    | { event: 'upload_done', data: { filename: string, type: string, path: string } }
+
+export type AppEvent =
+    | AgentEvent
+    | UploadEvent
+
 export const eventsState = $state<{
-    events: AgentEvent[]
+    events: AppEvent[]
 }>({
-    events: []
-});
+    events: [],
+})
 
 export const infoState = $state<{
     skills: string[];

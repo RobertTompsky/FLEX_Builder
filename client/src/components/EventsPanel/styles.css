@@ -73,27 +73,85 @@
   margin-left: 6px;
 }
 
-/* ═══ Init ═══ */
-.aw-init {
+/* ═══ Event Types ═══ */
+
+.aw-init,
+.aw-upload,
+.aw-upload-done,
+.aw-tool,
+.aw-done,
+.aw-error {
   color: #ffffff;
+}
+
+.aw-init,
+.aw-done,
+.aw-error {
   font-weight: bold;
 }
 
-/* ═══ Tool ═══ */
-.aw-tool {
+/* ═══ Event Markers ═══ */
+
+.aw-init::before,
+.aw-upload::before,
+.aw-upload-done::before,
+.aw-tool::before,
+.aw-done::before,
+.aw-error::before,
+.aw-pause-title::before,
+.aw-stop-title::before {
+  content: "■";
+  display: inline-block;
+  width: 12px;
+  margin-right: 4px;
+}
+
+/* INIT */
+
+.aw-init::before {
+  color: #ffffff;
+}
+
+/* FILE START */
+
+.aw-upload::before {
+  color: #55ccff;
+}
+
+/* FILE DONE */
+
+.aw-upload-done::before {
+  color: #55ff55;
+}
+
+/* TOOL */
+
+.aw-tool::before {
   color: #ffff55;
 }
 
-/* ═══ Done ═══ */
-.aw-done {
+/* SUCCESS */
+
+.aw-done::before {
   color: #55ff55;
-  font-weight: bold;
 }
 
-/* ═══ Error ═══ */
-.aw-error {
+/* ERROR */
+
+.aw-error::before {
   color: #ff5555;
-  font-weight: bold;
+}
+
+/* PAUSE */
+
+.aw-pause-title::before {
+  color: #ffcc55;
+}
+
+/* STOP */
+
+.aw-stop-title::before {
+  color: #ff9955;
 }
 
 /* ═══ File (expand) ═══ */
@@ -182,8 +240,9 @@
   gap: 4px;
 }
 
-.aw-pause-title {
-  color: #ffcc55;
+.aw-pause-title,
+.aw-stop-title {
+  color: #ffffff;
   font-weight: bold;
 }
 
@@ -201,11 +260,6 @@
   border-top: 1px solid #aa7744;
   background: rgba(80, 40, 0, 0.18);
   padding: 4px;
-}
-
-.aw-stop-title {
-  color: #ffcc55;
-  font-weight: bold;
 }
 
 .aw-stop-reason {
