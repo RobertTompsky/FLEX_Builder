@@ -6,38 +6,11 @@
         callAgent,
         clearHistory,
         stopAgent,
-        uploadFiles,
     } from "../../api/callAgent";
-    import type { UploadEvent } from "../../lib/types";
 
     let query = $state("");
-    let fileInput = $state<HTMLInputElement | null>(null);
-    let files = $state<File[]>([]);
-    let uploading = $state(false);
 
     const lastMessage = $derived(agentState.messages.at(-1));
-    const filesLabel = $derived(
-        files.length ? `${files.length} file(s)` : "No files",
-    );
-
-    async function upload() {
-        if (!files.length || uploading) return;
-
-        uploading = true;
-
-        try {
-            await uploadFiles(files);
-            files = [];
-
-            if (fileInput) {
-                fileInput.value = "";
-            }
-        } catch (error) {
-            console.error("upload error:", error);
-        } finally {
-            uploading = false;
-        }
-    }
 
     async function send(e: Event) {
         e.preventDefault();
@@ -51,33 +24,13 @@
         }
 
         const text = query.trim();
-        if (!text && !files.length) return;
-
-        let uploadResult: Extract<UploadEvent, { event: "upload_done" }>[] = [];
-
-        if (files.length > 0) {
-            uploading = true;
-
-            try {
-                uploadResult = await uploadFiles(files);
-                files = [];
-
-                if (fileInput) {
-                    fileInput.value = "";
-                }
-            } catch (error) {
-                console.error("upload error:", error);
-                return;
-            } finally {
-                uploading = false;
-            }
-        }
+        if (!text) return;
 
         query = "";
 
         await callAgent({
             query: text,
-            files: uploadResult.map((ev) => ev.data.filename),
+            files: [...agentState.files],
         });
     }
 </script>
@@ -108,7 +61,7 @@
         </section>
 
         <footer class="bottom-bar">
-            <input
+            <!-- <input
                 bind:this={fileInput}
                 class="file-input"
                 type="file"
@@ -134,7 +87,7 @@
 
             <div class="file-label" title={files.map((f) => f.name).join(", ")}>
                 {filesLabel}
-            </div>
+            </div> -->
 
             <textarea
                 class="input main"

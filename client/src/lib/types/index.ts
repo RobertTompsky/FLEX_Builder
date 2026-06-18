@@ -11,9 +11,17 @@ export type AgentEvent =
   | { event: "stop"; data: { runId?: string; reason: string } }
   | { event: "error"; data: { message: string } };
   
-export type UploadEvent =
-  | { event: 'upload_start', data: { name: string } }
-  | { event: 'upload_done', data: { filename: string, type: string, path: string } }
+// export type UploadEvent =
+//   | { event: 'upload_start', data: { name: string } }
+//   | { event: 'upload_done', data: { filename: string, type: string, path: string } }
+
+export type RuntimeEvent = 
+| { event: "artifact_read"; data: { filePath: string; report: string; }; } 
+| { event: "artifact_created"; data: { filePath: string; report: string; description?: string; }; };
+
+export type AppEvent = 
+ | AgentEvent
+ | RuntimeEvent
 
 export type UIMessage = {
   role: "user" | "assistant";
@@ -26,6 +34,7 @@ export interface AgentState {
   model: string;
   prompt: string;
   toolRounds: number,
+  files: Set<string>,
   skills: string[];
   messages: UIMessage[];
   pause?: boolean

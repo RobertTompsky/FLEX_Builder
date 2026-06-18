@@ -1,4 +1,0 @@
-{
-  "description": "Allows creating, updating, and reading artefacts used as the agent's working files. If this skill is available, the agent must use the artifact function as the only interface for filesystem operations on working files and execution outputs. Direct use of fs or any other filesystem API for creating, updating, reading, or persisting such files is not allowed. Before performing the first filesystem operation, the agent must inspect artifact.ts to understand the artifact function interface and required input parameters. Imports of code modules are allowed where needed, but file-based working state and execution results must go through artifact. Schemas are defined in `schemas` file",
-  "access": "private"
-}

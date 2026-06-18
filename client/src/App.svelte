@@ -4,7 +4,9 @@
   import ConfigPanel from "./components/ConfigPanel/index.svelte";
   import EventsPanel from "./components/EventsPanel/index.svelte";
   import Chat from "./components/Chat/index.svelte";
+  import Uploads from "./components/Uploads/index.svelte";
   import type { UIMessage } from "./lib/types";
+  import ArtfactsTrace from './components/ArtifactsLog/index.svelte'
 
   onMount(async () => {
     try {
@@ -12,11 +14,13 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const data = (await res.json()) as {
+        uploads: string[]
         skills: string[];
         models: string[];
         uiHistory: UIMessage[];
       };
 
+      infoState.uploads = data.uploads;
       infoState.skills = data.skills;
       infoState.models = data.models;
       agentState.messages = data.uiHistory;
@@ -34,6 +38,10 @@
 </script>
 
 <div class="app">
+  <div class="left-panel">
+    <Uploads />
+    <ArtfactsTrace />
+  </div>
   <Chat />
   <div class="right-panel">
     <ConfigPanel />

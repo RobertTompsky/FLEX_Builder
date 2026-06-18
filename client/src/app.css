@@ -21,21 +21,17 @@ body {
   margin: 0;
   background:
     /* горизонтальные линии сетки */
-    repeating-linear-gradient(
-      0deg,
+    repeating-linear-gradient(0deg,
       transparent,
       transparent 59px,
       rgba(229, 69, 160, 0.07) 59px,
-      rgba(229, 69, 160, 0.07) 60px
-    ),
+      rgba(229, 69, 160, 0.07) 60px),
     /* вертикальные линии сетки */
-    repeating-linear-gradient(
-      90deg,
+    repeating-linear-gradient(90deg,
       transparent,
       transparent 59px,
       rgba(229, 69, 160, 0.07) 59px,
-      rgba(229, 69, 160, 0.07) 60px
-    );
+      rgba(229, 69, 160, 0.07) 60px);
   background-color: var(--bg);
   overflow: hidden;
   display: flex;
@@ -79,13 +75,17 @@ body::after {
 
 /* ===== Meta-module shell ===== */
 .app {
-  height: 80vh;
-  width: 60vw;
-  display: flex;
-  align-items: stretch;
+  width: min(92vw, 1400px);
+  height: 88vh;
+
+  display: grid;
+  grid-template-columns:
+    320px minmax(420px, 1fr) 320px;
+  grid-template-rows: minmax(0, 1fr);
   gap: 8px;
 
-  /* корпус модуля — тёмный металлик */
+  align-items: stretch;
+
   background: #e6e9e7;
   padding: 10px;
 
@@ -93,10 +93,6 @@ body::after {
   border-left: 3px solid #7a7a8a;
   border-right: 3px solid #2a2a34;
   border-bottom: 3px solid #2a2a34;
-  /* box-shadow:
-    inset 1px 1px 0 #8a8a9a,
-    inset -1px -1px 0 #3a3a44,
-    3px 3px 0 #000000; */
 
   position: relative;
 }
@@ -118,10 +114,24 @@ body::after {
     radial-gradient(circle 3px at calc(100% - 6px) calc(100% - 6px), #3a3a44 2px, #6a6a7a 2px, #6a6a7a 3px, transparent 3px);
 }
 
+.left-panel {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+
+  display: grid;
+  grid-template-rows:
+    minmax(150px, 0.6fr) minmax(320px, 1fr);
+  gap: 8px;
+}
+
 .right-panel {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 8px;
-  width: 30%;
+
+  width: auto;
+  min-width: 0;
+  min-height: 0;
   height: 100%;
 }

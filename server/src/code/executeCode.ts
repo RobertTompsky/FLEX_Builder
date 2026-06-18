@@ -1,6 +1,7 @@
 import { writeFile, unlink } from "fs-extra";
 import path from "path";
 import { SKILLS_DIR, SRC_DIR } from "../data";
+import { RUNTIME_EVENT_PREFIX, type RuntimeEvent } from "../runtime/events";
 
 const MAX_OUTPUT_BYTES = 50 * 1024; // 50 KB
 
@@ -87,12 +88,17 @@ function validateCode(code: string, allowedSkills: string[]): string | null {
 export async function executeCode(
   code: string,
   timeoutSeconds = 10,
-  allowedSkills: string[] = []
+  allowedSkills: string[] = [],
+  onRuntimeEvent?: (
+    event: RuntimeEvent,
+  ) => void | Promise<void>,
 ) {
-  const file = path.join(
+  const userFile = path.join(
     SRC_DIR,
-    `.sandbox-${Date.now()}-${Math.random().toString(36).slice(2)}.ts`
+    `.sandbox-${Date.now()}-${Math.random().toString(36).slice(2)}.ts`,
   );
+
+  const entryFile = path.join(SRC_DIR, "runtime", "sandbox-entry.ts");
 
   const logs: string[] = [];
 
@@ -102,9 +108,9 @@ export async function executeCode(
       return { stdout: `[BLOCKED] ${error}` };
     }
 
-    await writeFile(file, code, "utf8");
+    await writeFile(userFile, code, "utf8");
 
-    const child = Bun.spawn(["bun", file], {
+    const child = Bun.spawn(["bun", entryFile, userFile], {
       cwd: SRC_DIR,
       stdout: "pipe",
       stderr: "pipe",
@@ -114,38 +120,101 @@ export async function executeCode(
     const timeout = setTimeout(() => child.kill(), timeoutSeconds * 1000);
 
     let totalBytes = 0;
-    const stdoutChunks: Uint8Array[] = [];
+
+    const stdoutTextChunks: string[] = [];
     const stderrChunks: Uint8Array[] = [];
 
-    const streams: Array<
-      [ReadableStream<Uint8Array> | null | undefined, Uint8Array[]]
-    > = [
-        [child.stdout, stdoutChunks],
-        [child.stderr, stderrChunks],
-      ];
-
-    const streamTasks = streams.map(([stream, chunks]) =>
-      (async () => {
-        if (!stream) return;
-        for await (const chunk of stream) {
-          totalBytes += chunk.byteLength;
-          chunks.push(chunk);
-          if (totalBytes > MAX_OUTPUT_BYTES) {
-            child.kill();
-            break;
-          }
+    const handleStdoutLine = async (line: string) => {
+      if (!line.startsWith(RUNTIME_EVENT_PREFIX)) {
+        if (line) {
+          stdoutTextChunks.push(line);
         }
-      })()
-    );
 
-    await Promise.all([...streamTasks, child.exited]);
+        return;
+      }
+
+      const raw = line.slice(RUNTIME_EVENT_PREFIX.length);
+
+      try {
+        const event = JSON.parse(raw) as RuntimeEvent;
+        await onRuntimeEvent?.(event);
+      } catch (error) {
+        console.error(
+          "[RUNTIME EVENT ERROR]",
+          error,
+          raw,
+        );
+      }
+    };
+
+    const stdoutTask = (async () => {
+      if (!child.stdout) return;
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      for await (const chunk of child.stdout) {
+        totalBytes += chunk.byteLength;
+
+        if (totalBytes > MAX_OUTPUT_BYTES) {
+          child.kill();
+          break;
+        }
+
+        const decoded = decoder.decode(chunk, {
+          stream: true,
+        });
+
+        // console.log(
+        //   "[PARENT RAW STDOUT]",
+        //   JSON.stringify(decoded),
+        // );
+
+        buffer += decoded;
+
+        const lines = buffer.split(/\r?\n/);
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          // console.log("[PARENT STDOUT LINE]", JSON.stringify(line));
+          await handleStdoutLine(line);
+        }
+      }
+
+      buffer += decoder.decode();
+
+      if (buffer) {
+        await handleStdoutLine(buffer);
+      }
+    })();
+
+    const stderrTask = (async () => {
+      if (!child.stderr) return;
+
+      for await (const chunk of child.stderr) {
+        totalBytes += chunk.byteLength;
+        stderrChunks.push(chunk);
+
+        if (totalBytes > MAX_OUTPUT_BYTES) {
+          child.kill();
+          break;
+        }
+      }
+    })();
+
+    await Promise.all([
+      stdoutTask,
+      stderrTask,
+      child.exited,
+    ]);
     clearTimeout(timeout);
 
-    const decode = (chunks: Uint8Array[]) =>
-      Buffer.concat(chunks).toString("utf8").trimEnd();
+    const stdoutText = stdoutTextChunks.join("\n").trimEnd();
 
-    const stdoutText = decode(stdoutChunks);
-    const stderrText = decode(stderrChunks);
+    const stderrText = Buffer
+      .concat(stderrChunks)
+      .toString("utf8")
+      .trimEnd();
 
     if (stdoutText) logs.push(stdoutText);
     if (stderrText) logs.push(`[STDERR] ${stderrText}`);
@@ -164,7 +233,7 @@ export async function executeCode(
   } catch (e: any) {
     logs.push(`[ERROR] ${e?.message ?? String(e)}`);
   } finally {
-    await unlink(file).catch(() => { });
+    await unlink(userFile).catch(() => { });
   }
 
   return { stdout: logs.join("\n") };

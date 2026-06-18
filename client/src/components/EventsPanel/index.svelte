@@ -4,12 +4,11 @@
         processToolCalls,
         stopAgent,
     } from "../../api/callAgent";
-    import type { AgentEvent } from "../../lib/types";
+    import type { AgentEvent, AppEvent } from "../../lib/types";
     import { md } from "../../lib/utils/markdown";
     import {
         eventsState,
-        agentState,
-        type AppEvent,
+        agentState
     } from "../../store/index.svelte";
     import "./styles.css";
 
@@ -102,7 +101,7 @@
             <div class="aw-empty">No events recorded</div>
         {:else}
             {#each views as ev}
-                {#if ev.event === "upload_start"}
+                <!-- {#if ev.event === "upload_start"}
                     <div class="aw-line aw-upload">
                         UPLOAD: {ev.data.name}
                     </div>
@@ -112,7 +111,7 @@
                     <div class="aw-line aw-upload-done">
                         UPLOADED: {ev.data.filename}
                     </div>
-                {/if}
+                {/if} -->
                 {#if ev.event === "init"}
                     <div class="aw-line aw-init">{ev.data.message}</div>
                 {/if}
@@ -252,9 +251,7 @@
 
                                     approved = new Set();
 
-                                    if (ids.length > 0) {
-                                        await callAgent({ query: null });
-                                    }
+                                    await callAgent({ query: null });
                                 }}
                             >
                                 {approved.size === 0

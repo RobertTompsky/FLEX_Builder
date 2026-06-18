@@ -1,24 +1,23 @@
-import path from 'path'
-import fs from 'fs-extra'
-import type z from 'zod';
-import type { ReadSchema, WriteSchema } from './schemas';
-import { ARTIFACTS_DIR, SKILLS_DIR } from '../../data';
+import path from "path";
+import fs from "fs-extra";
+import type { ArtifactInput } from "./schemas";
 
 const REGISTRY_FILE = "registry.json";
 const HISTORY_FILE = "history.jsonl";
 
-export const ALLOWED_FOLDERS = [ARTIFACTS_DIR, SKILLS_DIR].map((x) =>
-  path.resolve(x),
-);
+export type ArtifactOperationType = ArtifactInput["type"];
 
-export type ArtifactOperationType = "create" | "update" | "read";
-
-export type ArtifactHistoryItem = Pick<z.infer<typeof ReadSchema>, "filePath" | "report"> & {
+export type ArtifactHistoryItem = {
   timestamp: string;
   type: ArtifactOperationType;
+  filePath: string;
+  report: string;
 };
 
-export type ArtifactRegistryItem = Pick<z.infer<typeof WriteSchema>, "filePath" | "description"> & {
+export type ArtifactRegistryItem = {
+  filePath: string;
+  description?: string;
+  createdAt: string;
   updatedAt: string;
 };
 
@@ -28,7 +27,25 @@ export function registry(baseDir: string) {
   return {
     list(): ArtifactRegistryItem[] {
       if (!fs.existsSync(filePath)) return [];
-      return JSON.parse(fs.readFileSync(filePath, "utf8"));
+
+      return JSON.parse(fs.readFileSync(filePath, "utf8")) as ArtifactRegistryItem[];
+    },
+
+    add(item: ArtifactRegistryItem) {
+      const items = this.list();
+
+      const exists = items.some((x) => x.filePath === item.filePath);
+
+      if (exists) {
+        throw new Error(`Artifact already exists in registry: ${item.filePath}`);
+      }
+
+      items.push(item);
+      this.save(items);
+    },
+
+    find(artifactPath: string): ArtifactRegistryItem | undefined {
+      return this.list().find((x) => x.filePath === artifactPath);
     },
 
     save(items: ArtifactRegistryItem[]) {

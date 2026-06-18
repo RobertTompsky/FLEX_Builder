@@ -13,6 +13,8 @@ import { agent, CodeGenSchema } from "./llm/agent";
 import { cors } from '@elysia/cors'
 import { ResponseInputItem } from "openai/resources/responses/responses.js";
 import { executeCode } from "./code/executeCode";
+import { artifact } from "./runtime/artifact/artifact";
+import { RuntimeEvent } from "./runtime/events";
 
 const runs = new Map<string, AbortController>();
 
@@ -31,7 +33,7 @@ const fileSchema = z.file().refine((file: File) => {
   message: 'Only text/code files are allowed',
 })
 
-function createWriteAgentSSE(s: SSE): Emit<AgentEvent> {
+function createSSEWriter(s: SSE): Emit<AgentEvent | RuntimeEvent> {
   return async ({ event, data }) => {
     await s.send({
       event,
@@ -65,11 +67,18 @@ const app = new Elysia()
         status: m.status
       }));
 
-    return JSON.stringify({
+    const uploads = fs
+      .readdirSync(UPLOADS_DIR, { withFileTypes: true })
+      .filter((entry) => entry.isFile())
+      .map((entry) => entry.name)
+      .sort((a, b) => a.localeCompare(b));
+
+    return {
+      uploads,
       skills,
       models: MODELS,
       uiHistory
-    })
+    }
   })
   .get('/clearHistory', async () => {
     await checkpointer.clear()
@@ -93,11 +102,12 @@ const app = new Elysia()
           await Promise.all(
             body.files.map(async (filename) => {
               const safeFilename = path.basename(filename)
-              const filepath = path.join(UPLOADS_DIR, safeFilename)
+              const filePath = path.join(UPLOADS_DIR, safeFilename)
+              console.log(filePath)
 
               return {
                 filename: safeFilename,
-                content: await fs.readFile(filepath, 'utf8'),
+                content: await fs.readFile(filePath, 'utf8'),
               }
             }),
           ),
@@ -107,7 +117,7 @@ const app = new Elysia()
         : ''
 
       return streamSSE(async (s) => {
-        const writeAgentSSE = createWriteAgentSSE(s)
+        const writeAgentSSE = createSSEWriter(s)
 
         try {
           const result = await agent(
@@ -226,7 +236,7 @@ const app = new Elysia()
       history = history.filter((_, index) => !removeIndexes.has(index));
 
       return streamSSE(async (s) => {
-        const writeAgentSSE = createWriteAgentSSE(s)
+        const writeSSE = createSSEWriter(s)
 
         if (approvedTools.length > 0) {
           for (const tool of approvedTools) {
@@ -237,7 +247,8 @@ const app = new Elysia()
             const { stdout } = await executeCode(
               args.code,
               undefined,
-              body.skills ?? []
+              body.skills ?? [],
+              writeSSE
             )
 
             const toolMsg: ResponseInputItem.FunctionCallOutput = {
@@ -246,7 +257,7 @@ const app = new Elysia()
               output: stdout
             }
 
-            await writeAgentSSE({
+            await writeSSE({
               event: 'tool_result',
               data: {
                 toolRound: 1,
@@ -279,7 +290,7 @@ const app = new Elysia()
         controller.abort();
 
         return streamSSE(async (s) => {
-          const writeAgentSSE = createWriteAgentSSE(s);
+          const writeAgentSSE = createSSEWriter(s);
 
           await writeAgentSSE({
             event: "stop",
@@ -305,7 +316,7 @@ const app = new Elysia()
         }
         await checkpointer.save({ messages: history });
         return streamSSE(async (s) => {
-          const writeAgentSSE = createWriteAgentSSE(s)
+          const writeAgentSSE = createSSEWriter(s)
 
           await writeAgentSSE({
             event: 'stop',
@@ -325,52 +336,80 @@ const app = new Elysia()
     }
   )
   .post(
-    '/upload',
-    async ({ body: { files } }) => {
-      type UploadEvent =
-        | { event: 'upload_start', data: { name: string } }
-        | { event: 'upload_done', data: { filename: string, type: string, path: string } }
-
-      const uploadedFiles = Array.isArray(files)
-        ? files
-        : [files]
+    "/upload",
+    async ({ body: { files }, set }) => {
+      const uploadedFiles = Array.isArray(files) ? files : [files]
 
       await fs.ensureDir(UPLOADS_DIR)
 
-      return streamSSE(async (sse) => {
-        for (const file of uploadedFiles) {
-          await sse.send({
-            event: 'upload_start',
-            data: JSON.stringify({
-              name: file.name
-            } satisfies Extract<UploadEvent, { event: 'upload_start' }>['data']),
-          })
+      try {
+        const result = await Promise.all(
+          uploadedFiles.map(async (file) => {
+            const safeFilename = path.basename(file.name)
+            const filepath = path.join(UPLOADS_DIR, safeFilename)
 
-          const safeFilename = path.basename(file.name)
-          const filepath = path.join(UPLOADS_DIR, safeFilename)
+            await Bun.write(filepath, file)
 
-          await Bun.write(filepath, file)
-
-          await sse.send({
-            event: 'upload_done',
-            data: JSON.stringify({
+            return {
               filename: safeFilename,
+              size: file.size,
               type: file.type,
               path: filepath,
-            } satisfies Extract<UploadEvent, { event: 'upload_done' }>['data']),
-          })
+            }
+          }),
+        )
+
+        return result
+      } catch (error) {
+        set.status = 500
+
+        return {
+          ok: false,
+          message: error instanceof Error ? error.message : String(error),
         }
-      })
+      }
     },
     {
       body: z.object({
-        files: z.union([
-          fileSchema,
-          z.array(fileSchema),
-        ]),
+        files: z.union([fileSchema, z.array(fileSchema)]),
       }),
-    }
+    },
   )
+  .post(
+    "/deleteFiles",
+    async ({ body: { files } }) => {
+      const deleted: string[] = [];
+      const failed: string[] = [];
+
+      await fs.ensureDir(UPLOADS_DIR);
+
+      for (const filename of files) {
+        try {
+          const safeFilename = path.basename(filename);
+          const filePath = path.join(UPLOADS_DIR, safeFilename);
+
+          if (await fs.pathExists(filePath)) {
+            await fs.remove(filePath);
+            deleted.push(safeFilename);
+          }
+        } catch {
+          failed.push(filename);
+        }
+      }
+
+      return {
+        ok: failed.length === 0,
+        deleted,
+        failed,
+      };
+    },
+    {
+      body: z.object({
+        files: z.array(z.string()),
+      }),
+    },
+  )
+
   .listen(3000);
 
 console.log(

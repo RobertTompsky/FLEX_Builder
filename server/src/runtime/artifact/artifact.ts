@@ -1,128 +1,94 @@
 import path from "path";
-import fs, { ensureDirSync } from 'fs-extra'
-import { ARTIFACTS_DIR } from "../../data";
+import fs, { ensureDirSync } from "fs-extra";
+import { ARTIFACTS_DIR, SRC_DIR } from "../../data";
 import { registry, historyLog } from "./utils";
-import { ReadSchema, WriteSchema } from "./schemas";
-import type z from "zod";
+import { ArtifactSchema, type ArtifactInput } from "./schemas";
+import { emitRuntimeEvent } from "../events";
 
-export type WriteArtifactInput = z.infer<typeof WriteSchema>;
-export type ReadArtifactInput = z.infer<typeof ReadSchema>;
+export function artifact(input: ArtifactInput) {
+    const config = ArtifactSchema.parse(input);
 
-export const artifact = {
-    create(input: WriteArtifactInput) {
-        const config = WriteSchema.parse(input);
+    const baseDir = ARTIFACTS_DIR;
+    ensureDirSync(baseDir);
 
-        const baseDir = ARTIFACTS_DIR;
-        ensureDirSync(baseDir);
-        const fullPath = path.join(baseDir, config.filePath);
-        const timestamp = new Date().toISOString();
+    let fullPath = path.join(baseDir, config.filePath);
+    const timestamp = new Date().toISOString();
 
-        const reg = registry(baseDir);
-        const log = historyLog(baseDir);
+    //временно
+    if (config.filePath.startsWith("skills/")) {
+        fullPath = path.join(SRC_DIR, config.filePath);
+    } else {
+        fullPath = path.join(ARTIFACTS_DIR, config.filePath);
+    }
 
-        if (fs.existsSync(fullPath)) {
-            throw new Error(`Artifact already exists: ${config.filePath}`);
+    const reg = registry(baseDir);
+    const log = historyLog(baseDir);
+
+    switch (config.type) {
+        case "create": {
+            if (fs.existsSync(fullPath)) {
+                throw new Error(`Artifact already exists: ${config.filePath}`);
+            }
+
+            ensureDirSync(path.dirname(fullPath));
+            fs.writeFileSync(fullPath, config.content, "utf8");
+
+            reg.add({
+                filePath: config.filePath,
+                description: config.description,
+                createdAt: timestamp,
+                updatedAt: timestamp,
+            });
+
+            log.append({
+                timestamp,
+                type: "create",
+                filePath: config.filePath,
+                report: config.report,
+            });
+
+            emitRuntimeEvent({
+                event: "artifact_created",
+                data: {
+                    filePath: config.filePath,
+                    report: config.report,
+                    description: config.description,
+                },
+            });
+
+            return {
+                type: "create" as const,
+                filePath: config.filePath,
+            };
         }
 
-        ensureDirSync(path.dirname(fullPath));
-        fs.writeFileSync(fullPath, config.content, "utf8");
+        case "read": {
+            if (!fs.existsSync(fullPath)) {
+                throw new Error(`Artifact not found: ${config.filePath}`);
+            }
 
-        const items = reg.list();
+            const content = fs.readFileSync(fullPath, "utf8");
 
-        items.push({
-            filePath: config.filePath,
-            description: config.description,
-            updatedAt: timestamp,
-        });
+            log.append({
+                timestamp,
+                type: "read",
+                filePath: config.filePath,
+                report: config.report,
+            });
 
-        reg.save(items);
+            emitRuntimeEvent({
+                event: "artifact_read",
+                data: {
+                    filePath: config.filePath,
+                    report: config.report,
+                },
+            });
 
-        log.append({
-            timestamp,
-            type: "create",
-            filePath: config.filePath,
-            report: config.report,
-        });
-
-        return {
-            type: "create" as const,
-            filePath: config.filePath,
-        };
-    },
-
-    update(input: WriteArtifactInput) {
-        const config = WriteSchema.parse(input);
-
-        const baseDir = ARTIFACTS_DIR;
-        ensureDirSync(baseDir);
-        const fullPath = path.join(baseDir, config.filePath);
-        const timestamp = new Date().toISOString();
-
-        const reg = registry(baseDir);
-        const log = historyLog(baseDir);
-
-        if (!fs.existsSync(fullPath)) {
-            throw new Error(`Artifact not found: ${config.filePath}`);
+            return {
+                type: "read" as const,
+                filePath: config.filePath,
+                content,
+            };
         }
-
-        ensureDirSync(path.dirname(fullPath))
-        fs.writeFileSync(fullPath, config.content, "utf8");
-
-        const items = reg.list();
-        const item = items.find((x) => x.filePath === config.filePath);
-
-        if (!item) {
-            throw new Error(`Artifact missing in registry: ${config.filePath}`);
-        }
-
-        if (config.description) {
-            item.description = config.description;
-        }
-
-        item.updatedAt = timestamp;
-
-        reg.save(items);
-
-        log.append({
-            timestamp,
-            type: "update",
-            filePath: config.filePath,
-            report: config.report,
-        });
-
-        return {
-            type: "update" as const,
-            filePath: config.filePath,
-        };
-    },
-
-    read(input: ReadArtifactInput) {
-        const config = ReadSchema.parse(input);
-
-        const baseDir = ARTIFACTS_DIR;
-        ensureDirSync(baseDir);
-        const fullPath = path.join(baseDir, config.filePath);
-        const timestamp = new Date().toISOString();
-
-        const log = historyLog(baseDir);
-
-        if (!fs.existsSync(fullPath)) {
-            throw new Error(`Artifact not found: ${config.filePath}`);
-        }
-
-        const content = fs.readFileSync(fullPath, "utf8");
-
-        log.append({
-            timestamp,
-            type: "read",
-            filePath: config.filePath,
-            report: config.report,
-        });
-
-        return {
-            type: "read" as const,
-            filePath: config.filePath,
-            content,
-        };
-    },
-};
+    }
+}

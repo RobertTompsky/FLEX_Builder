@@ -1,6 +1,6 @@
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { agentState, eventsState } from "../store/index.svelte";
-import type { AgentEvent, UIMessage, UploadEvent } from "../lib/types";
+import type { AgentEvent, AppEvent, UIMessage } from "../lib/types";
 import { tick } from "svelte";
 import { createStreamBuffer } from "../lib/utils/createStreamBuffer";
 
@@ -100,46 +100,56 @@ export const callAgent = async (
             }
         },
         onmessage(ev) {
-            if (!msg) return;
-
             const event = {
                 event: ev.event,
-                data: JSON.parse(ev.data),
-            } as AgentEvent;
+                data: JSON.parse(ev.data)
+            } as AppEvent;
 
             switch (event.event) {
-                case "text_delta":
-                    if (msg.status !== 'in_progress') msg.status = "in_progress";
+                case "text_delta": {
+                    if (!msg) return;
+                    if (msg.status !== "in_progress") {
+                        msg.status = "in_progress";
+                    }
                     streamBuffer.push(event.data.delta);
                     return;
-
-                case "end":
-                    controller = null;
-                    msg.status = "completed";
+                }
+                case "artifact_read": case "artifact_created": {
                     eventsState.events.push(event);
-                    agentState.runId = null;
                     return;
-
-                case "error":
+                }
+                case "end": {
                     controller = null;
-                    msg.status = "incomplete";
-                    msg.content = event.data.message;
+                    agentState.runId = null;
+                    if (msg) { msg.status = "completed"; }
                     eventsState.events.push(event);
-                    agentState.runId = null;
                     return;
-
-                case "stop":
+                }
+                case "error": {
                     controller = null;
-                    if (!msg.content.trim()) {
-                        msg.content = "[ STOPPED BY USER ]";
+                    agentState.runId = null;
+                    if (msg) {
+                        msg.status = "incomplete";
+                        msg.content = event.data.message;
                     }
-                    msg.status = "incomplete";
                     eventsState.events.push(event);
-                    agentState.runId = null;
                     return;
-
-                default:
-                    eventsState.events.push(event);
+                }
+                case "stop": {
+                    controller = null;
+                    agentState.runId = null;
+                    if (msg) {
+                        if (!msg.content.trim()) {
+                            msg.content = "[ STOPPED BY USER ]";
+                        }
+                        msg.status = "incomplete";
+                    }
+                    eventsState.events.push(event); 
+                    return;
+                } 
+                default: { 
+                    eventsState.events.push(event); 
+                }
             }
         },
 
@@ -263,25 +273,36 @@ export async function uploadFiles(files: File[]) {
         formData.append("files", file)
     }
 
-    await fetchEventSource(`${URL}/upload`, {
+    const res = await fetch(`${URL}/upload`, {
+        method: 'POST',
+        body: formData
+    });
+
+    return await res.json() as {
+        filename: string,
+        type: string,
+        path: string
+    }[]
+}
+
+export async function deleteFiles(files: string[]) {
+    const res = await fetch(`${URL}/deleteFiles`, {
         method: "POST",
-        body: formData,
-
-        onmessage(ev) {
-            const event = {
-                event: ev.event,
-                data: JSON.parse(ev.data),
-            } as UploadEvent
-
-            eventsState.events.push(event)
-            console.log(event)
+        headers: {
+            "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+            files,
+        }),
+    });
 
-        onerror(err) {
-            console.error("uploadFiles error", err)
-            throw err
-        },
-    })
+    if (!res.ok) {
+        throw new Error(await res.text());
+    }
 
-    return eventsState.events.filter(e => e.event === 'upload_done')
+    return (await res.json()) as {
+        ok: boolean;
+        deleted: string[];
+        failed: string[];
+    };
 }

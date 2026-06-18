@@ -11,6 +11,7 @@ import { readDirTree } from "../lib/utils/readDirTree";
 import path from "path";
 import { SKILLS_DIR, SRC_DIR } from "../data";
 import type { Emit, AgentEvent } from "./types";
+import { RuntimeEvent } from "../runtime/events";
 
 export const CodeGenSchema = z.object({
   code: z.string()
@@ -43,7 +44,7 @@ function errMsg(e: unknown) {
 
 export async function agent(
   config: Config,
-  emit?: Emit<AgentEvent>
+  emit?: Emit<AgentEvent | RuntimeEvent>
 ): Promise<Config> {
   const { model, skills, pause } = config
   const opts = (config.opts ??= {})
@@ -53,7 +54,7 @@ export async function agent(
     signal
   } = opts
 
-  const safeEmit: Emit<AgentEvent> = emit
+  const safeEmit: Emit<AgentEvent | RuntimeEvent> = emit
     ? async (ev) => {
       if (signal?.aborted && ev.event !== "stop") return;
       await emit(ev);
@@ -127,32 +128,107 @@ export async function agent(
           strict: true,
           description: `
           Execute TypeScript code in a sandboxed Bun process.
-          Working directory is the project root. 
+          Working directory is the project src directory.
           
-          All available skills are located inside the "${skillsDirName}" directory.
+          Runtime globals:
+          - artifact(input) is available globally. Do NOT import it.
+          - Use artifact(...) for ALL filesystem operations: reading files and creating files.
+          - Do NOT use fs, Bun.write, writeFile, readFile, or any other direct filesystem API.
+          
+          Path rules:
+          - Use virtual runtime paths.
+          - Do NOT use absolute paths.
+          - Do NOT use ".." path segments.
+          - To read a skill file, use:
+            "skills/<skill-name>/<file-name>.ts"
+          
+          - To read an uploaded user file, use:
+            "uploads/<file-name>"
+          
+          - To read or create an artifact, use a path relative to the artifacts directory:
+            "summary.md"
+            "reports/analysis.md"
+            "tasks/todo.json"
+          
+          artifact(...) examples:
+          
+          Read a skill source file:
+          artifact({
+            type: "read",
+            filePath: "skills/example/index.ts",
+            report: "Read skill source to understand its input schema"
+          })
+          
+          Read an uploaded file:
+          artifact({
+            type: "read",
+            filePath: "uploads/README.md",
+            report: "Read uploaded README file"
+          })
+          
+          Create an artifact:
+          artifact({
+            type: "create",
+            filePath: "summary.md",
+            content: "# Summary\\n...",
+            description: "Summary generated from uploaded files",
+            report: "Created summary artifact"
+          })
+          
+          Skills:
+          All available skills are located inside the "skills" directory.
           Each subdirectory inside this directory represents one skill.
-          A skill may contain one or more TypeScript files that you can read and import
-
-          Each skill block below contains:
-          - skill name
-          - optional description
-          - file tree
-
+          A skill may contain one or more TypeScript files.
+          
           Available skills:
           ${skillsTree}
           
           Rules:
-          - Before calling a skill function for the first time, *ALWAYS* read its source file to understand the input schema:
-          - Import skill functions with relative paths, WITHOUT file extensions:
-          - Always use "./${skillsDirName}/..." as the base path for both imports and file reads.
-          - Output results using console.log(...)
+          - Before calling a skill function for the first time, ALWAYS read its source file using artifact({ type: "read", ... }) to understand the input schema.
+          - Import skill functions with relative paths, WITHOUT file extensions.
+          - Always use "./${skillsDirName}/..." as the base path for imports.
+          - Always use "skills/..." as the base path for reading skill files with artifact(...).
           - Network access is allowed ONLY via provided skills.
           - Do NOT use fetch, axios, or external imports.
-          - Do NOT add file extensions (.ts, .js) to imports.
+          - Do NOT use direct filesystem APIs.
+          - Output final tool results using console.log(...).
           - Write pure TypeScript.
           `.trim(),
           parameters: z.toJSONSchema(CodeGenSchema),
         };
+
+        // const runTsTool: FunctionTool = {
+        //   type: "function",
+        //   name: "runTs",
+        //   strict: true,
+        //   description: `
+        //   Execute TypeScript code in a sandboxed Bun process.
+        //   Working directory is the project root. 
+
+        //   All available skills are located inside the "${skillsDirName}" directory.
+        //   Each subdirectory inside this directory represents one skill.
+        //   A skill may contain one or more TypeScript files that you can read and import
+
+        //   Each skill block below contains:
+        //   - skill name
+        //   - optional description
+        //   - file tree
+
+        //   Available skills:
+        //   ${skillsTree}
+
+        //   Rules:
+        //   - Before calling a skill function for the first time, *ALWAYS* read its source file to understand the input schema:
+        //   - Import skill functions with relative paths, WITHOUT file extensions:
+        //   - Always use "./${skillsDirName}/..." as the base path for both imports and file reads.
+        //   - Output results using console.log(...)
+        //   - Network access is allowed ONLY via provided skills.
+        //   - Do NOT use fetch, axios, or external imports.
+        //   - Do NOT add file extensions (.ts, .js) to imports.
+        //   - Write pure TypeScript.
+        //   `.trim(),
+        //   parameters: z.toJSONSchema(CodeGenSchema),
+        // };
 
         openaiTools.push(runTsTool);
       }
@@ -304,7 +380,10 @@ export async function agent(
           const { stdout } = await executeCode(
             args.code,
             sandboxTimeout,
-            skills?.available.map(s => s.name) ?? []
+            skills?.available.map(s => s.name) ?? [],
+            async ({ event, data }) => {
+              await safeEmit({ event, data })
+            },
           )
 
           const toolMsg: ResponseInputItem.FunctionCallOutput = {

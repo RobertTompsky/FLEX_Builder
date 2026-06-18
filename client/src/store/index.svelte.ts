@@ -1,22 +1,15 @@
-import type { AgentState, AgentEvent } from "../lib/types";
+import type { AgentState, AgentEvent, AppEvent } from "../lib/types";
 
 export const agentState = $state<AgentState>({
     name: "default",
     model: "",
     prompt: "",
+    files: new Set(),
     skills: [],
     toolRounds: 3,
     messages: [],
     runId: null
 });
-
-export type UploadEvent =
-    | { event: 'upload_start', data: { name: string } }
-    | { event: 'upload_done', data: { filename: string, type: string, path: string } }
-
-export type AppEvent =
-    | AgentEvent
-    | UploadEvent
 
 export const eventsState = $state<{
     events: AppEvent[]
@@ -25,11 +18,13 @@ export const eventsState = $state<{
 })
 
 export const infoState = $state<{
+    uploads: string[],
     skills: string[];
     models: string[];
     loading: boolean;
     error: string | null;
 }>({
+    uploads: [],
     skills: [],
     models: [],
     loading: true,
