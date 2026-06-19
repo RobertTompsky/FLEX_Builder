@@ -16,5 +16,11 @@
     "description": "Plan for fetching BTC price",
     "createdAt": "2026-06-18T10:12:49.090Z",
     "updatedAt": "2026-06-18T10:12:49.090Z"
+  },
+  {
+    "filePath": "tasks/plan.md",
+    "description": "Plan for fetching BTC price",
+    "createdAt": "2026-06-19T09:11:19.326Z",
+    "updatedAt": "2026-06-19T09:11:19.326Z"
   }
 ]

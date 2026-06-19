@@ -108,6 +108,8 @@
 }
 
 .trace-screen {
+    --trace-row: 22px;
+
     position: relative;
 
     min-height: 0;
@@ -116,11 +118,6 @@
 
     color: var(--trace-amber);
     background:
-        repeating-linear-gradient(0deg,
-            transparent 0,
-            transparent 15px,
-            var(--trace-grid) 15px,
-            var(--trace-grid) 16px),
         linear-gradient(90deg,
             rgba(255, 255, 255, 0.025),
             transparent 18%,
@@ -169,7 +166,19 @@
 }
 
 .trace-list {
-    padding: 8px 8px 9px;
+    --trace-top-gap: var(--trace-row);
+
+    min-height: 100%;
+    padding: var(--trace-top-gap) 8px 9px;
+    overflow: hidden;
+
+    background-image: linear-gradient(to bottom,
+            transparent 0,
+            transparent calc(var(--trace-row) - 1px),
+            var(--trace-grid) calc(var(--trace-row) - 1px),
+            var(--trace-grid) var(--trace-row));
+
+    background-size: 100% var(--trace-row);
 }
 
 .trace-entry {
@@ -178,7 +187,19 @@
     gap: 6px;
 
     min-width: 0;
+    min-height: calc(var(--trace-row) * 3);
+
+    margin-bottom: var(--trace-row);
 }
+
+.trace-entry:has(.trace-description) {
+    min-height: calc(var(--trace-row) * 4);
+}
+
+.trace-entry:last-child {
+    margin-bottom: 0;
+}
+
 
 .trace-rail {
     position: relative;
@@ -203,7 +224,7 @@
 .trace-line {
     position: absolute;
     top: 11px;
-    bottom: -4px;
+    bottom: calc(var(--trace-row) * -1 + 4px);
     left: 6px;
 
     width: 1px;
@@ -216,11 +237,11 @@
 
 .trace-content {
     min-width: 0;
-    padding: 0 0 9px;
+    padding: 0;
 }
 
 .trace-entry+.trace-entry .trace-content {
-    padding-top: 2px;
+    padding-top: 0;
 }
 
 .trace-entry-head {
@@ -231,7 +252,8 @@
     justify-content: space-between;
     gap: 8px;
 
-    margin-bottom: 4px;
+    min-height: var(--trace-row);
+    margin-bottom: 0;
 }
 
 .trace-entry-head time {
@@ -244,7 +266,7 @@
 
 .trace-operation {
     min-width: 47px;
-    padding: 1px 4px;
+    padding: 0 4px;
 
     display: inline-block;
 
@@ -252,6 +274,7 @@
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 1px;
+    line-height: calc(var(--trace-row) - 5px);
 
     border: 1px solid currentColor;
 }
@@ -266,10 +289,11 @@
 
 .trace-path {
     min-width: 0;
+    min-height: var(--trace-row);
+    line-height: var(--trace-row);
 
     color: #eee8a6;
     font-size: 10px;
-    line-height: 1.35;
 
     overflow: hidden;
     text-overflow: ellipsis;
@@ -282,13 +306,30 @@
 }
 
 .trace-content p {
-    margin: 3px 0 0;
+    min-height: var(--trace-row);
+    line-height: var(--trace-row);
+    margin: 0;
 
     color: #8d9068;
     font-size: 9px;
-    line-height: 1.35;
 
-    overflow-wrap: anywhere;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.trace-description {
+    display: block;
+
+    min-height: var(--trace-row);
+    line-height: var(--trace-row);
+
+    color: #7f9f63;
+    font-size: 9px;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .trace-statusbar {
@@ -326,4 +367,38 @@
     border: 1px solid #34472a;
 
     box-shadow: 0 0 3px rgba(107, 170, 88, 0.75);
+}
+
+.trace-empty {
+    height: var(--trace-row);
+    line-height: var(--trace-row);
+    padding-top: 0;
+}
+
+.trace-empty::after {
+    content: "";
+    display: inline-block;
+    width: 18px;
+    color: #c8ff7a;
+    text-shadow: 0 0 5px rgba(200, 255, 122, 0.65);
+    animation: waiting-dots 2s steps(4, end) infinite;
+}
+
+@keyframes waiting-dots {
+    0% {
+        content: "";
+    }
+
+    25% {
+        content: ".";
+    }
+
+    50% {
+        content: "..";
+    }
+
+    75%,
+    100% {
+        content: "...";
+    }
 }

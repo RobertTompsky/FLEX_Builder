@@ -9,12 +9,6 @@
                 event.event === "artifact_created",
         ),
     );
-    function getOperation(event: RuntimeEvent) {
-        return event.event === "artifact_read" ? "READ" : "CREATE";
-    }
-    function getOperationClass(event: RuntimeEvent) {
-        return event.event === "artifact_read" ? "read" : "create";
-    }
 </script>
 
 <section class="artifact-trace">
@@ -42,11 +36,14 @@
                     <div class="trace-content">
                         <div class="trace-entry-head">
                             <span
-                                class="trace-operation {getOperationClass(
-                                    entry,
-                                )}"
+                                class="trace-operation {entry.event ===
+                                'artifact_read'
+                                    ? 'read'
+                                    : 'create'}"
                             >
-                                {getOperation(entry)}
+                                {entry.event === "artifact_read"
+                                    ? "READ"
+                                    : "CREATE"}
                             </span>
                         </div>
                         <div class="trace-path">
@@ -64,7 +61,7 @@
                     </div>
                 </article>
             {:else}
-                <div class="trace-empty">WAITING FOR ARTIFACTS...</div>
+                <div class="trace-empty">WAITING FOR ARTIFACTS</div>
             {/each}
         </div>
     </div>
