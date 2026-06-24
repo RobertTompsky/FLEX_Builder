@@ -187,19 +187,21 @@
     gap: 6px;
 
     min-width: 0;
-    min-height: calc(var(--trace-row) * 3);
-
+    min-height: var(--trace-row);
     margin-bottom: var(--trace-row);
 }
 
-.trace-entry:has(.trace-description) {
+.trace-entry.open {
+    min-height: calc(var(--trace-row) * 3);
+}
+
+.trace-entry.open:has(.trace-description) {
     min-height: calc(var(--trace-row) * 4);
 }
 
 .trace-entry:last-child {
     margin-bottom: 0;
 }
-
 
 .trace-rail {
     position: relative;
@@ -228,11 +230,13 @@
     left: 6px;
 
     width: 1px;
-    background: repeating-linear-gradient(to bottom,
-            var(--trace-amber-soft) 0,
-            var(--trace-amber-soft) 3px,
-            transparent 3px,
-            transparent 6px);
+    background: repeating-linear-gradient(
+        to bottom,
+        var(--trace-amber-soft) 0,
+        var(--trace-amber-soft) 3px,
+        transparent 3px,
+        transparent 6px
+    );
 }
 
 .trace-content {
@@ -270,13 +274,24 @@
 
     display: inline-block;
 
+    color: inherit;
+    background: transparent;
+    appearance: none;
+    -webkit-appearance: none;
+
     text-align: center;
+    font-family: inherit;
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 1px;
     line-height: calc(var(--trace-row) - 5px);
 
     border: 1px solid currentColor;
+    cursor: pointer;
+    transition:
+        border-color 0.12s ease,
+        color 0.12s ease,
+        background 0.12s ease;
 }
 
 .trace-operation.create {
@@ -285,6 +300,26 @@
 
 .trace-operation.read {
     color: var(--trace-amber);
+}
+
+.trace-operation.create:hover {
+    color: #b5f59b;
+    background: rgba(131, 203, 119, 0.1);
+}
+
+.trace-operation.read:hover {
+    color: #fff28b;
+    background: rgba(230, 217, 107, 0.1);
+}
+
+.trace-operation.create:active {
+    color: #4e8d49;
+    background: rgba(131, 203, 119, 0.22);
+}
+
+.trace-operation.read:active {
+    color: #aaa146;
+    background: rgba(230, 217, 107, 0.22);
 }
 
 .trace-path {

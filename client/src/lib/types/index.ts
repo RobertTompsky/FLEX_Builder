@@ -11,9 +11,6 @@ export type AgentEvent =
   | { event: "stop"; data: { runId?: string; reason: string } }
   | { event: "error"; data: { message: string } };
   
-// export type UploadEvent =
-//   | { event: 'upload_start', data: { name: string } }
-//   | { event: 'upload_done', data: { filename: string, type: string, path: string } }
 
 export type RuntimeEvent = 
 | { event: "artifact_read"; data: { filePath: string; report: string; }; } 
