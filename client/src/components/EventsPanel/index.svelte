@@ -101,17 +101,6 @@
             <div class="aw-empty">No events recorded</div>
         {:else}
             {#each views as ev}
-                <!-- {#if ev.event === "upload_start"}
-                    <div class="aw-line aw-upload">
-                        UPLOAD: {ev.data.name}
-                    </div>
-                {/if}
-
-                {#if ev.event === "upload_done"}
-                    <div class="aw-line aw-upload-done">
-                        UPLOADED: {ev.data.filename}
-                    </div>
-                {/if} -->
                 {#if ev.event === "init"}
                     <div class="aw-line aw-init">{ev.data.message}</div>
                 {/if}

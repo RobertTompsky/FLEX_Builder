@@ -32,6 +32,7 @@ export interface AgentState {
   prompt: string;
   toolRounds: number,
   files: Set<string>,
+  globals: string[],
   skills: string[];
   messages: UIMessage[];
   pause?: boolean

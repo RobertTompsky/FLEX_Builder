@@ -1,4 +1,0 @@
-{
-  "description": "Delegates tasks to sub-agents inside the sandbox. Read README.md for full usage details.",
-  "access": "private"
-}

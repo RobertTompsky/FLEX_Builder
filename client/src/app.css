@@ -80,7 +80,7 @@ body::after {
 
   display: grid;
   grid-template-columns:
-    320px minmax(420px, 1fr) 320px;
+    280px minmax(420px, 1fr) 320px;
   grid-template-rows: minmax(0, 1fr);
   gap: 8px;
 
@@ -115,8 +115,6 @@ body::after {
 }
 
 .left-panel {
-  min-width: 0;
-  min-height: 0;
   height: 100%;
 
   display: grid;
@@ -127,7 +125,8 @@ body::after {
 
 .right-panel {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows:
+    minmax(150px, 0.8fr) minmax(320px, 1fr);
   gap: 8px;
 
   width: auto;

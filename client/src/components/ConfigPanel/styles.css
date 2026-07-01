@@ -6,6 +6,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  max-height: 100%;
   background: #0c0c3a;
   border: 2px solid #4444aa;
   border-radius: 4px;
@@ -89,6 +90,10 @@
   font-size: 9px;
 }
 
+.bios-label.disabled {
+  color: #666699;
+}
+
 /* ═══ Divider ═══ */
 .bios-divider {
   height: 1px;
@@ -128,7 +133,7 @@
 }
 
 .bios-input:disabled {
-    opacity: 0.6;
+  opacity: 0.6;
 }
 
 .bios-select {
@@ -248,7 +253,7 @@
     0 0 6px rgba(102, 102, 204, 0.2);
 }
 
-.bios-check-input:focus-visible + .bios-check-box {
+.bios-check-input:focus-visible+.bios-check-box {
   outline: none;
   border-color: #ffcc00;
   box-shadow:
@@ -256,12 +261,12 @@
     0 0 6px rgba(255, 204, 0, 0.25);
 }
 
-.bios-check-input:checked + .bios-check-box {
+.bios-check-input:checked+.bios-check-box {
   background: #1a1a7a;
   border-color: #ffcc00;
 }
 
-.bios-check-input:checked + .bios-check-box::after {
+.bios-check-input:checked+.bios-check-box::after {
   content: "■";
   font-size: 8px;
   line-height: 1;
@@ -269,14 +274,35 @@
   text-shadow: 0 0 4px rgba(255, 204, 0, 0.35);
 }
 
-.bios-check-input:disabled + .bios-check-box {
+.bios-check-input:disabled+.bios-check-box {
   opacity: 0.55;
   border-color: #444488;
 }
 
-.bios-check-input:disabled ~ .bios-check-label {
+.bios-check-input:disabled~.bios-check-label {
   color: #666699;
   cursor: default;
+}
+
+.bios-chip:disabled {
+  opacity: 0.5;
+  cursor: default;
+  color: #666699;
+  border-color: #333366;
+  background: #07071d;
+  box-shadow: none;
+}
+
+.bios-chip:disabled:hover {
+  color: #666699;
+  border-color: #333366;
+  background: #07071d;
+  box-shadow: none;
+  transform: none;
+}
+
+.bios-chip:disabled .bios-chip-indicator {
+  color: #444477;
 }
 
 /* ═══ Error ═══ */

@@ -2,6 +2,7 @@ import { writeFile, unlink } from "fs-extra";
 import path from "path";
 import { SKILLS_DIR, SRC_DIR } from "../data";
 import { RUNTIME_EVENT_PREFIX, type RuntimeEvent } from "../runtime/events";
+import { RuntimeGlobal } from "../runtime/types";
 
 const MAX_OUTPUT_BYTES = 50 * 1024; // 50 KB
 
@@ -19,29 +20,33 @@ for (const key of ENV_WHITELIST) {
   if (val) sandboxEnv[key] = val;
 }
 
-function validateCode(code: string, allowedSkills: string[]): string | null {
-  const allowedSet = new Set(allowedSkills.map((s) => s.trim()).filter(Boolean));
-  const skillsRel = "./" + path.relative(SRC_DIR, SKILLS_DIR).split(path.sep).join("/");
-  const escapedSkillsRel = skillsRel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function hasGlobal(
+  globals: RuntimeGlobal[],
+  name: RuntimeGlobal["name"],
+) {
+  return globals.some((global) => global.name === name);
+}
 
-  const allowedImportSpecifiers = [/^['"]fs['"]$/, /^['"]path['"]$/];
+export function validateCode(
+  code: string,
+  globals: RuntimeGlobal[],
+): string | null {
+  const allowedImportSpecifiers = [
+    /^['"]fs['"]$/,
+    /^['"]path['"]$/,
+  ];
+
   const importPattern = /(?:import|from)\s+(['"][^'"]+['"])/g;
-  const allowedSkillImportPattern = new RegExp(
-    `^['"]${escapedSkillsRel}/([^/'"]+)/.+['"]$`
-  );
-
-  const fsReadPattern =
-    /\b(?:readFileSync|readdirSync|statSync|existsSync)\s*\(\s*['"](?<filePath>[^'"]+)['"]/g;
-  const allowedFsPathPattern = new RegExp(`^${escapedSkillsRel}/([^/]+)/.+`);
 
   const blockedPatterns = [
     { pattern: /\bchild_process\b/, reason: "child_process is blocked" },
     { pattern: /\bBun\.spawn\b/, reason: "Bun.spawn is blocked" },
     { pattern: /\bBun\.write\b/, reason: "Bun.write is blocked" },
     { pattern: /\bprocess\.exit\b/, reason: "process.exit is blocked" },
+    { pattern: /\bprocess\.env\b/, reason: "process.env is blocked" },
     { pattern: /\beval\s*\(/, reason: "eval is blocked" },
     { pattern: /\bFunction\s*\(/, reason: "Function() is blocked" },
-    { pattern: /\bfetch\s*\(/, reason: "fetch is blocked (use skills)" },
+    { pattern: /\bfetch\s*\(/, reason: "fetch is blocked (use execute)" },
     { pattern: /\bwriteFile\b/, reason: "writeFile is blocked" },
     { pattern: /\bunlink\b/, reason: "unlink is blocked" },
     { pattern: /\brmSync\b/, reason: "rmSync is blocked" },
@@ -49,37 +54,32 @@ function validateCode(code: string, allowedSkills: string[]): string | null {
 
   for (const line of code.split(/\r?\n/)) {
     const importMatches = line.trim().match(importPattern);
+
     if (!importMatches) continue;
 
     for (const match of importMatches) {
       const specifier = match.replace(/^(?:import|from)\s+/, "");
-      if (allowedImportSpecifiers.some((re) => re.test(specifier))) continue;
 
-      const skillImport = specifier.match(allowedSkillImportPattern);
-      if (skillImport) {
-        const skillName = skillImport[1];
-        if (allowedSet.has(skillName)) continue;
-        return `Blocked import from disallowed skill: ${skillName}`;
+      if (allowedImportSpecifiers.some((re) => re.test(specifier))) {
+        continue;
       }
 
       return `Blocked import: ${specifier}`;
     }
   }
 
-  for (const match of code.matchAll(fsReadPattern)) {
-    const filePath = match.groups?.filePath;
-    if (!filePath) continue;
-    const skillPath = filePath.match(allowedFsPathPattern);
-    if (!skillPath) return `Blocked fs path: ${filePath}`;
+  if (!hasGlobal(globals, "artifact") && /\bartifact\s*\(/.test(code)) {
+    return "artifact is not available in this runtime";
+  }
 
-    const skillName = skillPath[1];
-    if (!allowedSet.has(skillName)) {
-      return `Blocked fs access to disallowed skill: ${skillName}`;
-    }
+  if (!hasGlobal(globals, "execute") && /\bexecute\s*\(/.test(code)) {
+    return "execute is not available in this runtime";
   }
 
   for (const { pattern, reason } of blockedPatterns) {
-    if (pattern.test(code)) return reason;
+    if (pattern.test(code)) {
+      return reason;
+    }
   }
 
   return null;
@@ -88,7 +88,7 @@ function validateCode(code: string, allowedSkills: string[]): string | null {
 export async function executeCode(
   code: string,
   timeoutSeconds = 10,
-  allowedSkills: string[] = [],
+  globals: RuntimeGlobal[] = [],
   onRuntimeEvent?: (
     event: RuntimeEvent,
   ) => void | Promise<void>,
@@ -103,14 +103,14 @@ export async function executeCode(
   const logs: string[] = [];
 
   try {
-    const error = validateCode(code, allowedSkills);
+    const error = validateCode(code, globals);
     if (error) {
       return { stdout: `[BLOCKED] ${error}` };
     }
 
     await writeFile(userFile, code, "utf8");
 
-    const child = Bun.spawn(["bun", entryFile, userFile], {
+    const child = Bun.spawn(["bun", entryFile, userFile, JSON.stringify(globals)], {
       cwd: SRC_DIR,
       stdout: "pipe",
       stderr: "pipe",

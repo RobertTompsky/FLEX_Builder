@@ -16,8 +16,9 @@ export const cryptoInputSchema = z.object({
     quantity: z
         .number()
         .positive()
+        .default(1)
         .describe(
-            'The amount of cryptocurrency. Defaults to 1 if not specified'
+            "The amount of cryptocurrency. Defaults to 1 if omitted.",
         ),
 })
 

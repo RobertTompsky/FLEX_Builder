@@ -10,8 +10,8 @@
     "@types/fs-extra": "^11.0.4",
     "dotenv": "^17.4.2",
     "elysia": "latest",
-    "fs-extra": "^11.3.5",
-    "openai": "^6.42.0",
+    "fs-extra": "^11.3.6",
+    "openai": "^6.45.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

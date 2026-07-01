@@ -79,6 +79,7 @@ export const callAgent = async (
         prompt: agentState.prompt,
         files,
         toolRounds: agentState.toolRounds,
+        globals: agentState.globals,
         skills: agentState.skills,
         pause: agentState.pause,
         runId

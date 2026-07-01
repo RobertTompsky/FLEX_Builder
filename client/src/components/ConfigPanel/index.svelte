@@ -1,6 +1,11 @@
 <script lang="ts">
     import { agentState, infoState } from "../../store/index.svelte";
     import "./styles.css";
+
+    const skillsEnabled = $derived(
+        agentState.globals.includes("execute") ||
+            agentState.globals.includes("subagent"),
+    );
 </script>
 
 <aside class="bios">
@@ -78,7 +83,53 @@
             <div class="bios-divider"></div>
 
             <div class="bios-row col">
-                <span class="bios-label">Skills</span>
+                <span class="bios-label">Globals</span>
+
+                <div class="bios-skills">
+                    {#if infoState.loading}
+                        <span class="bios-hint">Scanning...</span>
+                    {:else if infoState.globals.length === 0}
+                        <span class="bios-hint">No globals detected</span>
+                    {:else}
+                        {#each infoState.globals as global}
+                            <button
+                                type="button"
+                                class="bios-chip"
+                                class:active={agentState.globals.includes(
+                                    global,
+                                )}
+                                onclick={() => {
+                                    const set = new Set(agentState.globals);
+
+                                    set.has(global)
+                                        ? set.delete(global)
+                                        : set.add(global);
+
+                                    agentState.globals = [...set];
+                                }}
+                            >
+                                <span class="bios-chip-indicator">
+                                    {agentState.globals.includes(global)
+                                        ? "■"
+                                        : "□"}
+                                </span>
+
+                                {global}
+                            </button>
+                        {/each}
+                    {/if}
+                </div>
+            </div>
+
+            <div class="bios-divider"></div>
+
+            <div class="bios-row col">
+                <span
+                    class="bios-label"
+                    class:disabled={!agentState.globals.includes("execute")}
+                >
+                    Skills
+                </span>
                 <div class="bios-skills">
                     {#if infoState.loading}
                         <span class="bios-hint">Scanning...</span>
@@ -87,9 +138,11 @@
                     {:else}
                         {#each infoState.skills as skill}
                             <button
+                                disabled={!skillsEnabled}
                                 type="button"
                                 class="bios-chip"
                                 class:active={agentState.skills.includes(skill)}
+                                class:disabled={!skillsEnabled}
                                 onclick={() => {
                                     const set = new Set(agentState.skills);
                                     set.has(skill)

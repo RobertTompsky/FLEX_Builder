@@ -5,13 +5,11 @@ import type {
   ResponseFunctionToolCallItem,
 } from "openai/resources/responses/responses.js";
 import { z } from "zod";
-import fs from "fs";
 import { executeCode } from "../code/executeCode";
-import { readDirTree } from "../lib/utils/readDirTree";
-import path from "path";
-import { SKILLS_DIR, SRC_DIR } from "../data";
 import type { Emit, AgentEvent } from "./types";
 import { RuntimeEvent } from "../runtime/events";
+import { RuntimeGlobal } from "../runtime/types";
+import { buildGlobalsPrompt } from "../runtime/globals";
 
 export const CodeGenSchema = z.object({
   code: z.string()
@@ -23,6 +21,7 @@ export type Config = {
   name?: string,
   messages: ResponseInputItem[],
   model: string
+  globals?: RuntimeGlobal[];
   skills?: {
     baseDir: string
     available: {
@@ -46,7 +45,8 @@ export async function agent(
   config: Config,
   emit?: Emit<AgentEvent | RuntimeEvent>
 ): Promise<Config> {
-  const { model, skills, pause } = config
+  const { model, pause } = config
+  const globals = config.globals ?? [];
   const opts = (config.opts ??= {})
   const {
     toolRounds = 3,
@@ -85,153 +85,35 @@ export async function agent(
 
     let openaiTools: FunctionTool[] = []
 
-    if (skills) {
-      if (!fs.existsSync(skills.baseDir)) {
-        throw new Error(`skills.basePath not found: ${skills.baseDir}`);
+    if (globals.length > 0) {
+      const runtimeGlobalsPrompt = await buildGlobalsPrompt(globals);
+
+      const names = globals.map((global) => global.name);
+
+      if (new Set(names).size !== names.length) {
+        throw new Error(
+          `Duplicate runtime globals: ${names.join(", ")}`,
+        );
       }
 
-      const entries = fs
-        .readdirSync(skills.baseDir, { withFileTypes: true })
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => entry.name);
+      const runTsTool: FunctionTool = {
+        type: "function",
+        name: "runTs",
+        strict: true,
+        description: `
+        # Execute TypeScript code in a sandboxed Bun process.
+        
+        ## Runtime globals:
+        ${runtimeGlobalsPrompt}
+        
+        ## Rules:
+        - Output final tool results using console.log(...).
+        - Write pure TypeScript.
+        `.trim(),
+        parameters: z.toJSONSchema(CodeGenSchema),
+      };
 
-      const allSkills = new Set(entries);
-      const allowedSkills = [...new Set(skills.available.map((s) => s.name.trim()).filter(Boolean))];
-      const unknownSkills = allowedSkills.filter((name) => !allSkills.has(name));
-
-      if (unknownSkills.length > 0) {
-        throw new Error(`Unknown skills requested: ${unknownSkills.join(", ")}`);
-      }
-
-      if (allowedSkills.length > 0) {
-        const skillsTree = allowedSkills
-          .map((name) => {
-            const tree = readDirTree(path.join(skills.baseDir, name));
-            const desc = skills.available.find((s) => s.name === name)?.description?.trim();
-
-            return [
-              `Skill name: ${name}`,
-              `Skill description: ${desc || "No description provided."}`,
-              `Skill file tree:`,
-              "```text",
-              tree,
-              "```",
-            ].join("\n");
-          })
-          .join("\n\n");
-
-        const skillsDirName = path.relative(SRC_DIR, SKILLS_DIR);
-
-        const runTsTool: FunctionTool = {
-          type: "function",
-          name: "runTs",
-          strict: true,
-          description: `
-          Execute TypeScript code in a sandboxed Bun process.
-          Working directory is the project src directory.
-          
-          Runtime globals:
-          - artifact(input) is available globally. Do NOT import it.
-          - Use artifact(...) for ALL filesystem operations: reading files and creating files.
-          - Do NOT use fs, Bun.write, writeFile, readFile, or any other direct filesystem API.
-          
-          Path rules:
-          - Use virtual runtime paths.
-          - Do NOT use absolute paths.
-          - Do NOT use ".." path segments.
-          - To read a skill file, use:
-            "skills/<skill-name>/<file-name>.ts"
-          
-          - To read an uploaded user file, use:
-            "uploads/<file-name>"
-          
-          - To read or create an artifact, use a path relative to the artifacts directory:
-            "summary.md"
-            "reports/analysis.md"
-            "tasks/todo.json"
-          
-          artifact(...) examples:
-          
-          Read a skill source file:
-          artifact({
-            type: "read",
-            filePath: "skills/example/index.ts",
-            report: "Read skill source to understand its input schema"
-          })
-          
-          Read an uploaded file:
-          artifact({
-            type: "read",
-            filePath: "uploads/README.md",
-            report: "Read uploaded README file"
-          })
-          
-          Create an artifact:
-          artifact({
-            type: "create",
-            filePath: "summary.md",
-            content: "# Summary\\n...",
-            description: "Summary generated from uploaded files",
-            report: "Created summary artifact"
-          })
-          
-          Skills:
-          All available skills are located inside the "skills" directory.
-          Each subdirectory inside this directory represents one skill.
-          A skill may contain one or more TypeScript files.
-          
-          Available skills:
-          ${skillsTree}
-          
-          Rules:
-          - Before calling a skill function for the first time, ALWAYS read its source file using artifact({ type: "read", ... }) to understand the input schema.
-          - Import skill functions with relative paths, WITHOUT file extensions.
-          - Always use "./${skillsDirName}/..." as the base path for imports.
-          - Always use "skills/..." as the base path for reading skill files with artifact(...).
-          - Network access is allowed ONLY via provided skills.
-          - Do NOT use fetch, axios, or external imports.
-          - Do NOT use direct filesystem APIs.
-          - Output final tool results using console.log(...).
-          - Write pure TypeScript.
-          `.trim(),
-          parameters: z.toJSONSchema(CodeGenSchema),
-        };
-
-        // const runTsTool: FunctionTool = {
-        //   type: "function",
-        //   name: "runTs",
-        //   strict: true,
-        //   description: `
-        //   Execute TypeScript code in a sandboxed Bun process.
-        //   Working directory is the project root. 
-
-        //   All available skills are located inside the "${skillsDirName}" directory.
-        //   Each subdirectory inside this directory represents one skill.
-        //   A skill may contain one or more TypeScript files that you can read and import
-
-        //   Each skill block below contains:
-        //   - skill name
-        //   - optional description
-        //   - file tree
-
-        //   Available skills:
-        //   ${skillsTree}
-
-        //   Rules:
-        //   - Before calling a skill function for the first time, *ALWAYS* read its source file to understand the input schema:
-        //   - Import skill functions with relative paths, WITHOUT file extensions:
-        //   - Always use "./${skillsDirName}/..." as the base path for both imports and file reads.
-        //   - Output results using console.log(...)
-        //   - Network access is allowed ONLY via provided skills.
-        //   - Do NOT use fetch, axios, or external imports.
-        //   - Do NOT add file extensions (.ts, .js) to imports.
-        //   - Write pure TypeScript.
-        //   `.trim(),
-        //   parameters: z.toJSONSchema(CodeGenSchema),
-        // };
-
-        openaiTools.push(runTsTool);
-      }
+      openaiTools.push(runTsTool);
     }
 
     let toolRound = 1
@@ -380,7 +262,7 @@ export async function agent(
           const { stdout } = await executeCode(
             args.code,
             sandboxTimeout,
-            skills?.available.map(s => s.name) ?? [],
+            globals,
             async ({ event, data }) => {
               await safeEmit({ event, data })
             },
@@ -428,14 +310,6 @@ export async function agent(
     console.log("[agent catch]", errMsg(e), "aborted=", signal?.aborted);
 
     if (signal?.aborted) {
-      // console.log("[agent stop emit] start");
-      // if (emit) {
-      //   await emit({
-      //     type: "stop",
-      //     data: { reason: "aborted" }
-      //   });
-      // }
-      // console.log("[agent stop emit] done");
       return config;
     }
 

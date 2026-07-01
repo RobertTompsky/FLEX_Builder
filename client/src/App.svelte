@@ -15,12 +15,14 @@
 
       const data = (await res.json()) as {
         uploads: string[]
+        globals: string[]
         skills: string[];
         models: string[];
         uiHistory: UIMessage[];
       };
 
       infoState.uploads = data.uploads;
+      infoState.globals = data.globals
       infoState.skills = data.skills;
       infoState.models = data.models;
       agentState.messages = data.uiHistory;

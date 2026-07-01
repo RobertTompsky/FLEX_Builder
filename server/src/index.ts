@@ -13,8 +13,9 @@ import { agent, CodeGenSchema } from "./llm/agent";
 import { cors } from '@elysia/cors'
 import { ResponseInputItem } from "openai/resources/responses/responses.js";
 import { executeCode } from "./code/executeCode";
-import { artifact } from "./runtime/artifact/artifact";
 import { RuntimeEvent } from "./runtime/events";
+import { runtimeGlobalRegistry } from "./runtime/registry";
+import { RuntimeGlobal } from "./runtime/types";
 
 const runs = new Map<string, AbortController>();
 
@@ -32,6 +33,16 @@ const fileSchema = z.file().refine((file: File) => {
 }, {
   message: 'Only text/code files are allowed',
 })
+
+const runtimeGlobalNames = Object.keys(runtimeGlobalRegistry);
+
+if (runtimeGlobalNames.length === 0) {
+  throw new Error("Runtime globals registry is empty");
+}
+
+const RuntimeGlobalNameSchema = z.enum(
+  runtimeGlobalNames as [string, ...string[]],
+);
 
 function createSSEWriter(s: SSE): Emit<AgentEvent | RuntimeEvent> {
   return async ({ event, data }) => {
@@ -73,8 +84,12 @@ const app = new Elysia()
       .map((entry) => entry.name)
       .sort((a, b) => a.localeCompare(b));
 
+    const globals = Object.keys(runtimeGlobalRegistry)
+      .sort((a, b) => a.localeCompare(b));
+
     return {
       uploads,
+      globals,
       skills,
       models: MODELS,
       uiHistory
@@ -116,6 +131,36 @@ const app = new Elysia()
         )
         : ''
 
+      const selectedGlobals = new Set(body.globals ?? []);
+
+      const globals: RuntimeGlobal[] = [];
+
+      if (selectedGlobals.has("artifact")) {
+        globals.push({
+          name: "artifact",
+        });
+      }
+
+      if (selectedGlobals.has("execute")) {
+        globals.push({
+          name: "execute",
+          baseDir: SKILLS_DIR,
+          available: getSkillsRegistry(SKILLS_DIR).filter((skill) =>
+            body.skills?.includes(skill.name),
+          ),
+        });
+      }
+
+      if (selectedGlobals.has("subagent")) {
+        globals.push({
+          name: "subagent",
+          baseDir: SKILLS_DIR,
+          available: getSkillsRegistry(SKILLS_DIR).filter((skill) =>
+            body.skills?.includes(skill.name),
+          ),
+        });
+      }
+
       return streamSSE(async (s) => {
         const writeAgentSSE = createSSEWriter(s)
 
@@ -135,8 +180,6 @@ const app = new Elysia()
                         filesContext,
                       ].join('\n')
                       : '',
-                    "For all external data you **must** read only files from the skills directory to discover tools and call the appropriate one.",
-                    "Consider having all needed functions and info in the skills directory. You can use them directly by imports."
                   ].join('\n'),
                   status: 'completed'
                 },
@@ -148,10 +191,7 @@ const app = new Elysia()
                     status: 'completed'
                   } as UIMessage])
               ],
-              skills: {
-                baseDir: SKILLS_DIR,
-                available: getSkillsRegistry(SKILLS_DIR).filter(skill => body.skills?.includes(skill.name))
-              },
+              globals,
               pause: body.pause,
               opts: {
                 toolRounds: body.toolRounds,
@@ -176,7 +216,10 @@ const app = new Elysia()
         prompt: z.string().optional(),
         files: z.array(z.string()).optional(),
         toolRounds: z.number().optional(),
-        skills: z.array(z.string()).optional(),
+        globals: z.array(RuntimeGlobalNameSchema).optional(),
+        skills: z.array(z.enum(
+          getSkillsRegistry(SKILLS_DIR).map(s => s.name) as [string, ...string[]],
+        )).optional(),
         pause: z.boolean().optional(),
       }),
       params: z.object({
@@ -235,6 +278,36 @@ const app = new Elysia()
 
       history = history.filter((_, index) => !removeIndexes.has(index));
 
+      const selectedGlobals = new Set(body.globals);
+
+      const globals: RuntimeGlobal[] = [];
+
+      if (selectedGlobals.has("artifact")) {
+        globals.push({
+          name: "artifact",
+        });
+      }
+
+      if (selectedGlobals.has("execute")) {
+        globals.push({
+          name: "execute",
+          baseDir: SKILLS_DIR,
+          available: getSkillsRegistry(SKILLS_DIR).filter((skill) =>
+            body.skills?.includes(skill.name),
+          ),
+        });
+      }
+
+      if (selectedGlobals.has("subagent")) {
+        globals.push({
+          name: "subagent",
+          baseDir: SKILLS_DIR,
+          available: getSkillsRegistry(SKILLS_DIR).filter((skill) =>
+            body.skills?.includes(skill.name),
+          ),
+        });
+      }
+
       return streamSSE(async (s) => {
         const writeSSE = createSSEWriter(s)
 
@@ -247,7 +320,7 @@ const app = new Elysia()
             const { stdout } = await executeCode(
               args.code,
               undefined,
-              body.skills ?? [],
+              globals,
               writeSSE
             )
 
@@ -277,7 +350,10 @@ const app = new Elysia()
     {
       body: z.object({
         toolCallIds: z.array(z.string()),
-        skills: z.array(z.string()),
+        globals: z.array(RuntimeGlobalNameSchema),
+        skills: z.array(z.enum(
+          getSkillsRegistry(SKILLS_DIR).map(s => s.name) as [string, ...string[]],
+        ))
       })
     }
   )

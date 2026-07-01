@@ -5,6 +5,7 @@ export const agentState = $state<AgentState>({
     model: "",
     prompt: "",
     files: new Set(),
+    globals: [],
     skills: [],
     toolRounds: 3,
     messages: [],
@@ -19,12 +20,14 @@ export const eventsState = $state<{
 
 export const infoState = $state<{
     uploads: string[],
+    globals: string[],
     skills: string[];
     models: string[];
     loading: boolean;
     error: string | null;
 }>({
     uploads: [],
+    globals: [],
     skills: [],
     models: [],
     loading: true,
