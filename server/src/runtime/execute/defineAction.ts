@@ -2,32 +2,39 @@ import z from "zod";
 import type { RuntimeAction } from "./types";
 
 type DefineActionInput<
-  TSchema extends z.ZodType,
-  TResult,
+  TInputSchema extends z.ZodType,
+  TOutputSchema extends z.ZodType,
 > = {
   description: string;
-  inputSchema: TSchema;
+  inputSchema: TInputSchema;
+  outputSchema: TOutputSchema;
   handler: (
-    args: z.output<TSchema>,
-  ) => Promise<TResult> | TResult;
+    args: z.output<TInputSchema>,
+  ) =>
+    | z.input<TOutputSchema>
+    | Promise<z.input<TOutputSchema>>;
 };
 
 export function defineAction<
-  TSchema extends z.ZodType,
-  TResult,
+  TInputSchema extends z.ZodType,
+  TOutputSchema extends z.ZodType,
 >({
   description,
   inputSchema,
+  outputSchema,
   handler,
-}: DefineActionInput<TSchema, TResult>): RuntimeAction {
+}: DefineActionInput<TInputSchema, TOutputSchema>): RuntimeAction {
   return {
     description,
     inputSchema,
+    outputSchema,
 
     async execute(rawArgs: unknown) {
       const args = inputSchema.parse(rawArgs);
 
-      return handler(args);
+      const result = await handler(args);
+
+      return outputSchema.parse(result);
     },
   };
 }

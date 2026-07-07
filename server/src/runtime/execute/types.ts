@@ -1,8 +1,10 @@
 import z from "zod";
+import { executeInputSchema, executeOutputSchema } from "./schemas";
 
 export type RuntimeAction = {
   description: string;
   inputSchema: z.ZodType;
+  outputSchema: z.ZodType;
   execute: (rawArgs: unknown) => Promise<unknown>;
 };
 
@@ -15,11 +17,10 @@ export type LoadedSkill = {
   actions: SkillActions;
 };
 
-export type ExecuteInput = {
-  action: string;
-  args?: unknown;
-};
+export type ExecuteInput = z.infer<typeof executeInputSchema>;
+
+export type ExecuteOutput = z.infer<typeof executeOutputSchema>;
 
 export type RuntimeExecute = (
-  input: ExecuteInput,
-) => Promise<unknown>;
+    input: ExecuteInput,
+) => Promise<ExecuteOutput>;

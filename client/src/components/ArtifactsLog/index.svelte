@@ -1,11 +1,11 @@
 <script lang="ts">
     import "./styles.css";
     import { eventsState } from "../../store/index.svelte";
-    import type { RuntimeEvent } from "../../lib/types";
+    import type { ArtifactRuntimeEvent } from "../../lib/types";
 
     const runtimeEvents = $derived(
         eventsState.events.filter(
-            (event): event is RuntimeEvent =>
+            (event): event is ArtifactRuntimeEvent =>
                 event.event === "artifact_read" ||
                 event.event === "artifact_created",
         ),

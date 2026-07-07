@@ -7,7 +7,7 @@ import type {
 import { z } from "zod";
 import { executeCode } from "../code/executeCode";
 import type { Emit, AgentEvent } from "./types";
-import { RuntimeEvent } from "../runtime/events";
+import type { RuntimeEvent } from "../runtime/events";
 import { RuntimeGlobal } from "../runtime/types";
 import { buildGlobalsPrompt } from "../runtime/globals";
 
@@ -22,13 +22,13 @@ export type Config = {
   messages: ResponseInputItem[],
   model: string
   globals?: RuntimeGlobal[];
-  skills?: {
-    baseDir: string
-    available: {
-      name: string,
-      description?: string
-    }[]
-  },
+  // skills?: {
+  //   baseDir: string
+  //   available: {
+  //     name: string,
+  //     description?: string
+  //   }[]
+  // },
   pause?: boolean,
   opts?: {
     toolRounds?: number
@@ -149,7 +149,6 @@ export async function agent(
             event: 'arguments_delta',
             data: {
               delta: ev.delta,
-              toolRound,
               id: ev.item_id
             }
           })
@@ -161,7 +160,6 @@ export async function agent(
               event: 'output_item.added',
               data: {
                 name: ev.item.name,
-                toolRound,
                 id: ev.item.id ?? '',
                 callId: ev.item.call_id
               }
@@ -214,7 +212,6 @@ export async function agent(
           await safeEmit({
             event: "tool_start",
             data: {
-              toolRound,
               callId: item.call_id,
               name: item.name,
               args: JSON.stringify(args),
@@ -263,9 +260,7 @@ export async function agent(
             args.code,
             sandboxTimeout,
             globals,
-            async ({ event, data }) => {
-              await safeEmit({ event, data })
-            },
+            safeEmit,
           )
 
           const toolMsg: ResponseInputItem.FunctionCallOutput = {
@@ -280,7 +275,6 @@ export async function agent(
           await safeEmit({
             event: "tool_result",
             data: {
-              toolRound,
               callId: item.call_id,
               name: item.name,
               outputPreview: stdout.slice(0, 2000)

@@ -4,24 +4,23 @@ import { ResponseInputItem } from "openai/resources/responses/responses.js";
 import { SKILLS_DIR } from "../../data";
 import { getSkillsRegistry } from "../../lib/utils/getSkillsRegistry";
 import { RuntimeGlobal } from "../types";
-
-export const SubagentInputSchema = z.object({
-    query: z
-        .string()
-        .min(1)
-        .describe("A clear, self-contained task for the subagent."),
-
-    skills: z
-        .array(z.string().min(1))
-        .min(1)
-        .describe("Names of skills to grant to the subagent."),
-});
+import { SubagentInputSchema, SubagentOutputSchema } from "./schemas";
+import { AgentEvent } from "../../llm/types";
+import { ArtifactRuntimeEvent, emitRuntimeEvent, RuntimeEvent } from "../events";
 
 export type SubagentInput = z.infer<typeof SubagentInputSchema>;
 
+export type SubagentOutput = z.infer<typeof SubagentOutputSchema>;
+
 const SUBAGENT_MODEL = "gpt-5.4-mini";
 
-export async function subagent(input: SubagentInput) {
+function isNestedSubagentEvent(
+    event: AgentEvent | RuntimeEvent,
+): event is Extract<RuntimeEvent, { event: "subagent_event" }> {
+    return event.event === "subagent_event";
+}
+
+export async function subagent(input: SubagentInput): Promise<SubagentOutput> {
     const { query, skills } = SubagentInputSchema.parse(input);
 
     const availableSkills = getSkillsRegistry(SKILLS_DIR)
@@ -40,6 +39,8 @@ export async function subagent(input: SubagentInput) {
             `Unknown subagent skills: ${unknownSkills.join(", ")}`,
         );
     }
+
+    const subagentId = crypto.randomUUID();
 
     const globals: RuntimeGlobal[] = [
         {
@@ -71,15 +72,32 @@ export async function subagent(input: SubagentInput) {
         },
     ];
 
-    const result = await agent({
-        model: SUBAGENT_MODEL,
-        messages,
-        globals,
-        opts: {
-            toolRounds: 3,
-            sandboxTimeout: 10,
+    const result = await agent(
+        {
+            model: SUBAGENT_MODEL,
+            messages,
+            globals,
+            opts: {
+                toolRounds: 3,
+                sandboxTimeout: 10,
+            },
         },
-    });
+        async (event) => {
+            // Внутри субагента subagent-global не установлен,
+            // поэтому рекурсивных subagent_event быть не должно.
+            if (isNestedSubagentEvent(event)) {
+                return;
+            }
+
+            emitRuntimeEvent({
+                event: "subagent_event",
+                data: {
+                    subagentId,
+                    event: event as AgentEvent | ArtifactRuntimeEvent,
+                },
+            });
+        },
+    );
 
     const lastMessage = [...result.messages]
         .reverse()
@@ -92,11 +110,13 @@ export async function subagent(input: SubagentInput) {
         throw new Error("Subagent returned no final assistant message");
     }
 
-    return lastMessage.content
-        .filter(
-            (item): item is Extract<typeof item, { type: "output_text" }> =>
-                item.type === "output_text",
-        )
-        .map((item) => item.text)
-        .join("\n");
+    return SubagentOutputSchema.parse({
+        text: lastMessage.content
+            .filter(
+                (item): item is Extract<typeof item, { type: "output_text" }> =>
+                    item.type === "output_text",
+            )
+            .map((item) => item.text)
+            .join("\n")
+    })
 }

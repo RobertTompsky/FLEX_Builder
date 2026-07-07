@@ -1,14 +1,6 @@
 import path from "path";
 import { z } from "zod";
 
-// const SafeFilePathSchema = z
-//     .string()
-//     .min(1)
-//     .refine(
-//         (value) => !path.isAbsolute(value) && !value.includes(".."),
-//         "Unsafe artifact path"
-//     );
-
 const SafeFilePathSchema = z
     .string()
     .min(1)
@@ -34,4 +26,15 @@ export const ArtifactSchema = z.discriminatedUnion("type", [
     }),
 ]);
 
-export type ArtifactInput = z.infer<typeof ArtifactSchema>;
+export const ArtifactOutputSchema = z.discriminatedUnion("type", [
+    z.object({
+        type: z.literal("create"),
+        filePath: z.string(),
+    }),
+
+    z.object({
+        type: z.literal("read"),
+        filePath: z.string(),
+        content: z.string(),
+    }),
+]);

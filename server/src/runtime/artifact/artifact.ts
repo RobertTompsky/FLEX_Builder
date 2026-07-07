@@ -2,10 +2,14 @@ import path from "path";
 import fs, { ensureDirSync } from "fs-extra";
 import { ARTIFACTS_DIR, SRC_DIR } from "../../data";
 import { registry, historyLog } from "./utils";
-import { ArtifactSchema, type ArtifactInput } from "./schemas";
+import { ArtifactOutputSchema, ArtifactSchema } from "./schemas";
 import { emitRuntimeEvent } from "../events";
+import z from "zod";
 
-export function artifact(input: ArtifactInput) {
+type ArtifactInput = z.infer<typeof ArtifactSchema>;
+type ArtifactOutput = z.infer<typeof ArtifactOutputSchema>;
+
+export function artifact(input: ArtifactInput): ArtifactOutput {
     const config = ArtifactSchema.parse(input);
 
     const baseDir = ARTIFACTS_DIR;
@@ -56,10 +60,10 @@ export function artifact(input: ArtifactInput) {
                 },
             });
 
-            return {
-                type: "create" as const,
+            return ArtifactOutputSchema.parse({
+                type: "create",
                 filePath: config.filePath,
-            };
+            });
         }
 
         case "read": {
@@ -84,11 +88,11 @@ export function artifact(input: ArtifactInput) {
                 },
             });
 
-            return {
-                type: "read" as const,
+            return ArtifactOutputSchema.parse({
+                type: "read",
                 filePath: config.filePath,
                 content,
-            };
+            });
         }
     }
 }

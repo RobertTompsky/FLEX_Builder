@@ -6,10 +6,7 @@
     } from "../../api/callAgent";
     import type { AgentEvent, AppEvent } from "../../lib/types";
     import { md } from "../../lib/utils/markdown";
-    import {
-        eventsState,
-        agentState
-    } from "../../store/index.svelte";
+    import { eventsState, agentState } from "../../store/index.svelte";
     import "./styles.css";
 
     let approved = $state<Set<string>>(new Set<string>());
@@ -101,6 +98,18 @@
             <div class="aw-empty">No events recorded</div>
         {:else}
             {#each views as ev}
+                {#if ev.event === "subagent_event"}
+                    <div class="aw-line aw-tool">
+                        SUBAGENT: {ev.data.subagentId.slice(0, 8)}
+                    </div>
+
+                    <pre class="aw-detail">{JSON.stringify(
+                            ev.data.event,
+                            null,
+                            2,
+                        )}        </pre>
+                {/if}
+                
                 {#if ev.event === "init"}
                     <div class="aw-line aw-init">{ev.data.message}</div>
                 {/if}

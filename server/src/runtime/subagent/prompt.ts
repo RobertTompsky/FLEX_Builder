@@ -33,13 +33,5 @@ export function buildSubagentPrompt(
     
     Use subagent when a task can be delegated to a focused worker.
     Pass a clear, self-contained query and only the skills required for that task.
-    
-    Example:
-    const result = await subagent({
-      query: "Find the current Bitcoin price and calculate the value of 0.25 BTC.",
-      skills: ["crypto"],
-    });
-    
-    console.log(result);
     `.trim();
 }

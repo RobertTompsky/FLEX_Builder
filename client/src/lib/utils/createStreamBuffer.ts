@@ -43,3 +43,39 @@ export function createStreamBuffer() {
         flush
     };
 }
+
+export function createDeltaBuffer<TKey extends string>(
+    apply: (key: TKey, value: string) => void,
+) {
+    const pending = new Map<TKey, string>();
+    let frameId: number | null = null;
+
+    function flush() {
+        frameId = null;
+
+        for (const [key, delta] of pending) {
+            apply(key, delta);
+        }
+
+        pending.clear();
+    }
+
+    return {
+        push(key: TKey, delta: string) {
+            pending.set(key, (pending.get(key) ?? "") + delta);
+
+            if (frameId === null) {
+                frameId = requestAnimationFrame(flush);
+            }
+        },
+
+        flush() {
+            if (frameId !== null) {
+                cancelAnimationFrame(frameId);
+                frameId = null;
+            }
+
+            flush();
+        },
+    };
+}

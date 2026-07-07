@@ -333,7 +333,6 @@ const app = new Elysia()
             await writeSSE({
               event: 'tool_result',
               data: {
-                toolRound: 1,
                 callId: tool.call_id,
                 name: tool.name,
                 outputPreview: stdout.slice(0, 2000)

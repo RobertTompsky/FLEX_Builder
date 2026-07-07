@@ -1,5 +1,5 @@
+import { executeInputSchema, executeOutputSchema } from "./schemas";
 import type {
-    ExecuteInput,
     LoadedSkill,
     RuntimeAction,
     RuntimeExecute,
@@ -26,10 +26,9 @@ export function createExecute(
         }
     }
 
-    return async function execute({
-        action,
-        args,
-    }: ExecuteInput): Promise<unknown> {
+    return async function execute(rawInput) {
+        const { action, args } = executeInputSchema.parse(rawInput);
+
         const definition = registry.get(action);
 
         if (!definition) {
@@ -40,6 +39,8 @@ export function createExecute(
             );
         }
 
-        return definition.execute(args);
+        const result = await definition.execute(args);
+
+        return executeOutputSchema.parse(result);
     };
 }

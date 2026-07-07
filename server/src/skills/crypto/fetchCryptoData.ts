@@ -22,94 +22,160 @@ export const cryptoInputSchema = z.object({
         ),
 })
 
-export const fetchCrypto = async ({ ticker, name, quantity }: z.infer<typeof cryptoInputSchema>) => {
-    try {
-        const id = `${ticker.toLowerCase()}-${name.toLowerCase()}`;
-        const url = `https://api.coinpaprika.com/v1/tickers/${id}`
+export const cryptoOutputSchema = z.object({
+    ticker: z
+        .string()
+        .describe("Uppercase cryptocurrency ticker symbol."),
 
-        interface IApiResponse {
-            rank: number;
-            total_supply: number;
-            beta_value: number;
-            quotes: {
-                USD: {
-                    price: number;
-                    volume_24h: number;
-                    volume_24h_change_24h: number;
-                    market_cap: number;
-                    percent_change_24h: number;
-                    percent_change_7d: number;
-                    percent_change_30d: number;
-                    percent_change_1y: number;
-                    ath_price: number;
-                    ath_date: string;
-                    percent_from_price_ath: number;
-                };
-            }
-        }
-        const {
-            rank,
-            total_supply,
-            beta_value,
-            quotes: {
-                USD: {
-                    price,
-                    volume_24h,
-                    market_cap,
-                    percent_change_24h,
-                    percent_change_7d,
-                    percent_change_30d,
-                    percent_change_1y,
-                    ath_price,
-                    ath_date,
-                    percent_from_price_ath
-                }
-            }
-        }: IApiResponse = await fetch(url).then(data => data.json())
+    name: z
+        .string()
+        .describe("Cryptocurrency name or CoinPaprika slug."),
 
-        const totalPrice = quantity !== 1 ? price * quantity : price;
+    quantity: z
+        .number()
+        .positive()
+        .describe("Requested amount of cryptocurrency."),
 
-        const formatCurrency = (value: number) => `$${value.toFixed(2)}`;
-        const formatPercent = (value: number) => `${value.toFixed(2)}%`;
+    priceUsd: z
+        .number()
+        .describe("Current price of one unit in USD."),
 
-        const priceText = quantity === 1 ? `Current price: ${formatCurrency(price)}` : `Total price for ${quantity} ${ticker}: ${formatCurrency(totalPrice)}`;
+    totalPriceUsd: z
+        .number()
+        .describe("Current value of the requested quantity in USD."),
 
-        const statsText = [
-            `Rank: ${rank}`,
-            `Market Cap: ${formatCurrency(market_cap)}`,
-            `24h Volume: ${formatCurrency(volume_24h)}`,
-            `Price change in the last 24h: ${formatPercent(percent_change_24h)}`,
-            `Price change in the last 7d: ${formatPercent(percent_change_7d)}`,
-            `Price change in the last 30d: ${formatPercent(percent_change_30d)}`,
-            `Price change in the last 1y: ${formatPercent(percent_change_1y)}`,
-            `All-Time High: ${formatCurrency(ath_price)} on ${new Date(ath_date).toLocaleDateString()}`,
-            `Currently ${formatPercent(percent_from_price_ath)} from ATH`,
-            `Total Supply: ${total_supply.toLocaleString()}`,
-            `Beta value: ${beta_value.toFixed(2)}`
-        ];
+    rank: z
+        .number()
+        .int()
+        .positive()
+        .describe("Current CoinPaprika market-cap rank."),
 
-        const fullInfo = [
-            `=== ${name.toUpperCase()} (${ticker}) ===`,
-            priceText,
-            ...statsText
-        ].map(s => s.trim()).join("\n");
+    marketCapUsd: z
+        .number()
+        .describe("Current market capitalization in USD."),
 
-        return {
-            content: [
-                {
-                    type: "text",
-                    text: fullInfo,
-                },
-            ],
-        }
-    } catch (error) {
-        return {
-            content: [
-                {
-                    type: "text",
-                    text: `Failed to retrieve cryptocurrency data: ${error}`,
-                },
-            ],
-        }
+    volume24hUsd: z
+        .number()
+        .describe("Trading volume in USD over the last 24 hours."),
+
+    volume24hChangePercent: z
+        .number()
+        .optional()
+        .describe("Percentage change in 24-hour trading volume, when available."),
+
+    priceChanges: z.object({
+        change24hPercent: z
+            .number()
+            .describe("Price change over the last 24 hours, in percent."),
+
+        change7dPercent: z
+            .number()
+            .describe("Price change over the last 7 days, in percent."),
+
+        change30dPercent: z
+            .number()
+            .describe("Price change over the last 30 days, in percent."),
+
+        change1yPercent: z
+            .number()
+            .describe("Price change over the last 1 year, in percent."),
+    }),
+
+    allTimeHigh: z.object({
+        priceUsd: z
+            .number()
+            .describe("All-time high price in USD."),
+
+        date: z
+            .string()
+            .describe("ISO date when the all-time high was recorded."),
+
+        distancePercent: z
+            .number()
+            .describe(
+                "Current price distance from the all-time high, in percent.",
+            ),
+    }),
+
+    totalSupply: z
+        .number()
+        .nullable()
+        .describe("Total token supply, or null when unavailable."),
+
+    betaValue: z
+        .number()
+        .nullable()
+        .describe("CoinPaprika beta value, or null when unavailable."),
+
+});
+
+type CryptoInput = z.infer<typeof cryptoInputSchema>;
+type CryptoOutput = z.infer<typeof cryptoOutputSchema>;
+
+interface CoinPaprikaResponse {
+    rank: number;
+    total_supply: number | null;
+    beta_value: number | null;
+    quotes: {
+        USD: {
+            price: number;
+            volume_24h: number;
+            volume_24h_change_24h?: number;
+            market_cap: number;
+            percent_change_24h: number;
+            percent_change_7d: number;
+            percent_change_30d: number;
+            percent_change_1y: number;
+            ath_price: number;
+            ath_date: string;
+            percent_from_price_ath: number;
+        };
+    };
+}
+
+export const fetchCrypto = async (
+    { ticker, name, quantity }: CryptoInput
+): Promise<CryptoOutput> => {
+
+    const id = `${ticker.toLowerCase()}-${name.toLowerCase()}`;
+    const url = `https://api.coinpaprika.com/v1/tickers/${id}`
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+        throw new Error(`Failed to retrieve cryptocurrency data: ${response.status} ${response.statusText}`);
     }
+
+    const data = (await response.json()) as CoinPaprikaResponse;
+
+    const usd = data.quotes?.USD;
+
+    if (!usd) {
+        throw new Error(`CoinPaprika returned no USD quote for ${ticker}`);
+    }
+
+    return cryptoOutputSchema.parse({
+        ticker,
+        name,
+        quantity,
+        priceUsd: usd.price,
+        totalPriceUsd: usd.price * quantity,
+        rank: data.rank,
+        marketCapUsd: usd.market_cap,
+        volume24hUsd: usd.volume_24h,
+        volume24hChangePercent: usd.volume_24h_change_24h,
+        priceChanges: {
+            change24hPercent: usd.percent_change_24h,
+            change7dPercent: usd.percent_change_7d,
+            change30dPercent: usd.percent_change_30d,
+            change1yPercent: usd.percent_change_1y,
+        },
+        allTimeHigh: {
+            priceUsd: usd.ath_price,
+            date: usd.ath_date,
+            distancePercent: usd.percent_from_price_ath,
+        },
+        totalSupply: data.total_supply,
+        betaValue: data.beta_value,
+    })
 }

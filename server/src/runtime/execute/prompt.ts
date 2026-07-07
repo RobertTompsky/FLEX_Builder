@@ -15,6 +15,7 @@ export const listActions = async (baseDir: string, allowedSkills: string[]) => {
                 name: `${skill.id}.${actionName}`,
                 description: action.description,
                 inputSchema: z.toJSONSchema(action.inputSchema),
+                outputSchema: z.toJSONSchema(action.outputSchema)
             }),
         ),
     }));
@@ -25,32 +26,29 @@ export const listActions = async (baseDir: string, allowedSkills: string[]) => {
               
         ${skillsManifest.map((skill) => `
             Skill: ${skill.id}
+
             Description: ${skill.description}
               
             Actions:
             ${skill.actions.map((action) => `
             - ${action.name}
             Description: ${action.description}
+            
             Input schema:
-            ${JSON.stringify(action.inputSchema, null, 2)}`.trim()).join("\n")}
-            `.trim())
-            .join("\n\n")}
-    
-            Use an action through the global execute function:
+            ${JSON.stringify(action.inputSchema, null, 2)}
             
-            const result = await execute({
-              action: "skill_id.action_name",
-              args: {
-                // arguments matching the action input schema
-              },
-            });
+            Successful output schema:
+            ${JSON.stringify(action.outputSchema, null, 2)}
+            `.trim(),).join("\n\n")}
+            `.trim(),
+        ).join("\n\n")}
             
-            Rules:
-            - Do NOT import files from skills.
-            - Do NOT read skill source files to discover their API.
-            - Use only actions listed above.
-            - execute(...) validates args against the action input schema.
-            `
+        Rules:
+        - Do NOT import files from skills.
+        - Do NOT read skill source files to discover their API.
+        - Use only actions listed above.
+        - execute(...) validates args against the action input schema.
+        `
         : "";
 
     return executeInstructions

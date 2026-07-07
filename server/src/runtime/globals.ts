@@ -5,6 +5,26 @@ import type {
 } from "./execute/types";
 import { runtimeGlobalRegistry } from "./registry";
 import { RuntimeGlobal } from "./types";
+import z from "zod";
+
+function formatGlobalSchemas(
+  definition: {
+    inputSchema?: z.ZodTypeAny;
+    outputSchema?: z.ZodTypeAny;
+  },
+) {
+  return `
+  ${definition.inputSchema ? `
+  Input schema:
+  ${JSON.stringify(z.toJSONSchema(definition.inputSchema), null, 2)}
+  ` : ""}
+  
+  ${definition.outputSchema ? `
+  Successful output schema:
+  ${JSON.stringify(z.toJSONSchema(definition.outputSchema), null, 2)}
+  ` : ""}
+  `.trim();
+}
 
 export async function buildGlobalPrompt(
   global: RuntimeGlobal,
@@ -15,6 +35,8 @@ export async function buildGlobalPrompt(
 
       return `
       ${definition.description}
+
+      ${formatGlobalSchemas(definition)}
       
       ${await definition.buildPrompt(global)}
       `.trim();
@@ -25,6 +47,8 @@ export async function buildGlobalPrompt(
 
       return `
       ${definition.description}
+
+      ${formatGlobalSchemas(definition)}
       
       ${await definition.buildPrompt(global)}
       `.trim();
@@ -35,6 +59,8 @@ export async function buildGlobalPrompt(
 
       return `
       ${definition.description}
+
+      ${formatGlobalSchemas(definition)}
       
       ${await definition.buildPrompt(global)}
       `.trim();
