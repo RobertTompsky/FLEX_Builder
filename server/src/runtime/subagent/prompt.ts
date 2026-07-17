@@ -1,4 +1,4 @@
-import { getSkillsRegistry } from "../../lib/utils/getSkillsRegistry";
+import { getSkillsRegistry } from "../../skills/getSkillsRegistry";
 
 export function buildSubagentPrompt(
     baseDir: string,

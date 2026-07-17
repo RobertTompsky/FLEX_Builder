@@ -1,0 +1,41 @@
+{
+  "updatedAt": 1784310103629,
+  "data": {
+    "config": {
+      "model": "gpt-5.4-mini",
+      "prompt": "",
+      "toolRounds": 3,
+      "globals": [],
+      "skills": [],
+      "pause": false
+    },
+    "messages": [
+      {
+        "role": "system",
+        "content": "",
+        "status": "completed"
+      },
+      {
+        "role": "user",
+        "content": "Привет",
+        "status": "completed"
+      },
+      {
+        "id": "msg_0a433b33ecb008a6006a5a693508fc819da5f010c58fbc5566",
+        "type": "message",
+        "status": "completed",
+        "content": [
+          {
+            "type": "output_text",
+            "annotations": [],
+            "logprobs": [],
+            "text": "Привет! Чем могу помочь?",
+            "parsed": null
+          }
+        ],
+        "phase": "final_answer",
+        "role": "assistant"
+      }
+    ]
+  }
+}

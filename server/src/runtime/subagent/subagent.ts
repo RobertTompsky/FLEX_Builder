@@ -2,11 +2,11 @@ import z from "zod";
 import { agent } from "../../llm/agent";
 import { ResponseInputItem } from "openai/resources/responses/responses.js";
 import { SKILLS_DIR } from "../../data";
-import { getSkillsRegistry } from "../../lib/utils/getSkillsRegistry";
+import { getSkillsRegistry } from "../../skills/getSkillsRegistry";
 import { RuntimeGlobal } from "../types";
 import { SubagentInputSchema, SubagentOutputSchema } from "./schemas";
-import { AgentEvent } from "../../llm/types";
-import { ArtifactRuntimeEvent, emitRuntimeEvent, RuntimeEvent } from "../events";
+import { emitRuntimeEvent } from "../../events";
+import { AgentIdentity } from "../../llm/types";
 
 export type SubagentInput = z.infer<typeof SubagentInputSchema>;
 
@@ -14,14 +14,8 @@ export type SubagentOutput = z.infer<typeof SubagentOutputSchema>;
 
 const SUBAGENT_MODEL = "gpt-5.4-mini";
 
-function isNestedSubagentEvent(
-    event: AgentEvent | RuntimeEvent,
-): event is Extract<RuntimeEvent, { event: "subagent_event" }> {
-    return event.event === "subagent_event";
-}
-
 export async function subagent(input: SubagentInput): Promise<SubagentOutput> {
-    const { query, skills } = SubagentInputSchema.parse(input);
+    const { name, query, skills } = SubagentInputSchema.parse(input);
 
     const availableSkills = getSkillsRegistry(SKILLS_DIR)
         .filter((skill) => skills.includes(skill.name));
@@ -40,7 +34,10 @@ export async function subagent(input: SubagentInput): Promise<SubagentOutput> {
         );
     }
 
-    const subagentId = crypto.randomUUID();
+    const identity: AgentIdentity = {
+        id: crypto.randomUUID(),
+        name: name ?? "subagent",
+    };
 
     const globals: RuntimeGlobal[] = [
         {
@@ -82,19 +79,11 @@ export async function subagent(input: SubagentInput): Promise<SubagentOutput> {
                 sandboxTimeout: 10,
             },
         },
-        async (event) => {
-            // Внутри субагента subagent-global не установлен,
-            // поэтому рекурсивных subagent_event быть не должно.
-            if (isNestedSubagentEvent(event)) {
-                return;
-            }
-
+        identity,
+        async (streamEvent) => {
             emitRuntimeEvent({
-                event: "subagent_event",
-                data: {
-                    subagentId,
-                    event: event as AgentEvent | ArtifactRuntimeEvent,
-                },
+                event: "agent_event",
+                data: streamEvent,
             });
         },
     );

@@ -5,20 +5,15 @@ interface SSEMessage {
   retry?: number
 }
 
+type SerializedSSEMessage = Omit<SSEMessage, "data"> & {
+  data: unknown;
+};
+
 export type SSE = {
   send(message: SSEMessage): Promise<void>
   close(): void
   sleep(ms: number): Promise<void>
   readonly closed: boolean
-}
-
-type TypedSSE<
-  Events extends Record<string, unknown> = Record<string, unknown>
-> = {
-  send<EventName extends keyof Events & string>(
-    event: EventName,
-    data: Events[EventName],
-  ): Promise<void>
 }
 
 export function streamSSE(
@@ -110,4 +105,20 @@ export function streamSSE(
       'X-Accel-Buffering': 'no',
     },
   })
+}
+
+export type Emit<E> = (ev: E) => void | Promise<void>
+
+export function createSSEWriter<E>(
+  sse: SSE,
+  serialize: (event: E) => SerializedSSEMessage,
+): Emit<E> {
+  return async (event) => {
+    const message = serialize(event);
+
+    await sse.send({
+      ...message,
+      data: JSON.stringify(message.data) ?? "null",
+    });
+  };
 }

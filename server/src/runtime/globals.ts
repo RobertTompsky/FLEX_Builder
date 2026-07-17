@@ -7,6 +7,16 @@ import { runtimeGlobalRegistry } from "./registry";
 import { RuntimeGlobal } from "./types";
 import z from "zod";
 
+export const runtimeGlobalNames = Object.keys(runtimeGlobalRegistry);
+
+if (runtimeGlobalNames.length === 0) {
+  throw new Error("Runtime globals registry is empty");
+}
+
+export const RuntimeGlobalNameSchema = z.enum(
+  runtimeGlobalNames as [string, ...string[]],
+);
+
 function formatGlobalSchemas(
   definition: {
     inputSchema?: z.ZodTypeAny;

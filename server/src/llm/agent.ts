@@ -6,8 +6,12 @@ import type {
 } from "openai/resources/responses/responses.js";
 import { z } from "zod";
 import { executeCode } from "../code/executeCode";
-import type { Emit, AgentEvent } from "./types";
-import type { RuntimeEvent } from "../runtime/events";
+import type { Emit, AgentIdentity } from "./types";
+import type {
+  AgentEvent,
+  AgentStreamEvent,
+  ArtifactRuntimeEvent
+} from "../events";
 import { RuntimeGlobal } from "../runtime/types";
 import { buildGlobalsPrompt } from "../runtime/globals";
 
@@ -17,18 +21,10 @@ export const CodeGenSchema = z.object({
     .max(10_000, "Code is too large")
 })
 
-export type Config = {
-  name?: string,
+export type AgentRunConfig = {
   messages: ResponseInputItem[],
   model: string
   globals?: RuntimeGlobal[];
-  // skills?: {
-  //   baseDir: string
-  //   available: {
-  //     name: string,
-  //     description?: string
-  //   }[]
-  // },
   pause?: boolean,
   opts?: {
     toolRounds?: number
@@ -37,14 +33,17 @@ export type Config = {
   }
 }
 
+export type AgentRunResult = Pick<AgentRunConfig, "messages">;
+
 function errMsg(e: unknown) {
   return e instanceof Error ? `${e.name}: ${e.message}` : String(e);
 }
 
 export async function agent(
-  config: Config,
-  emit?: Emit<AgentEvent | RuntimeEvent>
-): Promise<Config> {
+  config: AgentRunConfig,
+  identity: AgentIdentity,
+  emit?: Emit<AgentStreamEvent>
+): Promise<AgentRunResult> {
   const { model, pause } = config
   const globals = config.globals ?? [];
   const opts = (config.opts ??= {})
@@ -54,12 +53,16 @@ export async function agent(
     signal
   } = opts
 
-  const safeEmit: Emit<AgentEvent | RuntimeEvent> = emit
-    ? async (ev) => {
-      if (signal?.aborted && ev.event !== "stop") return;
-      await emit(ev);
+  const safeEmit: Emit<AgentEvent | ArtifactRuntimeEvent> = emit
+    ? async (event) => {
+      if (signal?.aborted && event.event !== "stop") return;
+
+      await emit({
+        agent: identity,
+        event,
+      });
     }
-    : async () => { }
+    : async () => { };
 
   const throwIfAborted = () => {
     if (signal?.aborted) {
@@ -184,7 +187,10 @@ export async function agent(
           event: "error",
           data: { message: "Missing response.completed" }
         })
-        return config
+
+        return {
+          messages: config.messages,
+        };
       }
 
       const outputItems = final.output ?? []
@@ -242,7 +248,9 @@ export async function agent(
           data: { reason: "tool_calls" }
         })
 
-        return config
+        return {
+          messages: config.messages,
+        };
       }
 
       const toolResults: ResponseInputItem.FunctionCallOutput[] = []
@@ -260,7 +268,14 @@ export async function agent(
             args.code,
             sandboxTimeout,
             globals,
-            safeEmit,
+            async (runtimeEvent) => {
+              if (runtimeEvent.event === "agent_event") {
+                await emit?.(runtimeEvent.data);
+                return;
+              }
+
+              await safeEmit(runtimeEvent);
+            },
           )
 
           const toolMsg: ResponseInputItem.FunctionCallOutput = {
@@ -286,8 +301,16 @@ export async function agent(
       }
 
       if (toolResults.length === 0) {
-        await safeEmit({ event: "end", data: { message: "AGENT END" } });
-        return config;
+        await safeEmit({
+          event: "end",
+          data: {
+            message: "AGENT END"
+          }
+        });
+
+        return {
+          messages: config.messages,
+        };
       }
 
       if (toolRound > toolRounds) {
@@ -295,16 +318,24 @@ export async function agent(
           event: "error",
           data: { message: `Tool rounds limit reached (${toolRounds})` }
         });
-        return config;
+
+        return {
+          messages: config.messages,
+        };
       }
 
       toolRound++
     }
   } catch (e) {
-    console.log("[agent catch]", errMsg(e), "aborted=", signal?.aborted);
+    console.log(
+      "[agent catch]", 
+      errMsg(e), "aborted=", signal?.aborted
+    );
 
     if (signal?.aborted) {
-      return config;
+      return {
+        messages: config.messages,
+      };
     }
 
     await safeEmit({
@@ -312,6 +343,8 @@ export async function agent(
       data: { message: errMsg(e) }
     });
 
-    return config
+    return {
+      messages: config.messages,
+    };
   }
 }

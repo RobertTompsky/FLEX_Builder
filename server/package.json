@@ -11,7 +11,7 @@
     "dotenv": "^17.4.2",
     "elysia": "latest",
     "fs-extra": "^11.3.6",
-    "openai": "^6.45.0",
+    "openai": "^6.47.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

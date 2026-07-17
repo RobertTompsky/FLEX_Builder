@@ -2,20 +2,33 @@ import { Elysia } from "elysia";
 import 'dotenv'
 import z from "zod";
 import { SSE, streamSSE } from "./lib/utils/streamSSE";
-import { Emit, AgentEvent } from "./llm/types";
+import type { Emit } from "./llm/types";
 import fs from 'fs-extra'
 import { SKILLS_DIR, MODELS, ALLOWED_FILE_EXTENSIONS, UPLOADS_DIR } from "./data";
 import { createCheckpointer } from "./lib/utils/checkpointer";
 import { getPendingToolCalls } from './lib/utils/getPendingTools'
 import path from 'path'
-import { getSkillsRegistry } from "./lib/utils/getSkillsRegistry";
+import { getSkillsRegistry } from "./skills/getSkillsRegistry";
 import { agent, CodeGenSchema } from "./llm/agent";
 import { cors } from '@elysia/cors'
 import { ResponseInputItem } from "openai/resources/responses/responses.js";
 import { executeCode } from "./code/executeCode";
-import { RuntimeEvent } from "./runtime/events";
+import { AgentEvent, RuntimeEvent } from "./events";
 import { runtimeGlobalRegistry } from "./runtime/registry";
 import { RuntimeGlobal } from "./runtime/types";
+import { createAgentStore } from "./agents/store";
+import { agentsRoutes } from "./routes/agents";
+import { createRunStore } from "./agents/runs";
+
+const agentStore = createAgentStore(
+  path.join(
+    process.cwd(),
+    "data",
+    "agents",
+  ),
+);
+
+const runStore = createRunStore();
 
 const runs = new Map<string, AbortController>();
 
@@ -55,7 +68,11 @@ function createSSEWriter(s: SSE): Emit<AgentEvent | RuntimeEvent> {
 
 const app = new Elysia()
   .use(cors())
+  
+  .use(agentsRoutes(agentStore, runStore))
+
   .get("/", () => "Hello Elysia")
+
   .get('/info', async () => {
     const skills = fs
       .readdirSync(SKILLS_DIR, { withFileTypes: true })
@@ -99,134 +116,134 @@ const app = new Elysia()
     await checkpointer.clear()
     return JSON.stringify({ ok: true })
   })
-  .post(
-    '/mcp/:runId',
-    async ({ body, params: { runId }, request: { signal } }) => {
-      const ac = new AbortController()
-      signal.addEventListener("abort", () => ac.abort(), { once: true })
-      runs.set(runId, ac);
+  // .post(
+  //   '/mcp/:runId',
+  //   async ({ body, params: { runId }, request: { signal } }) => {
+  //     const ac = new AbortController()
+  //     signal.addEventListener("abort", () => ac.abort(), { once: true })
+  //     runs.set(runId, ac);
 
-      let history = (await checkpointer.load())?.data.messages.filter(
-        m => !("role" in m && m.role === "system")
-      ) ?? []
+  //     let history = (await checkpointer.load())?.data.messages.filter(
+  //       m => !("role" in m && m.role === "system")
+  //     ) ?? []
 
-      const isResume = body.query === null;
+  //     const isResume = body.query === null;
 
-      const filesContext = body.files && body.files.length > 0
-        ? JSON.stringify(
-          await Promise.all(
-            body.files.map(async (filename) => {
-              const safeFilename = path.basename(filename)
-              const filePath = path.join(UPLOADS_DIR, safeFilename)
-              console.log(filePath)
+  //     const filesContext = body.files && body.files.length > 0
+  //       ? JSON.stringify(
+  //         await Promise.all(
+  //           body.files.map(async (filename) => {
+  //             const safeFilename = path.basename(filename)
+  //             const filePath = path.join(UPLOADS_DIR, safeFilename)
+  //             console.log(filePath)
 
-              return {
-                filename: safeFilename,
-                content: await fs.readFile(filePath, 'utf8'),
-              }
-            }),
-          ),
-          null,
-          2,
-        )
-        : ''
+  //             return {
+  //               filename: safeFilename,
+  //               content: await fs.readFile(filePath, 'utf8'),
+  //             }
+  //           }),
+  //         ),
+  //         null,
+  //         2,
+  //       )
+  //       : ''
 
-      const selectedGlobals = new Set(body.globals ?? []);
+  //     const selectedGlobals = new Set(body.globals ?? []);
 
-      const globals: RuntimeGlobal[] = [];
+  //     const globals: RuntimeGlobal[] = [];
 
-      if (selectedGlobals.has("artifact")) {
-        globals.push({
-          name: "artifact",
-        });
-      }
+  //     if (selectedGlobals.has("artifact")) {
+  //       globals.push({
+  //         name: "artifact",
+  //       });
+  //     }
 
-      if (selectedGlobals.has("execute")) {
-        globals.push({
-          name: "execute",
-          baseDir: SKILLS_DIR,
-          available: getSkillsRegistry(SKILLS_DIR).filter((skill) =>
-            body.skills?.includes(skill.name),
-          ),
-        });
-      }
+  //     if (selectedGlobals.has("execute")) {
+  //       globals.push({
+  //         name: "execute",
+  //         baseDir: SKILLS_DIR,
+  //         available: getSkillsRegistry(SKILLS_DIR).filter((skill) =>
+  //           body.skills?.includes(skill.name),
+  //         ),
+  //       });
+  //     }
 
-      if (selectedGlobals.has("subagent")) {
-        globals.push({
-          name: "subagent",
-          baseDir: SKILLS_DIR,
-          available: getSkillsRegistry(SKILLS_DIR).filter((skill) =>
-            body.skills?.includes(skill.name),
-          ),
-        });
-      }
+  //     if (selectedGlobals.has("subagent")) {
+  //       globals.push({
+  //         name: "subagent",
+  //         baseDir: SKILLS_DIR,
+  //         available: getSkillsRegistry(SKILLS_DIR).filter((skill) =>
+  //           body.skills?.includes(skill.name),
+  //         ),
+  //       });
+  //     }
 
-      return streamSSE(async (s) => {
-        const writeAgentSSE = createSSEWriter(s)
+  //     return streamSSE(async (s) => {
+  //       const writeAgentSSE = createSSEWriter(s)
 
-        try {
-          const result = await agent(
-            {
-              model: body.model,
-              messages: [
-                ...history,
-                {
-                  role: "system",
-                  content: [
-                    body.prompt ?? '',
-                    filesContext
-                      ? [
-                        'Attached files:',
-                        filesContext,
-                      ].join('\n')
-                      : '',
-                  ].join('\n'),
-                  status: 'completed'
-                },
-                ...(isResume
-                  ? []
-                  : [{
-                    role: "user",
-                    content: body.query,
-                    status: 'completed'
-                  } as UIMessage])
-              ],
-              globals,
-              pause: body.pause,
-              opts: {
-                toolRounds: body.toolRounds,
-                signal: ac.signal
-              }
-            },
-            writeAgentSSE
-          )
+  //       try {
+  //         const result = await agent(
+  //           {
+  //             model: body.model,
+  //             messages: [
+  //               ...history,
+  //               {
+  //                 role: "system",
+  //                 content: [
+  //                   body.prompt ?? '',
+  //                   filesContext
+  //                     ? [
+  //                       'Attached files:',
+  //                       filesContext,
+  //                     ].join('\n')
+  //                     : '',
+  //                 ].join('\n'),
+  //                 status: 'completed'
+  //               },
+  //               ...(isResume
+  //                 ? []
+  //                 : [{
+  //                   role: "user",
+  //                   content: body.query,
+  //                   status: 'completed'
+  //                 } as UIMessage])
+  //             ],
+  //             globals,
+  //             pause: body.pause,
+  //             opts: {
+  //               toolRounds: body.toolRounds,
+  //               signal: ac.signal
+  //             }
+  //           },
+  //           writeAgentSSE
+  //         )
 
-          if (!ac.signal.aborted) {
-            await checkpointer.save({ messages: result.messages })
-          }
-        } finally {
-          runs.delete(runId);
-        }
-      })
-    },
-    {
-      body: z.object({
-        query: z.string().nullable(),
-        model: z.string(),
-        prompt: z.string().optional(),
-        files: z.array(z.string()).optional(),
-        toolRounds: z.number().optional(),
-        globals: z.array(RuntimeGlobalNameSchema).optional(),
-        skills: z.array(z.enum(
-          getSkillsRegistry(SKILLS_DIR).map(s => s.name) as [string, ...string[]],
-        )).optional(),
-        pause: z.boolean().optional(),
-      }),
-      params: z.object({
-        runId: z.string()
-      })
-    }
-  )
+  //         if (!ac.signal.aborted) {
+  //           await checkpointer.save({ messages: result.messages })
+  //         }
+  //       } finally {
+  //         runs.delete(runId);
+  //       }
+  //     })
+  //   },
+  //   {
+  //     body: z.object({
+  //       query: z.string().nullable(),
+  //       model: z.string(),
+  //       prompt: z.string().optional(),
+  //       files: z.array(z.string()).optional(),
+  //       toolRounds: z.number().optional(),
+  //       globals: z.array(RuntimeGlobalNameSchema).optional(),
+  //       skills: z.array(z.enum(
+  //         getSkillsRegistry(SKILLS_DIR).map(s => s.name) as [string, ...string[]],
+  //       )).optional(),
+  //       pause: z.boolean().optional(),
+  //     }),
+  //     params: z.object({
+  //       runId: z.string()
+  //     })
+  //   }
+  // )
   .post(
     '/handleToolcalls',
     async ({ body }) => {

@@ -3,7 +3,7 @@ import fs, { ensureDirSync } from "fs-extra";
 import { ARTIFACTS_DIR, SRC_DIR } from "../../data";
 import { registry, historyLog } from "./utils";
 import { ArtifactOutputSchema, ArtifactSchema } from "./schemas";
-import { emitRuntimeEvent } from "../events";
+import { emitRuntimeEvent } from "../../events";
 import z from "zod";
 
 type ArtifactInput = z.infer<typeof ArtifactSchema>;

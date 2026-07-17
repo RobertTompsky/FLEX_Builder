@@ -1,6 +1,10 @@
 import z from "zod";
 
 export const SubagentInputSchema = z.object({
+    name: z
+        .string()
+        .min(1)
+        .describe("A concise, descriptive role name for the subagent, such as 'researcher', 'planner', or 'code_reviewer'."),
     query: z
         .string()
         .min(1)
