@@ -3,19 +3,11 @@ import { subagent as subagentFn } from "./subagent/subagent";
 import type {
   RuntimeExecute,
 } from "./execute/types";
-import { runtimeGlobalRegistry } from "./registry";
+import { RuntimeGlobalNameSchema, runtimeGlobalRegistry } from "./registry";
 import { RuntimeGlobal } from "./types";
 import z from "zod";
-
-export const runtimeGlobalNames = Object.keys(runtimeGlobalRegistry);
-
-if (runtimeGlobalNames.length === 0) {
-  throw new Error("Runtime globals registry is empty");
-}
-
-export const RuntimeGlobalNameSchema = z.enum(
-  runtimeGlobalNames as [string, ...string[]],
-);
+import { SKILLS_DIR } from "../shared/data";
+import { getSkillsRegistry } from "../skills/getSkillsRegistry";
 
 function formatGlobalSchemas(
   definition: {
@@ -36,7 +28,7 @@ function formatGlobalSchemas(
   `.trim();
 }
 
-export async function buildGlobalPrompt(
+async function buildGlobalPrompt(
   global: RuntimeGlobal,
 ): Promise<string> {
   switch (global.name) {
@@ -99,6 +91,59 @@ export async function buildGlobalsPrompt(
   );
 
   return blocks.join("\n\n");
+}
+
+export function buildRuntimeGlobals({
+    globals: selectedNames,
+    skills: selectedSkillNames,
+}: {
+    globals: z.infer<typeof RuntimeGlobalNameSchema>[];
+    skills: string[];
+}): RuntimeGlobal[] {
+    const selectedGlobals = new Set(
+        selectedNames,
+    );
+
+    const skillsRegistry = getSkillsRegistry(SKILLS_DIR)
+
+    const availableSkills =
+        skillsRegistry.filter((skill) =>
+            selectedSkillNames.includes(
+                skill.name,
+            ),
+        );
+
+    const globals: RuntimeGlobal[] = [];
+
+    if (
+        selectedGlobals.has("artifact")
+    ) {
+        globals.push({
+            name: "artifact",
+        });
+    }
+
+    if (
+        selectedGlobals.has("execute")
+    ) {
+        globals.push({
+            name: "execute",
+            baseDir: SKILLS_DIR,
+            available: availableSkills,
+        });
+    }
+
+    if (
+        selectedGlobals.has("subagent")
+    ) {
+        globals.push({
+            name: "subagent",
+            baseDir: SKILLS_DIR,
+            available: availableSkills,
+        });
+    }
+
+    return globals;
 }
 
 export async function installGlobals(

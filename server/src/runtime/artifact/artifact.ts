@@ -1,13 +1,9 @@
 import path from "path";
 import fs, { ensureDirSync } from "fs-extra";
-import { ARTIFACTS_DIR, SRC_DIR } from "../../data";
+import { ARTIFACTS_DIR, SRC_DIR } from "../../shared/data";
 import { registry, historyLog } from "./utils";
-import { ArtifactOutputSchema, ArtifactSchema } from "./schemas";
+import { ArtifactInput, ArtifactOutput, ArtifactOutputSchema, ArtifactSchema } from "./schemas";
 import { emitRuntimeEvent } from "../../events";
-import z from "zod";
-
-type ArtifactInput = z.infer<typeof ArtifactSchema>;
-type ArtifactOutput = z.infer<typeof ArtifactOutputSchema>;
 
 export function artifact(input: ArtifactInput): ArtifactOutput {
     const config = ArtifactSchema.parse(input);

@@ -1,12 +1,9 @@
 import { Elysia } from "elysia";
 
-import {
-  AgentParamsSchema,
-} from "../../agents/schemas";
-
 import type {
   AgentStore,
 } from "../../agents/store";
+import { AgentParamsSchema } from "../schemas";
 
 export function deleteAgentRoute(
   store: AgentStore,

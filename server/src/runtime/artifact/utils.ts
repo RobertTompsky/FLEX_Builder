@@ -1,6 +1,6 @@
 import path from "path";
 import fs from "fs-extra";
-import type { ArtifactInput } from "./schemas";
+import { ArtifactInput } from "./schemas";
 
 const REGISTRY_FILE = "registry.json";
 const HISTORY_FILE = "history.jsonl";

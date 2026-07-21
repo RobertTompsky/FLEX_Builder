@@ -1,6 +1,6 @@
 import { writeFile, unlink } from "fs-extra";
 import path from "path";
-import { SKILLS_DIR, SRC_DIR } from "../data";
+import { SKILLS_DIR, SRC_DIR } from "../shared/data";
 import { RUNTIME_EVENT_PREFIX, type RuntimeEvent } from "../events";
 import { RuntimeGlobal } from "../runtime/types";
 

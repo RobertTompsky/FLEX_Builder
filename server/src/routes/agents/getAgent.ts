@@ -1,11 +1,9 @@
 import { Elysia } from "elysia";
-import {
-  AgentParamsSchema,
-} from "../../agents/schemas";
 import type {
   AgentStore,
 } from "../../agents/store";
-import { toUIMessages } from "../../agents/utils/toUIMessages";
+import { toUIMessages } from "../../agents/shared/utils/toUIMessages";
+import { AgentParamsSchema } from "../schemas";
 
 export function getAgentRoute(
   store: AgentStore,

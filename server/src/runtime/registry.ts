@@ -79,3 +79,13 @@ export const runtimeGlobalRegistry: RuntimeGlobalRegistry = {
         },
     }
 };
+
+export const runtimeGlobalNames = Object.keys(runtimeGlobalRegistry);
+
+if (runtimeGlobalNames.length === 0) {
+  throw new Error("Runtime globals registry is empty");
+}
+
+export const RuntimeGlobalNameSchema = z.enum(
+  runtimeGlobalNames as [string, ...string[]],
+);

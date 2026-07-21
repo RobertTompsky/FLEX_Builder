@@ -38,3 +38,6 @@ export const ArtifactOutputSchema = z.discriminatedUnion("type", [
         content: z.string(),
     }),
 ]);
+
+export type ArtifactInput = z.infer<typeof ArtifactSchema>;
+export type ArtifactOutput = z.infer<typeof ArtifactOutputSchema>;

@@ -8,17 +8,17 @@ import {
   type AgentIdentity,
   type AgentSnapshot,
   type CreateAgentBody,
-} from "./schemas";
+} from "./shared/schemas";
 
 import {
   createAgentWorkspace,
   getAgentWorkspacePaths,
-} from "./utils/workspace";
+} from "./shared/utils/workspace";
 
 import {
   AgentCheckpoint,
   createCheckpointer,
-} from "./utils/checkpointer";
+} from "./shared/utils/checkpointer";
 
 export function createAgentStore(
   agentsDir: string,

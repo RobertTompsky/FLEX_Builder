@@ -6,14 +6,15 @@ import type {
 } from "openai/resources/responses/responses.js";
 import { z } from "zod";
 import { executeCode } from "../code/executeCode";
-import type { Emit, AgentIdentity } from "./types";
 import type {
-  AgentEvent,
   AgentStreamEvent,
   ArtifactRuntimeEvent
 } from "../events";
 import { RuntimeGlobal } from "../runtime/types";
 import { buildGlobalsPrompt } from "../runtime/globals";
+import { Emit } from "../shared/utils/streamSSE";
+import { AgentIdentity } from "../agents/shared/schemas";
+import { AgentEvent } from "../agents/events";
 
 export const CodeGenSchema = z.object({
   code: z.string()
@@ -216,7 +217,7 @@ export async function agent(
           config.messages.push(toolCall);
 
           await safeEmit({
-            event: "tool_start",
+            event: "tool_call",
             data: {
               callId: item.call_id,
               name: item.name,

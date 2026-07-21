@@ -1,5 +1,13 @@
 import { z } from "zod";
 import { AgentCheckpoint } from "./utils/checkpointer";
+import { ResponseInputItem } from "openai/resources/responses/responses.js";
+import { RuntimeGlobal } from "../../runtime/types";
+
+export const CodeGenSchema = z.object({
+  code: z.string()
+    .min(1)
+    .max(10_000, "Code is too large")
+})
 
 export const AgentIdentitySchema = z.object({
   id: z.string().min(1),
@@ -37,15 +45,6 @@ export type AgentSnapshot = {
   checkpoint: AgentCheckpoint;
 };
 
-export const CreateAgentBodySchema =
-  AgentIdentitySchema.pick({
-    name: true,
-  });
-
-export type CreateAgentBody = z.infer<
-  typeof CreateAgentBodySchema
->;
-
 export const AgentRegistrySchema = z.array(
   AgentIdentitySchema,
 );
@@ -60,18 +59,16 @@ export const DEFAULT_AGENT_CHECKPOINT_CONFIG:
     pause: false,
   };
 
-export const AgentParamsSchema = z.object({
-  agentId: z.string().min(1),
-});
+export type AgentRunConfig = {
+  messages: ResponseInputItem[],
+  model: string
+  globals?: RuntimeGlobal[];
+  pause?: boolean,
+  opts?: {
+    toolRounds?: number
+    sandboxTimeout?: number,
+    signal?: AbortSignal,
+  }
+}
 
-export type AgentParams = z.infer<
-  typeof AgentParamsSchema
->;
-
-export const AgentRunParamsSchema = AgentParamsSchema.extend({
-  runId: z.string().min(1),
-});
-
-export type AgentRunParams = z.infer<
-  typeof AgentRunParamsSchema
->;
+export type AgentRunResult = Pick<AgentRunConfig, "messages">;

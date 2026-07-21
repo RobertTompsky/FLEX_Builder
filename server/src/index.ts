@@ -1,21 +1,11 @@
 import { Elysia } from "elysia";
 import 'dotenv'
 import z from "zod";
-import { SSE, streamSSE } from "./lib/utils/streamSSE";
-import type { Emit } from "./llm/types";
 import fs from 'fs-extra'
-import { SKILLS_DIR, MODELS, ALLOWED_FILE_EXTENSIONS, UPLOADS_DIR } from "./data";
-import { createCheckpointer } from "./lib/utils/checkpointer";
-import { getPendingToolCalls } from './lib/utils/getPendingTools'
+import { SKILLS_DIR, MODELS, ALLOWED_FILE_EXTENSIONS, UPLOADS_DIR } from "./shared/data";
 import path from 'path'
-import { getSkillsRegistry } from "./skills/getSkillsRegistry";
-import { agent, CodeGenSchema } from "./llm/agent";
 import { cors } from '@elysia/cors'
-import { ResponseInputItem } from "openai/resources/responses/responses.js";
-import { executeCode } from "./code/executeCode";
-import { AgentEvent, RuntimeEvent } from "./events";
 import { runtimeGlobalRegistry } from "./runtime/registry";
-import { RuntimeGlobal } from "./runtime/types";
 import { createAgentStore } from "./agents/store";
 import { agentsRoutes } from "./routes/agents";
 import { createRunStore } from "./agents/runs";
@@ -30,41 +20,12 @@ const agentStore = createAgentStore(
 
 const runStore = createRunStore();
 
-const runs = new Map<string, AbortController>();
-
-const checkpointer = createCheckpointer('checkpoints/session228')
-
-type UIMessage = {
-  role: "assistant" | "user";
-  content: string;
-  status?: "in_progress" | "completed" | "incomplete";
-};
-
 const fileSchema = z.file().refine((file: File) => {
   const ext = path.extname(file.name).toLowerCase()
   return ALLOWED_FILE_EXTENSIONS.has(ext)
 }, {
-  message: 'Only text/code files are allowed',
+  error: 'Only text/code files are allowed',
 })
-
-const runtimeGlobalNames = Object.keys(runtimeGlobalRegistry);
-
-if (runtimeGlobalNames.length === 0) {
-  throw new Error("Runtime globals registry is empty");
-}
-
-const RuntimeGlobalNameSchema = z.enum(
-  runtimeGlobalNames as [string, ...string[]],
-);
-
-function createSSEWriter(s: SSE): Emit<AgentEvent | RuntimeEvent> {
-  return async ({ event, data }) => {
-    await s.send({
-      event,
-      data: JSON.stringify(data),
-    });
-  };
-}
 
 const app = new Elysia()
   .use(cors())
@@ -80,21 +41,6 @@ const app = new Elysia()
       .map((entry) => entry.name)
       .sort((a, b) => a.localeCompare(b));
 
-    const isUIMessage = (m: ResponseInputItem): m is UIMessage =>
-      "role" in m && (m.role === "assistant" || m.role === "user");
-
-    const history = (await checkpointer.load())?.data.messages ?? []
-
-    const uiHistory: UIMessage[] = history
-      .filter(isUIMessage)
-      .map((m) => ({
-        role: m.role,
-        content: Array.isArray(m.content)
-          ? String(m.content[0].text)
-          : String(m.content),
-        status: m.status
-      }));
-
     const uploads = fs
       .readdirSync(UPLOADS_DIR, { withFileTypes: true })
       .filter((entry) => entry.isFile())
@@ -108,325 +54,10 @@ const app = new Elysia()
       uploads,
       globals,
       skills,
-      models: MODELS,
-      uiHistory
+      models: MODELS
     }
   })
-  .get('/clearHistory', async () => {
-    await checkpointer.clear()
-    return JSON.stringify({ ok: true })
-  })
-  // .post(
-  //   '/mcp/:runId',
-  //   async ({ body, params: { runId }, request: { signal } }) => {
-  //     const ac = new AbortController()
-  //     signal.addEventListener("abort", () => ac.abort(), { once: true })
-  //     runs.set(runId, ac);
 
-  //     let history = (await checkpointer.load())?.data.messages.filter(
-  //       m => !("role" in m && m.role === "system")
-  //     ) ?? []
-
-  //     const isResume = body.query === null;
-
-  //     const filesContext = body.files && body.files.length > 0
-  //       ? JSON.stringify(
-  //         await Promise.all(
-  //           body.files.map(async (filename) => {
-  //             const safeFilename = path.basename(filename)
-  //             const filePath = path.join(UPLOADS_DIR, safeFilename)
-  //             console.log(filePath)
-
-  //             return {
-  //               filename: safeFilename,
-  //               content: await fs.readFile(filePath, 'utf8'),
-  //             }
-  //           }),
-  //         ),
-  //         null,
-  //         2,
-  //       )
-  //       : ''
-
-  //     const selectedGlobals = new Set(body.globals ?? []);
-
-  //     const globals: RuntimeGlobal[] = [];
-
-  //     if (selectedGlobals.has("artifact")) {
-  //       globals.push({
-  //         name: "artifact",
-  //       });
-  //     }
-
-  //     if (selectedGlobals.has("execute")) {
-  //       globals.push({
-  //         name: "execute",
-  //         baseDir: SKILLS_DIR,
-  //         available: getSkillsRegistry(SKILLS_DIR).filter((skill) =>
-  //           body.skills?.includes(skill.name),
-  //         ),
-  //       });
-  //     }
-
-  //     if (selectedGlobals.has("subagent")) {
-  //       globals.push({
-  //         name: "subagent",
-  //         baseDir: SKILLS_DIR,
-  //         available: getSkillsRegistry(SKILLS_DIR).filter((skill) =>
-  //           body.skills?.includes(skill.name),
-  //         ),
-  //       });
-  //     }
-
-  //     return streamSSE(async (s) => {
-  //       const writeAgentSSE = createSSEWriter(s)
-
-  //       try {
-  //         const result = await agent(
-  //           {
-  //             model: body.model,
-  //             messages: [
-  //               ...history,
-  //               {
-  //                 role: "system",
-  //                 content: [
-  //                   body.prompt ?? '',
-  //                   filesContext
-  //                     ? [
-  //                       'Attached files:',
-  //                       filesContext,
-  //                     ].join('\n')
-  //                     : '',
-  //                 ].join('\n'),
-  //                 status: 'completed'
-  //               },
-  //               ...(isResume
-  //                 ? []
-  //                 : [{
-  //                   role: "user",
-  //                   content: body.query,
-  //                   status: 'completed'
-  //                 } as UIMessage])
-  //             ],
-  //             globals,
-  //             pause: body.pause,
-  //             opts: {
-  //               toolRounds: body.toolRounds,
-  //               signal: ac.signal
-  //             }
-  //           },
-  //           writeAgentSSE
-  //         )
-
-  //         if (!ac.signal.aborted) {
-  //           await checkpointer.save({ messages: result.messages })
-  //         }
-  //       } finally {
-  //         runs.delete(runId);
-  //       }
-  //     })
-  //   },
-  //   {
-  //     body: z.object({
-  //       query: z.string().nullable(),
-  //       model: z.string(),
-  //       prompt: z.string().optional(),
-  //       files: z.array(z.string()).optional(),
-  //       toolRounds: z.number().optional(),
-  //       globals: z.array(RuntimeGlobalNameSchema).optional(),
-  //       skills: z.array(z.enum(
-  //         getSkillsRegistry(SKILLS_DIR).map(s => s.name) as [string, ...string[]],
-  //       )).optional(),
-  //       pause: z.boolean().optional(),
-  //     }),
-  //     params: z.object({
-  //       runId: z.string()
-  //     })
-  //   }
-  // )
-  .post(
-    '/handleToolcalls',
-    async ({ body }) => {
-
-      let history = (await checkpointer.load())?.data.messages ?? []
-
-      const pendingTools = getPendingToolCalls(history)
-
-      const approvedTools = pendingTools.filter(t => body.toolCallIds?.includes(t.call_id))
-
-      const approvedIds = new Set(approvedTools.map((t) => t.call_id));
-      const callOutputIds = new Set(
-        history
-          .filter(
-            (m): m is ResponseInputItem.FunctionCallOutput =>
-              m.type === "function_call_output"
-          )
-          .map((m) => m.call_id)
-      );
-
-      const pendingIds = new Set(pendingTools.map((t) => t.call_id));
-
-      const removeIndexes = new Set<number>();
-      const pendingCallIndexes: number[] = [];
-
-      for (let i = 0; i < history.length; i++) {
-        const item = history[i];
-
-        if (item.type === "function_call" && pendingIds.has(item.call_id)) {
-          pendingCallIndexes.push(i);
-        }
-
-        if (item.type !== "function_call") continue;
-
-        const keep = callOutputIds.has(item.call_id) || approvedIds.has(item.call_id);
-        if (keep) continue;
-
-        removeIndexes.add(i);
-      }
-
-      const batchStart = pendingCallIndexes[0];
-
-      if (approvedIds.size === 0 && batchStart != null) {
-        const prev = history[batchStart - 1];
-        if (prev?.type === "reasoning") {
-          removeIndexes.add(batchStart - 1);
-        }
-      }
-
-      history = history.filter((_, index) => !removeIndexes.has(index));
-
-      const selectedGlobals = new Set(body.globals);
-
-      const globals: RuntimeGlobal[] = [];
-
-      if (selectedGlobals.has("artifact")) {
-        globals.push({
-          name: "artifact",
-        });
-      }
-
-      if (selectedGlobals.has("execute")) {
-        globals.push({
-          name: "execute",
-          baseDir: SKILLS_DIR,
-          available: getSkillsRegistry(SKILLS_DIR).filter((skill) =>
-            body.skills?.includes(skill.name),
-          ),
-        });
-      }
-
-      if (selectedGlobals.has("subagent")) {
-        globals.push({
-          name: "subagent",
-          baseDir: SKILLS_DIR,
-          available: getSkillsRegistry(SKILLS_DIR).filter((skill) =>
-            body.skills?.includes(skill.name),
-          ),
-        });
-      }
-
-      return streamSSE(async (s) => {
-        const writeSSE = createSSEWriter(s)
-
-        if (approvedTools.length > 0) {
-          for (const tool of approvedTools) {
-            const args = CodeGenSchema.parse(
-              JSON.parse(tool.arguments ?? "{}")
-            )
-
-            const { stdout } = await executeCode(
-              args.code,
-              undefined,
-              globals,
-              writeSSE
-            )
-
-            const toolMsg: ResponseInputItem.FunctionCallOutput = {
-              type: "function_call_output",
-              call_id: tool.call_id,
-              output: stdout
-            }
-
-            await writeSSE({
-              event: 'tool_result',
-              data: {
-                callId: tool.call_id,
-                name: tool.name,
-                outputPreview: stdout.slice(0, 2000)
-              }
-            })
-
-            history.push(toolMsg)
-          }
-        }
-
-        await checkpointer.save({ messages: history })
-      })
-    },
-    {
-      body: z.object({
-        toolCallIds: z.array(z.string()),
-        globals: z.array(RuntimeGlobalNameSchema),
-        skills: z.array(z.enum(
-          getSkillsRegistry(SKILLS_DIR).map(s => s.name) as [string, ...string[]],
-        ))
-      })
-    }
-  )
-  .post(
-    "/runs/:runId/stop",
-    async ({ params: { runId } }) => {
-      const controller = runs.get(runId);
-
-      if (controller) {
-        controller.abort();
-
-        return streamSSE(async (s) => {
-          const writeAgentSSE = createSSEWriter(s);
-
-          await writeAgentSSE({
-            event: "stop",
-            data: {
-              reason: "live_abort",
-            },
-          });
-        });
-      }
-
-      const checkpoint = await checkpointer.load();
-      let history = checkpoint?.data.messages ?? [];
-      const pendingTools = getPendingToolCalls(history);
-
-      if (pendingTools.length > 0) {
-        for (let i = history.length - 1; i >= 0; i--) {
-          const item = history[i];
-
-          if ("role" in item && item.role === "user") {
-            history = history.slice(0, i);
-            break;
-          }
-        }
-        await checkpointer.save({ messages: history });
-        return streamSSE(async (s) => {
-          const writeAgentSSE = createSSEWriter(s)
-
-          await writeAgentSSE({
-            event: 'stop',
-            data: {
-              reason: 'paused_cleanup'
-            }
-          })
-        })
-      }
-
-      return JSON.stringify({ ok: false, error: "Nothing to stop" });
-    },
-    {
-      params: z.object({
-        runId: z.string()
-      })
-    }
-  )
   .post(
     "/upload",
     async ({ body: { files }, set }) => {
@@ -467,6 +98,7 @@ const app = new Elysia()
       }),
     },
   )
+
   .post(
     "/deleteFiles",
     async ({ body: { files } }) => {

@@ -4,15 +4,16 @@ import fs from 'fs-extra'
 import { ResponseInputItem } from 'openai/resources/responses/responses.js';
 import { z } from "zod";
 import { RunStore } from '../../agents/runs';
-import { AgentRunParamsSchema, AgentCheckpointConfig } from '../../agents/schemas';
+import { AgentCheckpointConfig } from '../../agents/shared/schemas';
 import { AgentStore } from '../../agents/store';
-import { SKILLS_DIR, UPLOADS_DIR } from '../../data';
-import { createSSEWriter, streamSSE } from '../../lib/utils/streamSSE';
+import { SKILLS_DIR, UPLOADS_DIR } from '../../shared/data';
+import { createSSEWriter, streamSSE } from '../../shared/utils/streamSSE';
 import { AgentRunConfig, agent } from '../../llm/agent';
 import { getSkillsRegistry } from '../../skills/getSkillsRegistry';
-import { RuntimeGlobalNameSchema } from '../../runtime/globals';
-import { RuntimeGlobal } from '../../runtime/types';
+import { buildRuntimeGlobals } from '../../runtime/globals';
 import { AgentStreamEvent } from '../../events';
+import { RuntimeGlobalNameSchema } from '../../runtime/registry';
+import { AgentRunParamsSchema } from '../schemas';
 
 const skillsRegistry = getSkillsRegistry(SKILLS_DIR);
 
@@ -287,55 +288,4 @@ async function buildFilesContext(
         null,
         2,
     );
-}
-
-function buildRuntimeGlobals({
-    globals: selectedNames,
-    skills: selectedSkillNames,
-}: {
-    globals: z.infer<typeof RuntimeGlobalNameSchema>[];
-    skills: string[];
-}): RuntimeGlobal[] {
-    const selectedGlobals = new Set(
-        selectedNames,
-    );
-
-    const availableSkills =
-        skillsRegistry.filter((skill) =>
-            selectedSkillNames.includes(
-                skill.name,
-            ),
-        );
-
-    const globals: RuntimeGlobal[] = [];
-
-    if (
-        selectedGlobals.has("artifact")
-    ) {
-        globals.push({
-            name: "artifact",
-        });
-    }
-
-    if (
-        selectedGlobals.has("execute")
-    ) {
-        globals.push({
-            name: "execute",
-            baseDir: SKILLS_DIR,
-            available: availableSkills,
-        });
-    }
-
-    if (
-        selectedGlobals.has("subagent")
-    ) {
-        globals.push({
-            name: "subagent",
-            baseDir: SKILLS_DIR,
-            available: availableSkills,
-        });
-    }
-
-    return globals;
 }

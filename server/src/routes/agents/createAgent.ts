@@ -1,12 +1,9 @@
 import { Elysia } from "elysia";
 
-import {
-  CreateAgentBodySchema,
-} from "../../agents/schemas";
-
 import type {
   AgentStore,
 } from "../../agents/store";
+import { CreateAgentBodySchema } from "../schemas";
 
 export function createAgentRoute(
   store: AgentStore,

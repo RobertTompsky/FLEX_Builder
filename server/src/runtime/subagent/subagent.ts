@@ -1,12 +1,12 @@
 import z from "zod";
 import { agent } from "../../llm/agent";
 import { ResponseInputItem } from "openai/resources/responses/responses.js";
-import { SKILLS_DIR } from "../../data";
+import { SKILLS_DIR } from "../../shared/data";
 import { getSkillsRegistry } from "../../skills/getSkillsRegistry";
 import { RuntimeGlobal } from "../types";
 import { SubagentInputSchema, SubagentOutputSchema } from "./schemas";
 import { emitRuntimeEvent } from "../../events";
-import { AgentIdentity } from "../../llm/types";
+import { AgentIdentity } from "../../agents/shared/schemas";
 
 export type SubagentInput = z.infer<typeof SubagentInputSchema>;
 
