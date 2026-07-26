@@ -1,6 +1,6 @@
 import path from "path";
 import fs, { ensureDirSync } from "fs-extra";
-import { ARTIFACTS_DIR, SRC_DIR } from "../../shared/data";
+import { ARTIFACTS_DIR, SRC_DIR } from "../../../shared/data";
 import { registry, historyLog } from "./utils";
 import { ArtifactInput, ArtifactOutput, ArtifactOutputSchema, ArtifactSchema } from "./schemas";
 import { emitRuntimeEvent } from "../../events";

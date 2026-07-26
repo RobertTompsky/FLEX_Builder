@@ -1,4 +1,4 @@
-export type ArtifactRuntimeEvent =
+export type ArtifactEvent =
     | {
         event: "artifact_read";
         data: {

@@ -1,6 +1,5 @@
-import "./globals";
-import { installGlobals } from "./globals";
-import { RuntimeGlobal } from "./types";
+import { installGlobals } from "./globals/installGlobals";
+import { RuntimeGlobal } from "./globals/types";
 
 const userFile = process.argv.at(2);
 const rawGlobals = process.argv.at(3);

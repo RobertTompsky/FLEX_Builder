@@ -1,9 +1,9 @@
 import { Elysia } from "elysia";
 import type {
   AgentStore,
-} from "../../agents/store";
-import { toUIMessages } from "../../agents/shared/utils/toUIMessages";
+} from "../../agents/store/store";
 import { AgentParamsSchema } from "../schemas";
+import { toUIMessages } from "../../agents/shared/utils/messages";
 
 export function getAgentRoute(
   store: AgentStore,
@@ -35,7 +35,7 @@ export function getAgentRoute(
             ...snapshot.checkpoint.data,
 
             messages: toUIMessages(
-              snapshot.checkpoint.data.messages,
+              snapshot.checkpoint.data.state.messages,
             ),
           },
         },

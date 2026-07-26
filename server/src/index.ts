@@ -2,21 +2,17 @@ import { Elysia } from "elysia";
 import 'dotenv'
 import z from "zod";
 import fs from 'fs-extra'
-import { SKILLS_DIR, MODELS, ALLOWED_FILE_EXTENSIONS, UPLOADS_DIR } from "./shared/data";
+import { SKILLS_DIR, MODELS, ALLOWED_FILE_EXTENSIONS, UPLOADS_DIR, AGENTS_STORE_DIR } from "./shared/data";
 import path from 'path'
 import { cors } from '@elysia/cors'
-import { runtimeGlobalRegistry } from "./runtime/registry";
-import { createAgentStore } from "./agents/store";
+import { runtimeGlobalRegistry } from "./runtime/globals/registry";
+import { createAgentStore } from "./agents/store/store";
 import { agentsRoutes } from "./routes/agents";
-import { createRunStore } from "./agents/runs";
+import { createRunStore } from "./agents/store/runs";
+import { HookPoliciesInfo } from "./agents/harness/hooks/types";
+import { listPreToolUsePolicies } from "./agents/harness/hooks/preToolUse/policy";
 
-const agentStore = createAgentStore(
-  path.join(
-    process.cwd(),
-    "data",
-    "agents",
-  ),
-);
+const agentStore = createAgentStore(AGENTS_STORE_DIR);
 
 const runStore = createRunStore();
 
@@ -29,7 +25,7 @@ const fileSchema = z.file().refine((file: File) => {
 
 const app = new Elysia()
   .use(cors())
-  
+
   .use(agentsRoutes(agentStore, runStore))
 
   .get("/", () => "Hello Elysia")
@@ -50,11 +46,16 @@ const app = new Elysia()
     const globals = Object.keys(runtimeGlobalRegistry)
       .sort((a, b) => a.localeCompare(b));
 
+    const policies: HookPoliciesInfo = {
+      preToolUse: listPreToolUsePolicies(),
+    };
+
     return {
       uploads,
       globals,
       skills,
-      models: MODELS
+      models: MODELS,
+      policies
     }
   })
 

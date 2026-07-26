@@ -1,19 +1,66 @@
-import Elysia from 'elysia';
-import path from 'path'
-import fs from 'fs-extra'
-import { ResponseInputItem } from 'openai/resources/responses/responses.js';
+import Elysia from "elysia";
+import path from "path";
+import fs from "fs-extra";
+import type {
+    ResponseInputItem,
+} from "openai/resources/responses/responses.js";
 import { z } from "zod";
-import { RunStore } from '../../agents/runs';
-import { AgentCheckpointConfig } from '../../agents/shared/schemas';
-import { AgentStore } from '../../agents/store';
-import { SKILLS_DIR, UPLOADS_DIR } from '../../shared/data';
-import { createSSEWriter, streamSSE } from '../../shared/utils/streamSSE';
-import { AgentRunConfig, agent } from '../../llm/agent';
-import { getSkillsRegistry } from '../../skills/getSkillsRegistry';
-import { buildRuntimeGlobals } from '../../runtime/globals';
-import { AgentStreamEvent } from '../../events';
-import { RuntimeGlobalNameSchema } from '../../runtime/registry';
-import { AgentRunParamsSchema } from '../schemas';
+
+import type {
+    RunStore,
+} from "../../agents/store/runs";
+
+import type {
+    AgentStore,
+} from "../../agents/store/store";
+
+import {
+    AGENTS_STORE_DIR,
+    SKILLS_DIR,
+    UPLOADS_DIR,
+} from "../../shared/data";
+
+import {
+    createSSEWriter,
+    streamSSE,
+} from "../../shared/utils/streamSSE";
+
+import {
+    agent,
+} from "../../agents/harness/agent";
+
+import type {
+    AgentRunConfig,
+} from "../../agents/harness/agent";
+
+import {
+    createHooks,
+} from "../../agents/harness/hooks/createHooks";
+
+import {
+    getSkillsRegistry,
+} from "../../skills/getSkillsRegistry";
+
+import {
+    buildRuntimeGlobals,
+} from "../../runtime/globals/buildRuntimeGlobals";
+
+import type {
+    AgentEnvelopeEvent,
+} from "../../agents/events";
+
+import {
+    RuntimeGlobalNameSchema,
+} from "../../runtime/globals/registry";
+
+import {
+    AgentParamsSchema,
+    AgentRunParamsSchema,
+} from "../schemas";
+import { AgentCheckpointConfigSchema, createCheckpointer } from "../../agents/store/checkpointer";
+import { getAgentWorkspacePaths } from "../../agents/shared/utils/workspace";
+import { randomUUID } from "crypto";
+import { AgentIdentity } from "../../agents/shared/schemas";
 
 const skillsRegistry = getSkillsRegistry(SKILLS_DIR);
 
@@ -21,42 +68,40 @@ const skillNames = skillsRegistry.map(
     (skill) => skill.name,
 ) as [string, ...string[]];
 
-const ExecuteAgentBodySchema = z.object({
-    query: z.string().nullable(),
-    model: z.string().min(1),
-    prompt: z.string().optional(),
-    files: z
-        .array(z.string())
-        .optional(),
-    toolRounds: z
-        .number()
-        .int()
-        .positive()
-        .optional(),
-    globals: z
-        .array(RuntimeGlobalNameSchema)
-        .optional(),
-    skills: z
-        .array(z.enum(skillNames))
-        .optional(),
-    pause: z.boolean().optional(),
-});
+const ExecuteAgentBodySchema =
+    AgentCheckpointConfigSchema.extend({
+        query: z.string().nullable(),
+        files: z.array(z.string()).optional(),
+
+        globals: z.array(
+            RuntimeGlobalNameSchema,
+        ),
+
+        skills: z.array(
+            z.enum(skillNames),
+        ),
+    });
 
 export function executeAgentRoute(
     agentStore: AgentStore,
     runStore: RunStore,
 ) {
     return new Elysia().post(
-        "/:agentId/runs/:runId",
+        "/:agentId/runs",
         async ({
             body,
             params: {
                 agentId,
-                runId,
             },
             request,
             set,
         }) => {
+            const {
+                query,
+                files,
+                ...checkpointConfig
+            } = body;
+
             const snapshot = await agentStore.get(agentId);
 
             if (!snapshot) {
@@ -68,19 +113,117 @@ export function executeAgentRoute(
                 };
             }
 
+            const { state: checkpointState } = snapshot.checkpoint.data;
+
+            const isResume = query === null;
+
             if (
-                runStore.get(agentId, runId) !==
-                undefined
+                isResume &&
+                !checkpointState.activeRequest
             ) {
                 set.status = 409;
 
                 return {
                     ok: false,
-                    error: "Run is already active",
+                    error:
+                        "No active request to resume",
                 };
             }
 
+            if (
+                !isResume &&
+                checkpointState.activeRequest
+            ) {
+                set.status = 409;
+
+                return {
+                    ok: false,
+                    error:
+                        "Agent already has an active request",
+                };
+            }
+
+            const workspace = getAgentWorkspacePaths(
+                AGENTS_STORE_DIR,
+                agentId,
+            );
+
+            const checkpointer = createCheckpointer(workspace.root);
+
+            const runId = `run_${randomUUID()}`;
             const controller = new AbortController();
+
+            const hooks = createHooks(checkpointConfig.policies);
+
+            const history = snapshot.checkpoint.data.state.messages
+                .filter(
+                    (message) =>
+                        !(
+                            "role" in message &&
+                            message.role === "system"
+                        ),
+                );
+
+            const filesContext = await buildFilesContext(files);
+
+            const globals = buildRuntimeGlobals({
+                globals: checkpointConfig.globals,
+                skills: checkpointConfig.skills,
+            });
+
+            const messages = buildRunMessages({
+                history,
+                query,
+                prompt: checkpointConfig.prompt,
+                filesContext,
+                isResume,
+            });
+
+            const activeRequest =
+                isResume
+                    ? {
+                        ...checkpointState
+                            .activeRequest!,
+                    }
+                    : {
+                        id: `request_${randomUUID()}`,
+                        turnsUsed: 0,
+                    };
+
+            const runConfig: AgentRunConfig = {
+                runId,
+                model: checkpointConfig.model,
+                state: {
+                    messages,
+                    activeRequest,
+                },
+                globals,
+                hooks,
+                opts: {
+                    maxTurns: checkpointConfig.maxTurns,
+
+                    signal: controller.signal,
+                },
+            };
+
+            /*
+            * Между проверкой и регистрацией не должно
+            * быть await.
+            */
+            if (runStore.has(agentId)) {
+                set.status = 409;
+
+                return {
+                    ok: false,
+                    error: "Agent already has an active run",
+                };
+            }
+
+            runStore.set(
+                agentId,
+                runId,
+                controller,
+            );
 
             const abortFromRequest = () => {
                 controller.abort();
@@ -94,52 +237,8 @@ export function executeAgentRoute(
                 },
             );
 
-            runStore.set(
-                agentId,
-                runId,
-                controller,
-            );
-
-            const checkpointConfig = createCheckpointConfig(body);
-
-            const history = snapshot.checkpoint.data.messages.filter(
-                (message) =>
-                    !(
-                        "role" in message &&
-                        message.role === "system"
-                    ),
-            );
-
-            const isResume = body.query === null;
-
-            const filesContext = await buildFilesContext(body.files);
-
-            const globals = buildRuntimeGlobals({
-                globals: checkpointConfig.globals,
-                skills: checkpointConfig.skills,
-            });
-
-            const messages = buildRunMessages({
-                history,
-                query: body.query,
-                prompt: checkpointConfig.prompt,
-                filesContext,
-                isResume,
-            });
-
-            const runConfig: AgentRunConfig = {
-                model: checkpointConfig.model,
-                messages,
-                globals,
-                pause: checkpointConfig.pause,
-                opts: {
-                    toolRounds: checkpointConfig.toolRounds,
-                    signal: controller.signal,
-                },
-            };
-
             return streamSSE(async (stream) => {
-                const writeAgentSSE = createSSEWriter<AgentStreamEvent>(
+                const writeAgentSSE = createSSEWriter<AgentEnvelopeEvent>(
                     stream,
                     ({ agent, event }) => ({
                         event: event.event,
@@ -158,13 +257,23 @@ export function executeAgentRoute(
                     );
 
                     if (!controller.signal.aborted) {
-                        await agentStore.saveCheckpoint(
-                            agentId,
-                            {
-                                config: checkpointConfig,
-                                messages: result.messages,
-                            }
-                        );
+                        const activeRequest =
+                            result.status ===
+                                "awaiting_tool_approval"
+                                ? result
+                                    .state
+                                    .activeRequest
+                                : null;
+
+                        await checkpointer.save({
+                            config:
+                                checkpointConfig,
+
+                            state: {
+                                ...result.state,
+                                activeRequest,
+                            },
+                        });
                     }
                 } finally {
                     request.signal.removeEventListener(
@@ -180,27 +289,10 @@ export function executeAgentRoute(
             });
         },
         {
-            params: AgentRunParamsSchema,
+            params: AgentParamsSchema,
             body: ExecuteAgentBodySchema,
         },
     );
-}
-
-type ExecuteAgentBody = z.infer<
-    typeof ExecuteAgentBodySchema
->;
-
-function createCheckpointConfig(
-    body: ExecuteAgentBody,
-): AgentCheckpointConfig {
-    return {
-        model: body.model,
-        prompt: body.prompt ?? "",
-        toolRounds: body.toolRounds ?? 3,
-        globals: body.globals ?? [],
-        skills: body.skills ?? [],
-        pause: body.pause ?? false,
-    };
 }
 
 function buildRunMessages({

@@ -3,22 +3,60 @@ import { randomUUID } from "crypto";
 
 import {
   AgentIdentitySchema,
-  CreateAgentBodySchema,
-  DEFAULT_AGENT_CHECKPOINT_CONFIG,
   type AgentIdentity,
-  type AgentSnapshot,
-  type CreateAgentBody,
-} from "./shared/schemas";
+} from "../shared/schemas";
 
 import {
   createAgentWorkspace,
   getAgentWorkspacePaths,
-} from "./shared/utils/workspace";
+} from "../shared/utils/workspace";
 
 import {
   AgentCheckpoint,
+  AgentCheckpointConfig,
   createCheckpointer,
-} from "./shared/utils/checkpointer";
+} from "./checkpointer";
+import { CreateAgentBody, CreateAgentBodySchema } from "../../routes/schemas";
+
+export type AgentSnapshot = {
+  identity: AgentIdentity;
+  checkpoint: AgentCheckpoint;
+};
+
+export const DEFAULT_AGENT_CHECKPOINT_CONFIG:
+  AgentCheckpointConfig = {
+  model: "",
+  prompt: "",
+  maxTurns: 3,
+  globals: [],
+  skills: [],
+
+  policies: {
+    preToolUse: "allow",
+  },
+};
+
+export function createDefaultAgentCheckpoint():
+  AgentCheckpoint["data"] {
+  return {
+    config: {
+      model: "",
+      prompt: "",
+      maxTurns: 3,
+      globals: [],
+      skills: [],
+
+      policies: {
+        preToolUse: "allow",
+      },
+    },
+
+    state: {
+      messages: [],
+      activeRequest: null,
+    },
+  };
+}
 
 export function createAgentStore(
   agentsDir: string,
@@ -44,26 +82,6 @@ export function createAgentStore(
     );
 
     return AgentIdentitySchema.parse(rawIdentity);
-  }
-
-  async function saveCheckpoint(
-    agentId: string,
-    data: AgentCheckpoint["data"],
-  ): Promise<AgentCheckpoint | null> {
-    const identity = await readIdentity(agentId);
-
-    if (!identity) {
-      return null;
-    }
-
-    const workspace = getAgentWorkspacePaths(
-      agentsDir,
-      agentId,
-    );
-
-    return createCheckpointer(
-      workspace.root,
-    ).save(data);
   }
 
   return {
@@ -96,18 +114,9 @@ export function createAgentStore(
         workspace.root,
       );
 
-      const checkpoint = await checkpointer.save({
-        config: {
-          ...DEFAULT_AGENT_CHECKPOINT_CONFIG,
-          globals: [
-            ...DEFAULT_AGENT_CHECKPOINT_CONFIG.globals,
-          ],
-          skills: [
-            ...DEFAULT_AGENT_CHECKPOINT_CONFIG.skills,
-          ],
-        },
-        messages: [],
-      });
+      const checkpoint = await checkpointer.save(
+        createDefaultAgentCheckpoint(),
+      );
 
       return {
         identity,
@@ -188,9 +197,7 @@ export function createAgentStore(
       await fs.remove(workspace.root);
 
       return true;
-    },
-
-    saveCheckpoint,
+    }
   };
 }
 

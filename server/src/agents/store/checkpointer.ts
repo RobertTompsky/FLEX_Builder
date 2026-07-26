@@ -1,17 +1,54 @@
 import type {
   ResponseInputItem,
 } from "openai/resources/responses/responses.js";
-
+import { z } from 'zod'
 import fs from "fs-extra";
 import path from "path";
-import { AgentCheckpointConfig } from "../schemas";
+import { HookPolicySelectionSchema } from "../harness/hooks/schemas";
+
+export const AgentCheckpointConfigSchema =
+  z.object({
+    model: z.string(),
+    prompt: z.string(),
+
+    maxTurns: z
+      .number()
+      .int()
+      .positive(),
+
+    globals: z.array(
+      z.string(),
+    ),
+
+    skills: z.array(
+      z.string(),
+    ),
+
+    policies:
+      HookPolicySelectionSchema,
+  });
+
+export type AgentCheckpointConfig =
+  z.infer<
+    typeof AgentCheckpointConfigSchema
+  >;
+
+export type ActiveRequest = {
+    id: string;
+    turnsUsed: number;
+};
+
+export type AgentState = {
+    messages: ResponseInputItem[];
+    activeRequest: ActiveRequest | null;
+};
 
 export type AgentCheckpoint = {
   updatedAt: number;
 
   data: {
     config: AgentCheckpointConfig;
-    messages: ResponseInputItem[];
+    state: AgentState;
   };
 };
 

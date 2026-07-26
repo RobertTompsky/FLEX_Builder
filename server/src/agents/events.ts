@@ -1,5 +1,8 @@
+import { ArtifactEvent } from "../runtime/globals/artifact/events";
+import { AgentIdentity } from "./shared/schemas";
+
 export type AgentEvent =
-  | { event: "init"; data: { message: string } }
+  | { event: "init"; data: { runId: string, message: string } }
   | { event: "text_delta"; data: { delta: string } }
   | { event: "text_end"; data: { responseId: string; fullText: string } }
   | { event: "output_item.added"; data: { id: string; callId: string; name: string } }
@@ -10,3 +13,8 @@ export type AgentEvent =
   | { event: "pause"; data: { reason: string } }
   | { event: "stop"; data: { runId?: string; reason: string } }
   | { event: "error"; data: { message: string } };
+
+export type AgentEnvelopeEvent = {
+  agent: AgentIdentity;
+  event: AgentEvent | ArtifactEvent;
+};

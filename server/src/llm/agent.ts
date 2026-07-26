@@ -10,8 +10,8 @@ import type {
   AgentStreamEvent,
   ArtifactRuntimeEvent
 } from "../events";
-import { RuntimeGlobal } from "../runtime/types";
-import { buildGlobalsPrompt } from "../runtime/globals";
+import { RuntimeGlobal } from "../runtime/globals/types";
+import { buildGlobalsPrompt } from "../runtime/globals/prompt";
 import { Emit } from "../shared/utils/streamSSE";
 import { AgentIdentity } from "../agents/shared/schemas";
 import { AgentEvent } from "../agents/events";

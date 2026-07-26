@@ -1,4 +1,4 @@
-import { defineAction } from "../../runtime/execute/defineAction";
+import { defineAction } from "../../runtime/globals/execute/defineAction";
 import { cryptoInputSchema, cryptoOutputSchema, fetchCrypto } from "./fetchCryptoData";
 
 export const actions = {

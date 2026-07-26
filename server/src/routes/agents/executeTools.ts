@@ -4,11 +4,14 @@ import { CodeGenSchema } from "../../llm/agent";
 import { executeCode } from "../../code/executeCode";
 import { ResponseInputItem } from "openai/resources/responses/responses.js";
 import { getPendingToolCalls } from "../../shared/utils/getPendingTools";
-import { AgentStore } from "../../agents/store";
-import { AgentStreamEvent } from "../../events";
+import { AgentStore } from "../../agents/store/store";
 import { streamSSE, createSSEWriter } from "../../shared/utils/streamSSE";
-import { buildRuntimeGlobals } from "../../runtime/globals";
+import { buildRuntimeGlobals } from "../../runtime/globals/buildRuntimeGlobals";
 import { AgentParamsSchema } from "../schemas";
+import { getAgentWorkspacePaths } from "../../agents/shared/utils/workspace";
+import { createCheckpointer } from "../../agents/store/checkpointer";
+import { AGENTS_STORE_DIR } from "../../shared/data";
+import { AgentEnvelopeEvent } from "../../agents/events";
 
 const ExecuteToolsBodySchema = z.object({
     toolCallIds: z.array(z.string()),
@@ -25,10 +28,15 @@ export function executeToolsRoute(
         "/:agentId/tool-calls",
         async ({
             body,
-            params: { agentId },
+            params: {
+                agentId,
+            },
             set,
         }) => {
-            const snapshot = await agentStore.get(agentId);
+            const snapshot =
+                await agentStore.get(
+                    agentId,
+                );
 
             if (!snapshot) {
                 set.status = 404;
@@ -39,107 +47,235 @@ export function executeToolsRoute(
                 };
             }
 
-            const checkpointConfig = snapshot.checkpoint.data.config;
-
-            let history = [
-                ...snapshot.checkpoint.data.messages,
-            ];
-
-            const pendingTools = getPendingToolCalls(history);
-
-            const approvedTools = pendingTools.filter((tool) =>
-                body.toolCallIds.includes(
-                    tool.call_id,
-                ),
-            );
-
-            history = removeRejectedToolCalls({
-                history,
-                pendingTools,
-                approvedTools,
-            });
-
-            const globals = buildRuntimeGlobals({
-                globals: checkpointConfig.globals,
-                skills: checkpointConfig.skills,
-            });
-
-            return streamSSE(async (sse) => {
-                const writeAgentSSE = createSSEWriter<AgentStreamEvent>(
-                    sse,
-                    ({ agent, event }) => ({
-                        event: event.event,
-                        data: {
-                            agent,
-                            data: event.data,
-                        },
-                    }),
+            const workspace =
+                getAgentWorkspacePaths(
+                    AGENTS_STORE_DIR,
+                    agentId,
                 );
 
-                for (const tool of approvedTools) {
-                    const args = CodeGenSchema.parse(
-                        JSON.parse(
-                            tool.arguments ?? "{}",
+            const checkpointer =
+                createCheckpointer(
+                    workspace.root,
+                );
+
+            const {
+                config: checkpointConfig,
+                state: checkpointState,
+            } = snapshot.checkpoint.data;
+
+            const activeRequest =
+                checkpointState.activeRequest;
+
+            if (!activeRequest) {
+                set.status = 409;
+
+                return {
+                    ok: false,
+                    error:
+                        "No active request",
+                };
+            }
+
+            let history = [
+                ...checkpointState.messages,
+            ];
+
+            const pendingTools =
+                getPendingToolCalls(
+                    history,
+                );
+
+            if (
+                pendingTools.length === 0
+            ) {
+                set.status = 409;
+
+                return {
+                    ok: false,
+                    error:
+                        "No pending tool calls",
+                };
+            }
+
+            const rejectedAll =
+                body.toolCallIds.length === 0;
+
+            const approvedTools =
+                pendingTools.filter(
+                    (tool) =>
+                        body.toolCallIds.includes(
+                            tool.call_id,
                         ),
-                    );
+                );
 
-                    const { stdout } = await executeCode(
-                        args.code,
-                        undefined,
-                        globals,
-                        async (runtimeEvent) => {
-                            if (
-                                runtimeEvent.event ===
-                                "agent_event"
-                            ) {
-                                await writeAgentSSE(
-                                    runtimeEvent.data,
-                                );
+            if (
+                !rejectedAll &&
+                approvedTools.length === 0
+            ) {
+                set.status = 400;
 
-                                return;
-                            }
+                return {
+                    ok: false,
+                    error:
+                        "No matching pending tool calls",
+                };
+            }
 
-                            await writeAgentSSE({
-                                agent: snapshot.identity,
-                                event: runtimeEvent,
-                            });
-                        },
-                    );
+            history =
+                removeRejectedToolCalls({
+                    history,
+                    pendingTools,
+                    approvedTools,
+                });
 
-                    const toolMessage: ResponseInputItem.FunctionCallOutput = {
-                        type: "function_call_output",
-                        call_id: tool.call_id,
-                        output: stdout,
-                    };
+            const globals =
+                buildRuntimeGlobals({
+                    globals:
+                        checkpointConfig.globals,
 
-                    history.push(toolMessage);
+                    skills:
+                        checkpointConfig.skills,
+                });
 
-                    await writeAgentSSE({
-                        agent: snapshot.identity,
+            return streamSSE(
+                async (sse) => {
+                    const writeAgentSSE =
+                        createSSEWriter<
+                            AgentEnvelopeEvent
+                        >(
+                            sse,
+                            ({
+                                agent,
+                                event,
+                            }) => ({
+                                event:
+                                    event.event,
 
-                        event: {
-                            event: "tool_result",
-                            data: {
-                                callId: tool.call_id,
-                                name: tool.name,
-                                outputPreview: stdout.slice(0, 2000),
+                                data: {
+                                    agent,
+                                    data:
+                                        event.data,
+                                },
+                            }),
+                        );
+
+                    for (
+                        const tool
+                        of approvedTools
+                    ) {
+                        const args =
+                            CodeGenSchema.parse(
+                                JSON.parse(
+                                    tool.arguments ??
+                                    "{}",
+                                ),
+                            );
+
+                        const {
+                            stdout,
+                        } = await executeCode(
+                            args.code,
+                            undefined,
+                            globals,
+                            async (
+                                runtimeEvent,
+                            ) => {
+                                if (
+                                    runtimeEvent.event ===
+                                    "agent_event"
+                                ) {
+                                    await writeAgentSSE(
+                                        runtimeEvent.data,
+                                    );
+
+                                    return;
+                                }
+
+                                await writeAgentSSE({
+                                    agent:
+                                        snapshot.identity,
+
+                                    event:
+                                        runtimeEvent,
+                                });
+                            },
+                        );
+
+                        const toolMessage:
+                            ResponseInputItem.FunctionCallOutput =
+                        {
+                            type:
+                                "function_call_output",
+
+                            call_id:
+                                tool.call_id,
+
+                            output:
+                                stdout,
+                        };
+
+                        history.push(
+                            toolMessage,
+                        );
+
+                        await writeAgentSSE({
+                            agent:
+                                snapshot.identity,
+
+                            event: {
+                                event:
+                                    "tool_result",
+
+                                data: {
+                                    callId:
+                                        tool.call_id,
+
+                                    name:
+                                        tool.name,
+
+                                    outputPreview:
+                                        stdout.slice(
+                                            0,
+                                            2000,
+                                        ),
+                                },
+                            },
+                        });
+                    }
+
+                    const turnsUsed =
+                        rejectedAll
+                            ? Math.max(
+                                0,
+                                activeRequest
+                                    .turnsUsed - 1,
+                            )
+                            : activeRequest
+                                .turnsUsed;
+
+                    await checkpointer.save({
+                        config:
+                            checkpointConfig,
+
+                        state: {
+                            messages:
+                                history,
+
+                            activeRequest: {
+                                ...activeRequest,
+                                turnsUsed,
                             },
                         },
                     });
-                }
-
-                await agentStore.saveCheckpoint(
-                    agentId,
-                    {
-                        config: checkpointConfig,
-                        messages: history
-                    }
-                );
-            });
+                },
+            );
         },
         {
-            params: AgentParamsSchema,
-            body: ExecuteToolsBodySchema,
+            params:
+                AgentParamsSchema,
+
+            body:
+                ExecuteToolsBodySchema,
         },
     );
 }

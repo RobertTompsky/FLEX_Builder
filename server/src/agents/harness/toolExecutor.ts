@@ -6,17 +6,13 @@ import type {
 import { executeCode } from "../../code/executeCode";
 
 import type {
-    AgentEvent,
-    AgentStreamEvent,
-    ArtifactRuntimeEvent,
-} from "../../events";
-
-import type {
     RuntimeGlobal,
-} from "../../runtime/types";
+} from "../../runtime/globals/types";
 
 import { Emit } from "../../shared/utils/streamSSE";
 import { AgentIdentity, CodeGenSchema } from "../shared/schemas";
+import { ArtifactEvent } from "../../runtime/globals/artifact/events";
+import { AgentEnvelopeEvent, AgentEvent } from "../events";
 
 export type ToolExecutorConfig = {
     toolCalls: ResponseFunctionToolCallItem[];
@@ -32,7 +28,7 @@ export type ToolExecutorResult = {
 export async function toolExecutor(
     config: ToolExecutorConfig,
     identity: AgentIdentity,
-    emit?: Emit<AgentStreamEvent>,
+    emit?: Emit<AgentEnvelopeEvent>,
 ): Promise<ToolExecutorResult> {
     const {
         toolCalls,
@@ -46,7 +42,7 @@ export async function toolExecutor(
         [];
 
     const safeEmit: Emit<
-        AgentEvent | ArtifactRuntimeEvent
+        AgentEvent | ArtifactEvent
     > = emit
             ? async (event) => {
                 if (

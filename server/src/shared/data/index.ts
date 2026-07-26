@@ -1,10 +1,6 @@
 import path from "path";
-import { cwd } from "process";
-import { fileURLToPath } from "url";
 
-const DATA_DIR = path.dirname(fileURLToPath(import.meta.url));
-
-export const SRC_DIR = path.resolve(DATA_DIR, "..");
+export const SRC_DIR = path.join(process.cwd(), "src");
 export const SKILLS_DIR = path.join(SRC_DIR, "skills");
 export const ARTIFACTS_DIR = path.join(SRC_DIR, "artifacts");
 export const UPLOADS_DIR = path.join(
@@ -12,7 +8,11 @@ export const UPLOADS_DIR = path.join(
   "data",
   "uploads",
 );
-export const CHECKPOINTS_DIR = path.join(cwd(), "checkpoints");
+export const AGENTS_STORE_DIR = path.join(
+  process.cwd(),
+  "data",
+  "agents",
+)
 
 export const MODELS = [
   'gpt-5.6-luna',

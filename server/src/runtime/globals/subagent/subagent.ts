@@ -1,12 +1,12 @@
 import z from "zod";
-import { agent } from "../../llm/agent";
+import { agent } from "../../../llm/agent";
 import { ResponseInputItem } from "openai/resources/responses/responses.js";
-import { SKILLS_DIR } from "../../shared/data";
-import { getSkillsRegistry } from "../../skills/getSkillsRegistry";
+import { SKILLS_DIR } from "../../../shared/data";
+import { getSkillsRegistry } from "../../../skills/getSkillsRegistry";
 import { RuntimeGlobal } from "../types";
 import { SubagentInputSchema, SubagentOutputSchema } from "./schemas";
 import { emitRuntimeEvent } from "../../events";
-import { AgentIdentity } from "../../agents/shared/schemas";
+import { AgentIdentity } from "../../../agents/shared/schemas";
 
 export type SubagentInput = z.infer<typeof SubagentInputSchema>;
 
@@ -80,12 +80,12 @@ export async function subagent(input: SubagentInput): Promise<SubagentOutput> {
             },
         },
         identity,
-        async (streamEvent) => {
-            emitRuntimeEvent({
-                event: "agent_event",
-                data: streamEvent,
-            });
-        },
+        // async (streamEvent) => {
+        //     emitRuntimeEvent({
+        //         event: "agent_event",
+        //         data: streamEvent,
+        //     });
+        // },
     );
 
     const lastMessage = [...result.messages]

@@ -6,29 +6,20 @@ import type {
 } from "openai/resources/responses/responses.js";
 import { toResponseInputItems } from 'openai/lib/responses/ResponseInputItems';
 
-import { z } from "zod";
-
-import type {
-    AgentEvent,
-    AgentStreamEvent,
-    ArtifactRuntimeEvent,
-} from "../../events";
-
 import {
     CodeGenSchema,
     type AgentIdentity,
-    type AgentRunConfig,
 } from "../shared/schemas";
 
-import {
-    buildGlobalsPrompt,
-} from "../../runtime/globals";
-
 import { Emit } from "../../shared/utils/streamSSE";
+import { AgentEnvelopeEvent, AgentEvent } from "../events";
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+export type ModelConfig = {
+    model: string;
+    messages: ResponseInputItem[];
+    tools: FunctionTool[];
+    signal?: AbortSignal;
+};
 
 export type ModelStepResult = {
     status: "completed" | "tool_calls";
@@ -36,31 +27,37 @@ export type ModelStepResult = {
     output: ResponseInputItem[];
 };
 
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+});
+
 export async function model(
-    config: AgentRunConfig,
+    config: ModelConfig,
     identity: AgentIdentity,
-    emit?: Emit<AgentStreamEvent>,
+    emit?: Emit<AgentEnvelopeEvent>,
 ): Promise<ModelStepResult> {
-    const globals = config.globals ?? [];
-    const signal = config.opts?.signal;
+    const {
+        model,
+        messages,
+        tools,
+        signal,
+    } = config;
 
-    const safeEmit: Emit<
-        AgentEvent | ArtifactRuntimeEvent
-    > = emit
-            ? async (event) => {
-                if (
-                    signal?.aborted &&
-                    event.event !== "stop"
-                ) {
-                    return;
-                }
-
-                await emit({
-                    agent: identity,
-                    event,
-                });
+    const safeEmit: Emit<AgentEvent> = emit
+        ? async (event) => {
+            if (
+                signal?.aborted &&
+                event.event !== "stop"
+            ) {
+                return;
             }
-            : async () => { };
+
+            await emit({
+                agent: identity,
+                event,
+            });
+        }
+        : async () => { };
 
     throwIfAborted(signal);
 
@@ -68,11 +65,9 @@ export async function model(
         throw new Error("No messages provided");
     }
 
-    const tools = await buildOpenAITools(
-        globals,
-    );
+    let turnText = "";
 
-    let roundText = "";
+    // console.log(config.messages)
 
     const responseStream =
         openai.responses.stream(
@@ -80,6 +75,9 @@ export async function model(
                 model: config.model,
                 input: config.messages,
                 tools,
+                reasoning: {
+                    effort: 'none'
+                }
             },
             {
                 signal,
@@ -91,7 +89,7 @@ export async function model(
 
         switch (event.type) {
             case "response.output_text.delta": {
-                roundText += event.delta;
+                turnText += event.delta;
 
                 await safeEmit({
                     event: "text_delta",
@@ -148,8 +146,7 @@ export async function model(
 
     throwIfAborted(signal);
 
-    const response =
-        await responseStream.finalResponse();
+    const response = await responseStream.finalResponse();
 
     if (!response.id) {
         throw new Error(
@@ -157,11 +154,25 @@ export async function model(
         );
     }
 
+    //приходится вручную убирать parsed_arguments, видимо helper еще не обновили под новую версию SDK
     const output = [
         ...toResponseInputItems(
             response.output ?? [],
         ),
-    ];
+    ].map((item): ResponseInputItem => {
+        if (item.type !== "function_call") {
+            return item;
+        }
+
+        const {
+            parsed_arguments: _,
+            ...functionCall
+        } = item as typeof item & {
+            parsed_arguments?: unknown;
+        };
+
+        return functionCall;
+    });
 
     const hasToolCalls = output.some(
         (item) =>
@@ -202,12 +213,12 @@ export async function model(
         });
     }
 
-    if (roundText.length > 0) {
+    if (turnText.length > 0) {
         await safeEmit({
             event: "text_end",
             data: {
                 responseId: response.id,
-                fullText: roundText,
+                fullText: turnText,
             },
         });
     }
@@ -220,53 +231,6 @@ export async function model(
         responseId: response.id,
         output,
     };
-}
-
-async function buildOpenAITools(
-    globals: NonNullable<
-        AgentRunConfig["globals"]
-    >,
-): Promise<FunctionTool[]> {
-    if (globals.length === 0) {
-        return [];
-    }
-
-    const names = globals.map((global) => global.name);
-
-    const duplicateNames = names.filter(
-        (name, index) =>
-            names.indexOf(name) !== index,
-    );
-
-    if (duplicateNames.length > 0) {
-        throw new Error(
-            `Duplicate runtime globals: ${[...new Set(duplicateNames)].join(", ")
-            }`,
-        );
-    }
-
-    const runtimeGlobalsPrompt = await buildGlobalsPrompt(globals);
-
-    const runTsTool: FunctionTool = {
-        type: "function",
-        name: "runTs",
-        strict: true,
-
-        description: `
-        # Execute TypeScript code in a sandboxed Bun process.
-        
-        ## Runtime globals:
-        ${runtimeGlobalsPrompt}
-        
-        ## Rules:
-        - Output final tool results using console.log(...).
-        - Write pure TypeScript.
-        `.trim(),
-
-        parameters: z.toJSONSchema(CodeGenSchema),
-    };
-
-    return [runTsTool];
 }
 
 function throwIfAborted(signal?: AbortSignal): void {

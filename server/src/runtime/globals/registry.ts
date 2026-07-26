@@ -10,6 +10,7 @@ import z from "zod";
 import { ArtifactOutputSchema, ArtifactSchema } from "./artifact/schemas";
 import { executeInputSchema, executeOutputSchema } from "./execute/schemas";
 import { SubagentInputSchema, SubagentOutputSchema } from "./subagent/schemas";
+import { sandboxGlobal } from "./scope";
 
 type GlobalDefinition<TGlobal extends RuntimeGlobal> = {
     description: string;
@@ -36,7 +37,7 @@ export const runtimeGlobalRegistry: RuntimeGlobalRegistry = {
         },
 
         install(_global) {
-            globalThis.artifact = artifactFn;
+            sandboxGlobal.artifact = artifactFn;
         },
     },
 
@@ -58,7 +59,7 @@ export const runtimeGlobalRegistry: RuntimeGlobalRegistry = {
                 global.available.map((skill) => skill.name),
             );
 
-            globalThis.execute = createExecute(skills);
+            sandboxGlobal.execute = createExecute(skills);
         },
     },
 
@@ -66,7 +67,7 @@ export const runtimeGlobalRegistry: RuntimeGlobalRegistry = {
         description: "Delegates focused work to a separate agent with selected skills.",
         inputSchema: SubagentInputSchema,
         outputSchema: SubagentOutputSchema,
-        
+
         buildPrompt(global) {
             return buildSubagentPrompt(
                 global.baseDir,
@@ -75,7 +76,7 @@ export const runtimeGlobalRegistry: RuntimeGlobalRegistry = {
         },
 
         install(_global) {
-            globalThis.subagent = subagentFn;
+            sandboxGlobal.subagent = subagentFn;
         },
     }
 };
@@ -83,9 +84,11 @@ export const runtimeGlobalRegistry: RuntimeGlobalRegistry = {
 export const runtimeGlobalNames = Object.keys(runtimeGlobalRegistry);
 
 if (runtimeGlobalNames.length === 0) {
-  throw new Error("Runtime globals registry is empty");
+    throw new Error("Runtime globals registry is empty");
 }
 
-export const RuntimeGlobalNameSchema = z.enum(
-  runtimeGlobalNames as [string, ...string[]],
-);
+export const RuntimeGlobalNameSchema = z.enum(runtimeGlobalNames);
+export type RuntimeGlobalName =
+    z.infer<
+        typeof RuntimeGlobalNameSchema
+    >;

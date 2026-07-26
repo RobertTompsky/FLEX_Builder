@@ -26,6 +26,13 @@ export function createRunStore() {
         agentRuns.set(runId, controller);
     }
 
+    //временный метод, чтобы избежать параллельных runs у агента, пока инфраструктура под это на настроена
+    function has(
+        agentId: string,
+    ): boolean {
+        return runs.has(agentId);
+    }
+
     function remove(
         agentId: string,
         runId: string,
@@ -48,6 +55,7 @@ export function createRunStore() {
     return {
         get,
         set,
+        has,
         delete: remove,
     };
 }

@@ -1,10 +1,10 @@
 import { Elysia } from "elysia";
-import type { AgentStore } from "../../agents/store";
+import type { AgentStore } from "../../agents/store/store";
 import { createAgentRoute } from "./createAgent";
 import { listAgentsRoute } from "./listAgents";
 import { getAgentRoute } from "./getAgent";
 import { deleteAgentRoute } from "./deleteAgent";
-import { RunStore } from "../../agents/runs";
+import { RunStore } from "../../agents/store/runs";
 import { executeAgentRoute } from "./executeAgent";
 import { executeToolsRoute } from "./executeTools";
 import { stopAgentRoute } from "./stopAgent";

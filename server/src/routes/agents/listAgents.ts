@@ -2,7 +2,7 @@ import { Elysia } from "elysia";
 
 import type {
   AgentStore,
-} from "../../agents/store";
+} from "../../agents/store/store";
 
 export function listAgentsRoute(
   store: AgentStore,
