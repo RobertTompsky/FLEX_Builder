@@ -2,21 +2,14 @@ import type {
     ResponseFunctionToolCallItem,
     ResponseInputItem,
 } from "openai/resources/responses/responses.js";
-
 import { executeCode } from "../../code/executeCode";
-
-import type {
-    RuntimeGlobal,
-} from "../../runtime/globals/types";
-
 import { Emit } from "../../shared/utils/streamSSE";
 import { AgentIdentity, CodeGenSchema } from "../shared/schemas";
-import { ArtifactEvent } from "../../runtime/globals/artifact/events";
-import { AgentEnvelopeEvent, AgentEvent } from "../events";
+import { AgentEnvelopeEvent } from "../events";
 
 export type ToolExecutorConfig = {
     toolCalls: ResponseFunctionToolCallItem[];
-    globals?: RuntimeGlobal[];
+    capabilityIds: string[];
     sandboxTimeout?: number;
     signal?: AbortSignal;
 };
@@ -32,7 +25,7 @@ export async function toolExecutor(
 ): Promise<ToolExecutorResult> {
     const {
         toolCalls,
-        globals = [],
+        capabilityIds,
         sandboxTimeout = 10,
         signal,
     } = config;
@@ -41,23 +34,21 @@ export async function toolExecutor(
         ResponseInputItem.FunctionCallOutput[] =
         [];
 
-    const safeEmit: Emit<
-        AgentEvent | ArtifactEvent
-    > = emit
-            ? async (event) => {
-                if (
-                    signal?.aborted &&
-                    event.event !== "stop"
-                ) {
-                    return;
-                }
-
-                await emit({
-                    agent: identity,
-                    event,
-                });
+    const safeEmit: Emit<AgentEnvelopeEvent['event']> = emit
+        ? async (event) => {
+            if (
+                signal?.aborted &&
+                event.event !== "stop"
+            ) {
+                return;
             }
-            : async () => { };
+
+            await emit({
+                agent: identity,
+                event,
+            });
+        }
+        : async () => { };
 
     for (const toolCall of toolCalls) {
         throwIfAborted(signal);
@@ -68,29 +59,26 @@ export async function toolExecutor(
             ),
         );
 
-        const { stdout } = await executeCode(
-            args.code,
-            sandboxTimeout,
-            globals,
-            async (runtimeEvent) => {
+        const { stdout, } = await executeCode({
+            code: args.code,
+            timeoutSeconds: sandboxTimeout,
+            capabilityIds,
+            onRuntimeEvent: async (runtimeEvent,) => {
                 if (
                     runtimeEvent.event ===
                     "agent_event"
                 ) {
                     /*
                      * Событие вложенного агента уже содержит
-                     * его собственную identity-envelope.
+                     * собственный AgentEnvelopeEvent.
                      */
-                    await emit?.(
-                        runtimeEvent.data,
-                    );
-
+                    await emit?.(runtimeEvent.data,);
                     return;
                 }
 
-                await safeEmit(runtimeEvent);
+                await safeEmit(runtimeEvent,);
             },
-        );
+        });
 
         const result:
             ResponseInputItem.FunctionCallOutput =

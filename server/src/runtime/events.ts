@@ -1,5 +1,5 @@
-import type { ArtifactEvent } from "./globals/artifact/events";
-import type { SubagentEvent } from "./globals/subagent/events";
+import type { ArtifactEvent } from "../capabilities/artifact/events";
+import type { SubagentEvent } from "../capabilities/subagent/events";
 
 export const RUNTIME_EVENT_PREFIX = "__RUNTIME_EVENT__:";
 

@@ -24,13 +24,10 @@ import type {
 } from "../shared/schemas";
 
 import type { Emit } from "../../shared/utils/streamSSE";
-import type {
-    RuntimeGlobal,
-} from "../../runtime/globals/types";
 
 import type {
     ArtifactEvent,
-} from "../../runtime/globals/artifact/events";
+} from "../../capabilities/artifact/events";
 
 import type {
     AgentEnvelopeEvent,
@@ -38,13 +35,15 @@ import type {
 } from "../events";
 import type { AgentState } from "../store/checkpointer";
 import { buildRunTsTool } from "./tools/runTsTool";
+import { AgentCapabilityConfig } from "../../runtime/execute/schemas";
+import { resolveCapabilities } from "../../runtime/execute/resolveCapabilities";
+import { CAPABILITIES_DIR } from "../../shared/data";
 
 export type AgentRunConfig = {
     runId: string
     model: string;
     state: AgentState;
-
-    globals?: RuntimeGlobal[];
+    capabilities: AgentCapabilityConfig[];
     hooks?: AgentHooks;
 
     opts?: {
@@ -72,7 +71,7 @@ export async function agent(
     const {
         runId,
         state,
-        globals = [],
+        capabilities = [],
         hooks,
         opts,
     } = config;
@@ -127,9 +126,31 @@ export async function agent(
 
     throwIfAborted(signal);
 
-    const tools = globals.length > 0
-        ? [await buildRunTsTool(globals)]
-        : [];
+    const resolvedCapabilities =
+        await resolveCapabilities(
+            CAPABILITIES_DIR,
+            config.capabilities,
+        );
+
+    const tools = [
+        buildRunTsTool(
+            resolvedCapabilities,
+        ),
+    ];
+
+    const capabilityIds =
+        resolvedCapabilities
+            .filter(
+                ({ access }) =>
+                    access === "execute" ||
+                    access === "both",
+            )
+            .map(
+                ({
+                    definition,
+                }) =>
+                    definition.id,
+            );
 
     while (true) {
         throwIfAborted(signal);
@@ -224,10 +245,11 @@ export async function agent(
             };
         }
 
-        const toolCalls =
-            getToolCalls(
-                step.output,
-            );
+        const toolCalls = step.output.filter(
+            (item,): item is ResponseFunctionToolCallItem =>
+                item.type ===
+                "function_call",
+        );
 
         if (toolCalls.length === 0) {
             throw new Error(
@@ -297,7 +319,7 @@ export async function agent(
                     await toolExecutor(
                         {
                             toolCalls,
-                            globals,
+                            capabilityIds,
                             sandboxTimeout,
                             signal,
                         },
@@ -313,18 +335,6 @@ export async function agent(
             }
         }
     }
-}
-
-function getToolCalls(
-    output: ResponseInputItem[],
-): ResponseFunctionToolCallItem[] {
-    return output.filter(
-        (
-            item,
-        ): item is ResponseFunctionToolCallItem =>
-            item.type ===
-            "function_call",
-    );
 }
 
 function createDeniedToolOutput(

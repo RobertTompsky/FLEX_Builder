@@ -23,39 +23,26 @@ export type AgentSnapshot = {
   checkpoint: AgentCheckpoint;
 };
 
-export const DEFAULT_AGENT_CHECKPOINT_CONFIG:
-  AgentCheckpointConfig = {
-  model: "",
-  prompt: "",
-  maxTurns: 3,
-  globals: [],
-  skills: [],
-
-  policies: {
-    preToolUse: "allow",
+export const DEFAULT_AGENT_CHECKPOINT_DATA:
+  AgentCheckpoint['data'] = {
+  config: {
+    model: "",
+    prompt: "",
+    maxTurns: 3,
+    capabilities: [],
+    policies: {
+      preToolUse: "allow",
+    },
   },
+  state: {
+    messages: [],
+    activeRequest: null,
+  }
 };
 
 export function createDefaultAgentCheckpoint():
   AgentCheckpoint["data"] {
-  return {
-    config: {
-      model: "",
-      prompt: "",
-      maxTurns: 3,
-      globals: [],
-      skills: [],
-
-      policies: {
-        preToolUse: "allow",
-      },
-    },
-
-    state: {
-      messages: [],
-      activeRequest: null,
-    },
-  };
+  return DEFAULT_AGENT_CHECKPOINT_DATA
 }
 
 export function createAgentStore(

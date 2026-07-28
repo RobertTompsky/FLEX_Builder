@@ -2,10 +2,9 @@ import { Elysia } from "elysia";
 import 'dotenv'
 import z from "zod";
 import fs from 'fs-extra'
-import { SKILLS_DIR, MODELS, ALLOWED_FILE_EXTENSIONS, UPLOADS_DIR, AGENTS_STORE_DIR } from "./shared/data";
+import { MODELS, ALLOWED_FILE_EXTENSIONS, UPLOADS_DIR, AGENTS_STORE_DIR } from "./shared/data";
 import path from 'path'
 import { cors } from '@elysia/cors'
-import { runtimeGlobalRegistry } from "./runtime/globals/registry";
 import { createAgentStore } from "./agents/store/store";
 import { agentsRoutes } from "./routes/agents";
 import { createRunStore } from "./agents/store/runs";
@@ -31,19 +30,16 @@ const app = new Elysia()
   .get("/", () => "Hello Elysia")
 
   .get('/info', async () => {
-    const skills = fs
-      .readdirSync(SKILLS_DIR, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name)
-      .sort((a, b) => a.localeCompare(b));
+    // const skills = fs
+    //   .readdirSync(SKILLS_DIR, { withFileTypes: true })
+    //   .filter((entry) => entry.isDirectory())
+    //   .map((entry) => entry.name)
+    //   .sort((a, b) => a.localeCompare(b));
 
     const uploads = fs
       .readdirSync(UPLOADS_DIR, { withFileTypes: true })
       .filter((entry) => entry.isFile())
       .map((entry) => entry.name)
-      .sort((a, b) => a.localeCompare(b));
-
-    const globals = Object.keys(runtimeGlobalRegistry)
       .sort((a, b) => a.localeCompare(b));
 
     const policies: HookPoliciesInfo = {
@@ -52,8 +48,7 @@ const app = new Elysia()
 
     return {
       uploads,
-      globals,
-      skills,
+      // skills,
       models: MODELS,
       policies
     }

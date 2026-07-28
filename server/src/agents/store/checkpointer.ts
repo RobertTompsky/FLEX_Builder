@@ -5,6 +5,7 @@ import { z } from 'zod'
 import fs from "fs-extra";
 import path from "path";
 import { HookPolicySelectionSchema } from "../harness/hooks/schemas";
+import { AgentCapabilityConfigSchema } from "../../runtime/execute/schemas";
 
 export const AgentCheckpointConfigSchema =
   z.object({
@@ -16,13 +17,51 @@ export const AgentCheckpointConfigSchema =
       .int()
       .positive(),
 
-    globals: z.array(
-      z.string(),
-    ),
+    capabilities: z.array(
+      AgentCapabilityConfigSchema
+    )
+      .superRefine(
+        (
+          capabilities,
+          context,
+        ) => {
+          const seen =
+            new Set<string>();
 
-    skills: z.array(
-      z.string(),
-    ),
+          for (
+            const [
+              index,
+              capability,
+            ]
+            of capabilities.entries()
+          ) {
+            if (
+              seen.has(
+                capability.id,
+              )
+            ) {
+              context.addIssue({
+                code:
+                  "custom",
+
+                path: [
+                  index,
+                  "id",
+                ],
+
+                message:
+                  `Duplicate capability id "${capability.id}"`,
+              });
+
+              continue;
+            }
+
+            seen.add(
+              capability.id,
+            );
+          }
+        },
+      ),
 
     policies:
       HookPolicySelectionSchema,
@@ -34,13 +73,13 @@ export type AgentCheckpointConfig =
   >;
 
 export type ActiveRequest = {
-    id: string;
-    turnsUsed: number;
+  id: string;
+  turnsUsed: number;
 };
 
 export type AgentState = {
-    messages: ResponseInputItem[];
-    activeRequest: ActiveRequest | null;
+  messages: ResponseInputItem[];
+  activeRequest: ActiveRequest | null;
 };
 
 export type AgentCheckpoint = {

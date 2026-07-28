@@ -1,17 +1,54 @@
-import { installGlobals } from "./globals/installGlobals";
-import { RuntimeGlobal } from "./globals/types";
+import { CAPABILITIES_DIR } from "../shared/data";
+import {
+  createExecute,
+} from "./execute/createExecute";
 
-const userFile = process.argv.at(2);
-const rawGlobals = process.argv.at(3);
+import {
+  loadCapabilities,
+} from "./execute/loadCapabilities";
+
+import {
+  sandboxGlobal,
+} from "./scope";
+
+import type {
+  SandboxRuntimeConfig,
+} from "./types";
+
+const userFile =
+  process.argv.at(2);
+
+const rawRuntimeConfig =
+  process.argv.at(3);
 
 if (!userFile) {
-  throw new Error("Sandbox user file path is missing");
+  throw new Error(
+    "Sandbox user file path is missing",
+  );
 }
 
-const globals: RuntimeGlobal[] = rawGlobals
-  ? JSON.parse(rawGlobals)
-  : [];
+if (!rawRuntimeConfig) {
+  throw new Error(
+    "Sandbox runtime config is missing",
+  );
+}
 
-await installGlobals(globals);
+const runtimeConfig =
+  JSON.parse(
+    rawRuntimeConfig,
+  ) as SandboxRuntimeConfig;
 
-await import(userFile);
+const capabilities =
+  await loadCapabilities(
+    CAPABILITIES_DIR,
+    runtimeConfig.capabilityIds,
+  );
+
+sandboxGlobal.execute =
+  createExecute(
+    capabilities,
+  );
+
+await import(
+  userFile,
+);

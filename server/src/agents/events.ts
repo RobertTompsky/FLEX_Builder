@@ -1,4 +1,4 @@
-import { ArtifactEvent } from "../runtime/globals/artifact/events";
+import { ArtifactEvent } from "../capabilities/artifact/events";
 import { AgentIdentity } from "./shared/schemas";
 
 export type AgentEvent =

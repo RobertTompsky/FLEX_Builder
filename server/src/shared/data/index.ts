@@ -1,13 +1,20 @@
 import path from "path";
 
-export const SRC_DIR = path.join(process.cwd(), "src");
-export const SKILLS_DIR = path.join(SRC_DIR, "skills");
+export const SRC_DIR =
+  path.resolve(
+    import.meta.dir,
+    "..",
+    "..",
+  );
+// export const SKILLS_DIR = path.join(SRC_DIR, "skills");
 export const ARTIFACTS_DIR = path.join(SRC_DIR, "artifacts");
+export const CAPABILITIES_DIR = path.join(SRC_DIR, "capabilities");
 export const UPLOADS_DIR = path.join(
   process.cwd(),
   "data",
   "uploads",
 );
+
 export const AGENTS_STORE_DIR = path.join(
   process.cwd(),
   "data",

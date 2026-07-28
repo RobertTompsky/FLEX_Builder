@@ -1,17 +1,16 @@
 import { Elysia } from "elysia";
 import { z } from 'zod'
-import { CodeGenSchema } from "../../llm/agent";
 import { executeCode } from "../../code/executeCode";
 import { ResponseInputItem } from "openai/resources/responses/responses.js";
 import { getPendingToolCalls } from "../../shared/utils/getPendingTools";
 import { AgentStore } from "../../agents/store/store";
 import { streamSSE, createSSEWriter } from "../../shared/utils/streamSSE";
-import { buildRuntimeGlobals } from "../../runtime/globals/buildRuntimeGlobals";
 import { AgentParamsSchema } from "../schemas";
 import { getAgentWorkspacePaths } from "../../agents/shared/utils/workspace";
 import { createCheckpointer } from "../../agents/store/checkpointer";
 import { AGENTS_STORE_DIR } from "../../shared/data";
 import { AgentEnvelopeEvent } from "../../agents/events";
+import { CodeGenSchema } from "../../agents/shared/schemas";
 
 const ExecuteToolsBodySchema = z.object({
     toolCallIds: z.array(z.string()),
@@ -121,21 +120,11 @@ export function executeToolsRoute(
                 };
             }
 
-            history =
-                removeRejectedToolCalls({
-                    history,
-                    pendingTools,
-                    approvedTools,
-                });
-
-            const globals =
-                buildRuntimeGlobals({
-                    globals:
-                        checkpointConfig.globals,
-
-                    skills:
-                        checkpointConfig.skills,
-                });
+            history = removeRejectedToolCalls({
+                history,
+                pendingTools,
+                approvedTools,
+            });
 
             return streamSSE(
                 async (sse) => {
@@ -159,25 +148,19 @@ export function executeToolsRoute(
                             }),
                         );
 
-                    for (
-                        const tool
-                        of approvedTools
-                    ) {
-                        const args =
-                            CodeGenSchema.parse(
-                                JSON.parse(
-                                    tool.arguments ??
-                                    "{}",
-                                ),
-                            );
+                    for (const tool of approvedTools) {
+                        const args = CodeGenSchema.parse(
+                            JSON.parse(
+                                tool.arguments ??
+                                "{}",
+                            ),
+                        );
 
-                        const {
-                            stdout,
-                        } = await executeCode(
-                            args.code,
-                            undefined,
-                            globals,
-                            async (
+                        const { stdout, } = await executeCode({
+                            code: args.code,
+                            capabilityIds: checkpointConfig.capabilities.map(c => c.id),
+                            timeoutSeconds: 10,
+                            onRuntimeEvent: async (
                                 runtimeEvent,
                             ) => {
                                 if (
@@ -192,14 +175,11 @@ export function executeToolsRoute(
                                 }
 
                                 await writeAgentSSE({
-                                    agent:
-                                        snapshot.identity,
-
-                                    event:
-                                        runtimeEvent,
+                                    agent: snapshot.identity,
+                                    event: runtimeEvent,
                                 });
                             },
-                        );
+                        });
 
                         const toolMessage:
                             ResponseInputItem.FunctionCallOutput =
@@ -214,9 +194,7 @@ export function executeToolsRoute(
                                 stdout,
                         };
 
-                        history.push(
-                            toolMessage,
-                        );
+                        history.push(toolMessage,);
 
                         await writeAgentSSE({
                             agent:
@@ -254,13 +232,9 @@ export function executeToolsRoute(
                                 .turnsUsed;
 
                     await checkpointer.save({
-                        config:
-                            checkpointConfig,
-
+                        config: checkpointConfig,
                         state: {
-                            messages:
-                                history,
-
+                            messages: history,
                             activeRequest: {
                                 ...activeRequest,
                                 turnsUsed,
@@ -271,11 +245,8 @@ export function executeToolsRoute(
             );
         },
         {
-            params:
-                AgentParamsSchema,
-
-            body:
-                ExecuteToolsBodySchema,
+            params: AgentParamsSchema,
+            body: ExecuteToolsBodySchema,
         },
     );
 }

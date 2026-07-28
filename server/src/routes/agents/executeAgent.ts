@@ -16,7 +16,6 @@ import type {
 
 import {
     AGENTS_STORE_DIR,
-    SKILLS_DIR,
     UPLOADS_DIR,
 } from "../../shared/data";
 
@@ -37,49 +36,21 @@ import {
     createHooks,
 } from "../../agents/harness/hooks/createHooks";
 
-import {
-    getSkillsRegistry,
-} from "../../skills/getSkillsRegistry";
-
-import {
-    buildRuntimeGlobals,
-} from "../../runtime/globals/buildRuntimeGlobals";
-
 import type {
     AgentEnvelopeEvent,
 } from "../../agents/events";
 
 import {
-    RuntimeGlobalNameSchema,
-} from "../../runtime/globals/registry";
-
-import {
     AgentParamsSchema,
-    AgentRunParamsSchema,
 } from "../schemas";
 import { AgentCheckpointConfigSchema, createCheckpointer } from "../../agents/store/checkpointer";
 import { getAgentWorkspacePaths } from "../../agents/shared/utils/workspace";
 import { randomUUID } from "crypto";
-import { AgentIdentity } from "../../agents/shared/schemas";
-
-const skillsRegistry = getSkillsRegistry(SKILLS_DIR);
-
-const skillNames = skillsRegistry.map(
-    (skill) => skill.name,
-) as [string, ...string[]];
 
 const ExecuteAgentBodySchema =
     AgentCheckpointConfigSchema.extend({
         query: z.string().nullable(),
         files: z.array(z.string()).optional(),
-
-        globals: z.array(
-            RuntimeGlobalNameSchema,
-        ),
-
-        skills: z.array(
-            z.enum(skillNames),
-        ),
     });
 
 export function executeAgentRoute(
@@ -166,11 +137,6 @@ export function executeAgentRoute(
 
             const filesContext = await buildFilesContext(files);
 
-            const globals = buildRuntimeGlobals({
-                globals: checkpointConfig.globals,
-                skills: checkpointConfig.skills,
-            });
-
             const messages = buildRunMessages({
                 history,
                 query,
@@ -197,7 +163,7 @@ export function executeAgentRoute(
                     messages,
                     activeRequest,
                 },
-                globals,
+                capabilities: checkpointConfig.capabilities,
                 hooks,
                 opts: {
                     maxTurns: checkpointConfig.maxTurns,
