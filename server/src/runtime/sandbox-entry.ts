@@ -2,10 +2,7 @@ import { CAPABILITIES_DIR } from "../shared/data";
 import {
   createExecute,
 } from "./execute/createExecute";
-
-import {
-  loadCapabilities,
-} from "./execute/loadCapabilities";
+import { loadCapabilities } from "./execute/resolveCapabilities";
 
 import {
   sandboxGlobal,
@@ -15,11 +12,9 @@ import type {
   SandboxRuntimeConfig,
 } from "./types";
 
-const userFile =
-  process.argv.at(2);
+const userFile = process.argv.at(2);
 
-const rawRuntimeConfig =
-  process.argv.at(3);
+const rawRuntimeConfig = process.argv.at(3);
 
 if (!userFile) {
   throw new Error(
@@ -47,8 +42,7 @@ const capabilities =
 sandboxGlobal.execute =
   createExecute(
     capabilities,
+    runtimeConfig.context
   );
 
-await import(
-  userFile,
-);
+await import(userFile);

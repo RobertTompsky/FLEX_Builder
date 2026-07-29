@@ -2,33 +2,25 @@ import type {
     ResponseFunctionToolCallItem,
     ResponseInputItem,
 } from "openai/resources/responses/responses.js";
-
 import {
     model,
 } from "./model";
-
 import {
     toolExecutor,
 } from "./toolExecutor";
-
 import type {
     AgentHooks,
 } from "./hooks/types";
-
 import {
     createPreToolUseContext,
 } from "./hooks/preToolUse/hook";
-
 import type {
     AgentIdentity,
 } from "../shared/schemas";
-
 import type { Emit } from "../../shared/utils/streamSSE";
-
 import type {
     ArtifactEvent,
 } from "../../capabilities/artifact/events";
-
 import type {
     AgentEnvelopeEvent,
     AgentEvent,
@@ -36,16 +28,21 @@ import type {
 import type { AgentState } from "../store/checkpointer";
 import { buildRunTsTool } from "./tools/runTsTool";
 import { AgentCapabilityConfig } from "../../runtime/execute/schemas";
-import { resolveCapabilities } from "../../runtime/execute/resolveCapabilities";
 import { CAPABILITIES_DIR } from "../../shared/data";
+import { resolveCapabilities } from "../../runtime/execute/resolveCapabilities";
+import { RuntimeContext, SandboxRuntimeConfig } from "../../runtime/types";
+
+export type AgentRuntimeConfig = {
+    runId: string;
+    workspaceRoot: string;
+};
 
 export type AgentRunConfig = {
-    runId: string
     model: string;
     state: AgentState;
     capabilities: AgentCapabilityConfig[];
+    runtime: AgentRuntimeConfig;
     hooks?: AgentHooks;
-
     opts?: {
         maxTurns?: number;
         sandboxTimeout?: number;
@@ -69,26 +66,17 @@ export async function agent(
     emit?: Emit<AgentEnvelopeEvent>,
 ): Promise<AgentRunResult> {
     const {
-        runId,
         state,
-        capabilities = [],
+        capabilities,
+        runtime,
         hooks,
         opts,
     } = config;
 
-    const maxTurns =
-        opts?.maxTurns ?? 3;
-
-    const sandboxTimeout =
-        opts?.sandboxTimeout ?? 10;
-
-    const signal =
-        opts?.signal;
-
-    const messages = [
-        ...state.messages,
-    ];
-
+    const maxTurns = opts?.maxTurns ?? 3;
+    const sandboxTimeout = opts?.sandboxTimeout ?? 10;
+    const signal = opts?.signal;
+    const messages = [...state.messages];
     const activeRequest = state.activeRequest;
 
     if (!activeRequest) {
@@ -96,6 +84,14 @@ export async function agent(
             "Agent cannot run without an active request",
         );
     }
+
+    const runtimeContext: RuntimeContext = {
+        agentId: identity.id,
+        runId: config.runtime.runId,
+        requestId: activeRequest.id,
+        workspaceRoot: config.runtime.workspaceRoot,
+    };
+
     let turnsUsed = activeRequest.turnsUsed;
 
     const safeEmit: Emit<
@@ -119,38 +115,31 @@ export async function agent(
     await safeEmit({
         event: 'init',
         data: {
-            runId,
+            runId: runtime.runId,
             message: 'Agent started'
         }
     })
 
     throwIfAborted(signal);
 
-    const resolvedCapabilities =
-        await resolveCapabilities(
-            CAPABILITIES_DIR,
-            config.capabilities,
-        );
+    const resolvedCapabilities = await resolveCapabilities(
+        CAPABILITIES_DIR, capabilities
+    );
 
     const tools = [
-        buildRunTsTool(
-            resolvedCapabilities,
-        ),
+        buildRunTsTool(resolvedCapabilities,),
     ];
 
-    const capabilityIds =
-        resolvedCapabilities
-            .filter(
-                ({ access }) =>
-                    access === "execute" ||
-                    access === "both",
-            )
-            .map(
-                ({
-                    definition,
-                }) =>
-                    definition.id,
-            );
+    //пока что агент имеет дело только с теми capabilities, что может сам запускать через execute
+    const executableCapabilityIds = resolvedCapabilities
+        .filter(({ access }) => access === "execute" || access === "both",)
+        .map(({ definition, }) => definition.id,);
+
+    const runtimeConfig:
+        SandboxRuntimeConfig = {
+        capabilityIds: executableCapabilityIds,
+        context: runtimeContext,
+    };
 
     while (true) {
         throwIfAborted(signal);
@@ -224,12 +213,9 @@ export async function agent(
          */
         messages.push(...step.output);
 
-        if (
-            step.status === "completed"
-        ) {
+        if (step.status === "completed") {
             await safeEmit({
                 event: "end",
-
                 data: {
                     message:
                         "Agent completed",
@@ -247,8 +233,7 @@ export async function agent(
 
         const toolCalls = step.output.filter(
             (item,): item is ResponseFunctionToolCallItem =>
-                item.type ===
-                "function_call",
+                item.type === "function_call",
         );
 
         if (toolCalls.length === 0) {
@@ -265,15 +250,13 @@ export async function agent(
                         toolCalls,
                     ),
                 ) ?? {
-                decision:
-                    "allow" as const,
+                decision: "allow" as const,
             };
 
         switch (preToolUseResult.decision) {
             case "ask": {
                 await safeEmit({
                     event: "pause",
-
                     data: {
                         reason:
                             "tool_approval_required",
@@ -297,15 +280,12 @@ export async function agent(
             }
 
             case "deny": {
-                const deniedOutput =
-                    createDeniedToolOutput(
-                        toolCalls,
-                        preToolUseResult.reason,
-                    );
-
-                messages.push(
-                    ...deniedOutput,
+                const deniedOutput = createDeniedToolOutput(
+                    toolCalls,
+                    preToolUseResult.reason,
                 );
+
+                messages.push(...deniedOutput,);
 
                 /*
                  * Следующая итерация цикла станет
@@ -315,21 +295,18 @@ export async function agent(
             }
 
             case "allow": {
-                const execution =
-                    await toolExecutor(
-                        {
-                            toolCalls,
-                            capabilityIds,
-                            sandboxTimeout,
-                            signal,
-                        },
-                        identity,
-                        emit,
-                    );
-
-                messages.push(
-                    ...execution.output,
+                const execution = await toolExecutor(
+                    {
+                        toolCalls,
+                        runtimeConfig,
+                        sandboxTimeout,
+                        signal,
+                    },
+                    identity,
+                    emit,
                 );
+
+                messages.push(...execution.output,);
 
                 continue;
             }
@@ -338,23 +315,15 @@ export async function agent(
 }
 
 function createDeniedToolOutput(
-    toolCalls:
-        ResponseFunctionToolCallItem[],
+    toolCalls: ResponseFunctionToolCallItem[],
     reason: string,
 ): ResponseInputItem.FunctionCallOutput[] {
     return toolCalls.map(
-        (
-            toolCall,
-        ): ResponseInputItem.FunctionCallOutput => ({
-            type:
-                "function_call_output",
-
-            call_id:
-                toolCall.call_id,
-
+        (toolCall): ResponseInputItem.FunctionCallOutput => ({
+            type: "function_call_output",
+            call_id: toolCall.call_id,
             output: JSON.stringify({
-                error:
-                    "tool_use_denied_by_policy",
+                error: "tool_use_denied",
                 reason,
             }),
         }),

@@ -1,27 +1,16 @@
-import path from "path";
-import fs from "fs-extra";
-import { ArtifactInput } from "./schemas";
+import path from 'path'
+import fs from 'fs-extra'
 
 const REGISTRY_FILE = "registry.json";
-const HISTORY_FILE = "history.jsonl";
 
-export type ArtifactOperationType = ArtifactInput["type"];
-
-export type ArtifactHistoryItem = {
-  timestamp: string;
-  type: ArtifactOperationType;
-  filePath: string;
-  report: string;
-};
-
-export type ArtifactRegistryItem = {
+type ArtifactRegistryItem = {
   filePath: string;
   description?: string;
   createdAt: string;
   updatedAt: string;
 };
 
-export function registry(baseDir: string) {
+export function artifactRegistry(baseDir: string) {
   const filePath = path.join(baseDir, REGISTRY_FILE);
 
   return {
@@ -53,26 +42,6 @@ export function registry(baseDir: string) {
         path.dirname(filePath),
       );
       fs.writeFileSync(filePath, JSON.stringify(items, null, 2), "utf8");
-    },
-  };
-}
-
-export function historyLog(baseDir: string) {
-  const filePath = path.join(baseDir, HISTORY_FILE);
-
-  return {
-    append(item: ArtifactHistoryItem) {
-      fs.appendFileSync(filePath, JSON.stringify(item) + "\n", "utf8");
-    },
-
-    list(): ArtifactHistoryItem[] {
-      if (!fs.existsSync(filePath)) return [];
-
-      return fs
-        .readFileSync(filePath, "utf8")
-        .split("\n")
-        .filter(Boolean)
-        .map((line) => JSON.parse(line) as ArtifactHistoryItem);
     },
   };
 }

@@ -1,6 +1,10 @@
 import z from "zod";
 
 import type {
+    RuntimeContext,
+} from "../types";
+
+import type {
     RuntimeAction,
 } from "./types";
 
@@ -19,6 +23,9 @@ type DefineActionInput<
     handler: (
         args:
             z.output<TInputSchema>,
+
+        context:
+            RuntimeContext,
     ) =>
         | z.input<TOutputSchema>
         | Promise<
@@ -45,6 +52,7 @@ export function defineAction<
 
         async execute(
             rawArgs: unknown,
+            context: RuntimeContext,
         ) {
             const args =
                 inputSchema.parse(
@@ -54,6 +62,7 @@ export function defineAction<
             const result =
                 await handler(
                     args,
+                    context,
                 );
 
             return outputSchema.parse(

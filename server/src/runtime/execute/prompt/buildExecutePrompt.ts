@@ -35,6 +35,42 @@ ${JSON.stringify(
     2,
 )}
 
+## Action composition
+
+Compose multiple actions within the same program whenever possible.
+
+- Run independent actions in parallel.
+- Run dependent actions sequentially, passing outputs directly to subsequent actions.
+- Use standard JavaScript operations to transform, combine, filter, validate, and format data between action calls.
+- Use the documented output schemas to compose actions safely.
+
+Example of two dependent actions:
+
+\`\`\`ts
+const data = await execute({
+    action: "source.fetch",
+    args: {
+        query: "example",
+    },
+});
+
+await execute({
+    action: "artifact.create",
+    args: {
+        filePath: "result.json",
+        content: JSON.stringify(
+            data,
+            null,
+            2,
+        ),
+        description:
+            "Fetched and formatted data.",
+        report:
+            "Saving the fetched data as a JSON artifact.",
+    },
+});
+\`\`\`
+
 Use only the actions documented below.
 Do not import or inspect their implementation files.
 `.trim();

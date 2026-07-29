@@ -3,7 +3,7 @@ import path from "path";
 import { SRC_DIR } from "../shared/data";
 import { RUNTIME_EVENT_PREFIX, type RuntimeEvent } from "../events";
 import { validateCode } from "./validateCode";
-import { SandboxRuntimeConfig } from "../runtime/types";
+import { RuntimeContext, SandboxRuntimeConfig } from "../runtime/types";
 
 const MAX_OUTPUT_BYTES = 50 * 1024; // 50 KB
 
@@ -23,11 +23,8 @@ for (const key of ENV_WHITELIST) {
 
 export type ExecuteCodeInput = {
   code: string;
-
   timeoutSeconds?: number;
-
-  capabilityIds?: string[];
-
+  runtimeConfig: SandboxRuntimeConfig;
   onRuntimeEvent?: (
     event: RuntimeEvent,
   ) => void | Promise<void>;
@@ -40,9 +37,20 @@ export type ExecuteCodeResult = {
 export async function executeCode({
   code,
   timeoutSeconds = 10,
-  capabilityIds = [],
+  runtimeConfig,
   onRuntimeEvent,
 }: ExecuteCodeInput): Promise<ExecuteCodeResult> {
+  const normalizedRuntimeConfig:
+    SandboxRuntimeConfig = {
+    ...runtimeConfig,
+
+    capabilityIds: [
+      ...new Set(
+        runtimeConfig.capabilityIds,
+      ),
+    ],
+  };
+
   const userFile =
     path.join(
       SRC_DIR,
@@ -57,12 +65,6 @@ export async function executeCode({
       "runtime",
       "sandbox-entry.ts",
     );
-
-  const runtimeConfig:
-    SandboxRuntimeConfig = {
-      capabilityIds:
-        [...new Set(capabilityIds)],
-    };
 
   const logs: string[] = [];
 
@@ -93,7 +95,7 @@ export async function executeCode({
           entryFile,
           userFile,
           JSON.stringify(
-            runtimeConfig,
+            normalizedRuntimeConfig,
           ),
         ],
         {
@@ -340,7 +342,7 @@ export async function executeCode({
     await unlink(
       userFile,
     ).catch(
-      () => {},
+      () => { },
     );
   }
 

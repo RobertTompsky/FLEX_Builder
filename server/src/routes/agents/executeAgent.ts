@@ -157,17 +157,19 @@ export function executeAgentRoute(
                     };
 
             const runConfig: AgentRunConfig = {
-                runId,
                 model: checkpointConfig.model,
                 state: {
                     messages,
                     activeRequest,
                 },
                 capabilities: checkpointConfig.capabilities,
+                runtime: {
+                    runId,
+                    workspaceRoot: workspace.root
+                },
                 hooks,
                 opts: {
                     maxTurns: checkpointConfig.maxTurns,
-
                     signal: controller.signal,
                 },
             };

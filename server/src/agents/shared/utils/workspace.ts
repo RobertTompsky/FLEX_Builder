@@ -17,8 +17,6 @@ export function getAgentWorkspacePaths(
     root,
     identity: path.join(root, "agent.json"),
     checkpoint: path.join(root, "checkpoint.json"),
-    artifacts: path.join(root, "artifacts",),
-    subagents: path.join(root, "subagents",),
     // files: path.join(root, "files.json")
   };
 }
@@ -32,11 +30,7 @@ export async function createAgentWorkspace(
     agentId,
   );
 
-  await Promise.all([
-    // fs.ensureDir(paths.root),
-    fs.ensureDir(paths.artifacts),
-    fs.ensureDir(paths.subagents),
-  ]);
+  fs.ensureDir(paths.root);
 
   // await fs.writeJson(
   //   paths.files,

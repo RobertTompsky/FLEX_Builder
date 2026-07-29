@@ -5,6 +5,7 @@ import {
     executeInputSchema,
     executeOutputSchema,
 } from "./schemas";
+import { RuntimeContext } from "../types";
 
 export type RuntimeAction = {
     description: string;
@@ -13,6 +14,7 @@ export type RuntimeAction = {
 
     execute: (
         rawArgs: unknown,
+        context: RuntimeContext,
     ) => Promise<unknown>;
 };
 

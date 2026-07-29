@@ -1,6 +1,6 @@
 import type {
     RuntimeExecute,
-} from "../execute/types";
+} from "./execute/types";
 
 export type SandboxGlobalScope =
     typeof globalThis & {

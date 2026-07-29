@@ -4,6 +4,10 @@ import {
 } from "./schemas";
 
 import type {
+    RuntimeContext,
+} from "../types";
+
+import type {
     CapabilityDefinition,
     RuntimeAction,
     RuntimeExecute,
@@ -16,41 +20,23 @@ function createActionRegistry(
     string,
     RuntimeAction
 > {
-    const registry =
-        new Map<
-            string,
-            RuntimeAction
-        >();
+    const registry = new Map<string, RuntimeAction>();
 
-    for (
-        const capability
-        of capabilities
-    ) {
+    for (const capability of capabilities) {
         for (
-            const [
-                actionName,
-                action,
-            ] of Object.entries(
-                capability.actions,
-            )
+            const [actionName, action] of Object.entries(capability.actions)
         ) {
             const qualifiedName =
                 `${capability.id}.${actionName}`;
 
-            if (
-                registry.has(
-                    qualifiedName,
-                )
+            if (registry.has(qualifiedName,)
             ) {
                 throw new Error(
                     `Duplicate runtime action "${qualifiedName}"`,
                 );
             }
 
-            registry.set(
-                qualifiedName,
-                action,
-            );
+            registry.set(qualifiedName, action,);
         }
     }
 
@@ -58,29 +44,18 @@ function createActionRegistry(
 }
 
 export function createExecute(
-    capabilities:
-        CapabilityDefinition[],
+    capabilities: CapabilityDefinition[],
+    context: RuntimeContext,
 ): RuntimeExecute {
     const registry =
         createActionRegistry(
             capabilities,
         );
 
-    return async function execute(
-        rawInput,
-    ) {
-        const {
-            action,
-            args,
-        } =
-            executeInputSchema.parse(
-                rawInput,
-            );
+    return async function execute(rawInput,) {
+        const { action, args, } = executeInputSchema.parse(rawInput,);
 
-        const definition =
-            registry.get(
-                action,
-            );
+        const definition = registry.get(action,);
 
         if (!definition) {
             const available =
@@ -94,13 +69,11 @@ export function createExecute(
             );
         }
 
-        const result =
-            await definition.execute(
-                args,
-            );
-
-        return executeOutputSchema.parse(
-            result,
+        const result = await definition.execute(
+            args,
+            context,
         );
+
+        return executeOutputSchema.parse(result,);
     };
 }
