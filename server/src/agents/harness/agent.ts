@@ -27,10 +27,11 @@ import type {
 } from "../events";
 import type { AgentState } from "../store/checkpointer";
 import { buildRunTsTool } from "./tools/runTsTool";
-import { AgentCapabilityConfig } from "../../runtime/execute/schemas";
-import { CAPABILITIES_DIR } from "../../shared/data";
-import { resolveCapabilities } from "../../runtime/execute/resolveCapabilities";
-import { RuntimeContext, SandboxRuntimeConfig } from "../../runtime/types";
+import { type AgentCapabilityConfig } from "../../runtime/execute/schemas";
+import { CAPABILITIES_DIR, Model } from "../../shared/data";
+import { resolveCapabilities } from "../../runtime/execute";
+import type { AgentRuntimeContext } from "../../runtime/types";
+
 
 export type AgentRuntimeConfig = {
     runId: string;
@@ -38,7 +39,7 @@ export type AgentRuntimeConfig = {
 };
 
 export type AgentRunConfig = {
-    model: string;
+    model: Model;
     state: AgentState;
     capabilities: AgentCapabilityConfig[];
     runtime: AgentRuntimeConfig;
@@ -85,7 +86,7 @@ export async function agent(
         );
     }
 
-    const runtimeContext: RuntimeContext = {
+    const agentContext: AgentRuntimeContext = {
         agentId: identity.id,
         runId: config.runtime.runId,
         requestId: activeRequest.id,
@@ -134,12 +135,6 @@ export async function agent(
     const executableCapabilityIds = resolvedCapabilities
         .filter(({ access }) => access === "execute" || access === "both",)
         .map(({ definition, }) => definition.id,);
-
-    const runtimeConfig:
-        SandboxRuntimeConfig = {
-        capabilityIds: executableCapabilityIds,
-        context: runtimeContext,
-    };
 
     while (true) {
         throwIfAborted(signal);
@@ -298,7 +293,8 @@ export async function agent(
                 const execution = await toolExecutor(
                     {
                         toolCalls,
-                        runtimeConfig,
+                        capabilityIds: executableCapabilityIds,
+                        context: agentContext,
                         sandboxTimeout,
                         signal,
                     },

@@ -72,13 +72,11 @@ export async function executeCode({
   let outputExceeded = false;
 
   try {
-    const validationError =
-      validateCode(code);
+    const validationError = validateCode(code);
 
     if (validationError) {
       return {
-        stdout:
-          `[BLOCKED] ${validationError}`,
+        stdout: `[BLOCKED] ${validationError}`,
       };
     }
 
@@ -94,79 +92,50 @@ export async function executeCode({
           "bun",
           entryFile,
           userFile,
-          JSON.stringify(
-            normalizedRuntimeConfig,
-          ),
+          JSON.stringify(normalizedRuntimeConfig),
         ],
         {
-          cwd:
-            SRC_DIR,
-
-          stdout:
-            "pipe",
-
-          stderr:
-            "pipe",
-
-          env:
-            sandboxEnv,
+          cwd: SRC_DIR,
+          stdout: "pipe",
+          stderr: "pipe",
+          env: sandboxEnv,
         },
       );
 
-    const timeout =
-      setTimeout(() => {
-        timedOut = true;
-        child.kill();
-      }, timeoutSeconds * 1000);
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      child.kill();
+    }, timeoutSeconds * 1000);
 
     let totalBytes = 0;
 
-    const stdoutTextChunks:
-      string[] = [];
+    const stdoutTextChunks: string[] = [];
 
-    const stderrChunks:
-      Uint8Array[] = [];
+    const stderrChunks: Uint8Array[] = [];
 
-    const handleStdoutLine =
-      async (
-        line: string,
-      ): Promise<void> => {
-        if (
-          !line.startsWith(
-            RUNTIME_EVENT_PREFIX,
-          )
-        ) {
-          if (line) {
-            stdoutTextChunks.push(
-              line,
-            );
-          }
-
-          return;
+    const handleStdoutLine = async (line: string,): Promise<void> => {
+      if (!line.startsWith(RUNTIME_EVENT_PREFIX,)) {
+        if (line) {
+          stdoutTextChunks.push(line,);
         }
 
-        const raw =
-          line.slice(
-            RUNTIME_EVENT_PREFIX.length,
-          );
+        return;
+      }
 
-        try {
-          const event =
-            JSON.parse(
-              raw,
-            ) as RuntimeEvent;
+      const raw = line.slice(RUNTIME_EVENT_PREFIX.length,);
 
-          await onRuntimeEvent?.(
-            event,
-          );
-        } catch (error) {
-          console.error(
-            "[RUNTIME EVENT ERROR]",
-            error,
-            raw,
-          );
-        }
-      };
+      try {
+        const event = JSON.parse(raw,) as RuntimeEvent;
+
+        await onRuntimeEvent?.(event,);
+      } catch (error) {
+        console.error(
+          "[RUNTIME EVENT ERROR]",
+          error,
+          raw,
+        );
+      }
+    };
 
     const registerBytes = (
       byteLength: number,
@@ -174,103 +143,69 @@ export async function executeCode({
       totalBytes +=
         byteLength;
 
-      if (
-        totalBytes <=
-        MAX_OUTPUT_BYTES
-      ) {
+      if (totalBytes <= MAX_OUTPUT_BYTES) {
         return true;
       }
 
-      outputExceeded =
-        true;
+      outputExceeded = true;
 
       child.kill();
 
       return false;
     };
 
-    const stdoutTask =
-      (async () => {
-        if (!child.stdout) {
-          return;
+    const stdoutTask = (async () => {
+      if (!child.stdout) {
+        return;
+      }
+
+      const decoder = new TextDecoder();
+
+      let buffer = "";
+
+      for await (const chunk of child.stdout) {
+        if (!registerBytes(chunk.byteLength)) {
+          break;
         }
 
-        const decoder =
-          new TextDecoder();
+        buffer += decoder.decode(
+          chunk,
+          {
+            stream: true,
+          },
+        );
 
-        let buffer = "";
+        const lines = buffer.split(/\r?\n/,);
 
-        for await (
-          const chunk
-          of child.stdout
-        ) {
-          if (
-            !registerBytes(
-              chunk.byteLength,
-            )
-          ) {
-            break;
-          }
+        buffer = lines.pop() ?? "";
 
-          buffer +=
-            decoder.decode(
-              chunk,
-              {
-                stream: true,
-              },
-            );
-
-          const lines =
-            buffer.split(
-              /\r?\n/,
-            );
-
-          buffer =
-            lines.pop() ?? "";
-
-          for (
-            const line
-            of lines
-          ) {
-            await handleStdoutLine(
-              line,
-            );
-          }
-        }
-
-        buffer +=
-          decoder.decode();
-
-        if (buffer) {
+        for (const line of lines) {
           await handleStdoutLine(
-            buffer,
+            line,
           );
         }
-      })();
+      }
 
-    const stderrTask =
-      (async () => {
-        if (!child.stderr) {
-          return;
+      buffer += decoder.decode();
+
+      if (buffer) {
+        await handleStdoutLine(buffer,);
+      }
+    })();
+
+    const stderrTask = (async () => {
+      if (!child.stderr) {
+        return;
+      }
+
+      for await (const chunk of child.stderr) {
+        if (!registerBytes(chunk.byteLength,)) {
+          break;
         }
 
-        for await (
-          const chunk
-          of child.stderr
-        ) {
-          if (
-            !registerBytes(
-              chunk.byteLength,
-            )
-          ) {
-            break;
-          }
-
-          stderrChunks.push(
-            chunk,
-          );
-        }
-      })();
+        stderrChunks.push(chunk,);
+      }
+    })();
 
     try {
       await Promise.all([
@@ -279,30 +214,20 @@ export async function executeCode({
         child.exited,
       ]);
     } finally {
-      clearTimeout(
-        timeout,
-      );
+      clearTimeout(timeout,);
     }
 
-    const stdoutText =
-      stdoutTextChunks
-        .join("\n")
-        .trimEnd();
+    const stdoutText = stdoutTextChunks
+      .join("\n")
+      .trimEnd();
 
-    const stderrText =
-      Buffer
-        .concat(
-          stderrChunks,
-        )
-        .toString(
-          "utf8",
-        )
-        .trimEnd();
+    const stderrText = Buffer
+      .concat(stderrChunks,)
+      .toString("utf8",)
+      .trimEnd();
 
     if (stdoutText) {
-      logs.push(
-        stdoutText,
-      );
+      logs.push(stdoutText,);
     }
 
     if (stderrText) {
@@ -318,36 +243,25 @@ export async function executeCode({
     }
 
     if (timedOut) {
-      logs.push(
-        `[TIMEOUT] Exceeded ${timeoutSeconds}s`,
-      );
+      logs.push(`[TIMEOUT] Exceeded ${timeoutSeconds}s`,);
     } else if (
       child.exitCode !== 0 &&
       !outputExceeded
     ) {
-      logs.push(
-        `[EXIT_CODE] ${child.exitCode}`,
-      );
+      logs.push(`[EXIT_CODE] ${child.exitCode}`,);
     }
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : String(error);
+    const message = error instanceof Error
+      ? error.message
+      : String(error);
 
-    logs.push(
-      `[ERROR] ${message}`,
-    );
+    logs.push(`[ERROR] ${message}`,);
   } finally {
-    await unlink(
-      userFile,
-    ).catch(
-      () => { },
+    await unlink(userFile).catch(() => { },
     );
   }
 
   return {
-    stdout:
-      logs.join("\n"),
+    stdout: logs.join("\n"),
   };
 }

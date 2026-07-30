@@ -15,12 +15,7 @@ import type {
 } from "./types";
 import { AgentCapabilityConfig } from "./schemas";
 
-function isRecord(
-    value: unknown,
-): value is Record<
-    PropertyKey,
-    unknown
-> {
+function isRecord(value: unknown): value is Record<PropertyKey, unknown> {
     return (
         typeof value === "object" &&
         value !== null &&
@@ -28,12 +23,21 @@ function isRecord(
     );
 }
 
-function isNonEmptyString(
-    value: unknown,
-): value is string {
+function isNonEmptyString(value: unknown): value is string {
     return (
         typeof value === "string" &&
         value.trim().length > 0
+    );
+}
+
+function isCapabilityDefinitionCandidate(
+    value: unknown,
+): value is Record<PropertyKey, unknown> {
+    return (
+        isRecord(value) &&
+        "id" in value &&
+        "description" in value &&
+        "actions" in value
     );
 }
 
@@ -114,21 +118,68 @@ function assertCapabilityDefinition(
     }
 }
 
-async function loadCapabilityModule(
-    modulePath: string,
-): Promise<CapabilityDefinition> {
-    const moduleUrl = pathToFileURL(modulePath,).href;
+function extractCapabilityDefinition(
+    module: Record<string, unknown>,
+    filePath: string,
+): CapabilityDefinition {
+    const candidates =
+        Object.entries(module)
+            .filter(
+                ([, value]) =>
+                    isCapabilityDefinitionCandidate(
+                        value,
+                    ),
+            );
 
-    const module = await import(moduleUrl);
+    if (candidates.length === 0) {
+        throw new Error(
+            `No capability definition exported from "${filePath}"`,
+        );
+    }
 
-    const definition: unknown = module.default;
+    if (candidates.length > 1) {
+        throw new Error(
+            `Multiple capability definitions exported from "${filePath}": ${
+                candidates
+                    .map(
+                        ([exportName]) =>
+                            exportName,
+                    )
+                    .join(", ")
+            }`,
+        );
+    }
+
+    const [
+        exportName,
+        definition,
+    ] = candidates[0];
 
     assertCapabilityDefinition(
         definition,
-        modulePath,
+        `${filePath}#${exportName}`,
     );
 
     return definition;
+}
+
+async function loadCapabilityModule(
+    modulePath: string,
+): Promise<CapabilityDefinition> {
+    const moduleUrl =
+        pathToFileURL(
+            modulePath,
+        ).href;
+
+    const module: Record<string, unknown> =
+        await import(
+            moduleUrl,
+        );
+
+    return extractCapabilityDefinition(
+        module,
+        modulePath,
+    );
 }
 
 async function findCapabilityModules(

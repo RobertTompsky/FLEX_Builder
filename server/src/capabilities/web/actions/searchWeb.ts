@@ -1,5 +1,5 @@
 import z from "zod"
-import { defineAction } from "../../../runtime/execute/defineAction";
+import { action } from "../../../runtime/execute";
 
 export const newsInputSchema = z.object({
     query: z
@@ -101,17 +101,9 @@ export const searchWeb = async ({
     });
 };
 
-export const searchWebAction =
-    defineAction({
-        description:
-            "Searches the internet for news, articles, and other up-to-date web information.",
-
-        inputSchema:
-            newsInputSchema,
-
-        outputSchema:
-            newsOutputSchema,
-
-        handler:
-            searchWeb,
-    });
+export const searchWebAction = action({
+    description: "Searches the internet for news, articles, and other up-to-date web information.",
+    inputSchema: newsInputSchema,
+    outputSchema: newsOutputSchema,
+    handler: searchWeb
+});

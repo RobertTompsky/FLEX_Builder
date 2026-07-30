@@ -1,5 +1,5 @@
 import z from "zod";
-import { defineAction } from "../../../runtime/execute/defineAction";
+import { action } from "../../../runtime/execute";
 
 export const cryptoInputSchema = z.object({
     ticker: z
@@ -181,17 +181,9 @@ export const fetchCrypto = async (
     })
 }
 
-export const fetchCryptoAction =
-    defineAction({
-        description:
-            "Fetches market data for a cryptocurrency.",
-
-        inputSchema:
-            cryptoInputSchema,
-
-        outputSchema:
-            cryptoOutputSchema,
-
-        handler:
-            fetchCrypto,
-    });
+export const fetchCryptoAction = action({
+    description: "Fetches market data for a cryptocurrency.",
+    inputSchema: cryptoInputSchema,
+    outputSchema: cryptoOutputSchema,
+    handler: fetchCrypto,
+});

@@ -8,7 +8,7 @@ import { artifactHistoryLog } from "../utils/history";
 import path from "path";
 import fs from "fs-extra";
 import { emitRuntimeEvent } from "../../../runtime/events";
-import { defineAction } from "../../../runtime/execute/defineAction";
+import { action } from "../../../runtime/execute";
 
 export const CreateArtifactInputSchema =
     z.object({
@@ -106,7 +106,7 @@ export function createArtifact(
     });
 }
 
-export const createArtifactAction = defineAction({
+export const createArtifactAction = action({
     description: "Creates a file in the artifacts directory.",
     inputSchema: CreateArtifactInputSchema,
     outputSchema: CreateArtifactOutputSchema,

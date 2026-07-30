@@ -21,11 +21,12 @@ export const AGENTS_STORE_DIR = path.join(
   "agents",
 )
 
-export const MODELS = [
-  'gpt-5.6-luna',
-  'gpt-5.6-terra',
-  'gpt-5.4-mini',
-]
+export const MODELS = {
+  luna: "gpt-5.6-luna",
+  terra: "gpt-5.6-terra",
+} as const;
+
+export type Model = typeof MODELS[keyof typeof MODELS];
 
 export const ALLOWED_FILE_EXTENSIONS = new Set([
   '.txt',

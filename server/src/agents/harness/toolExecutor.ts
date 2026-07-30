@@ -6,11 +6,12 @@ import { executeCode } from "../../code/executeCode";
 import { Emit } from "../../shared/utils/streamSSE";
 import { AgentIdentity, CodeGenSchema } from "../shared/schemas";
 import { AgentEnvelopeEvent } from "../events";
-import { SandboxRuntimeConfig } from "../../runtime/types";
+import { AgentRuntimeContext, SandboxRuntimeConfig } from "../../runtime/types";
 
 export type ToolExecutorConfig = {
     toolCalls: ResponseFunctionToolCallItem[];
-    runtimeConfig: SandboxRuntimeConfig;
+    capabilityIds: string[];
+    context: AgentRuntimeContext;
     sandboxTimeout?: number;
     signal?: AbortSignal;
 };
@@ -25,8 +26,9 @@ export async function toolExecutor(
     emit?: Emit<AgentEnvelopeEvent>,
 ): Promise<ToolExecutorResult> {
     const {
+        capabilityIds,
         toolCalls,
-        runtimeConfig,
+        context,
         sandboxTimeout = 10,
         signal,
     } = config;
@@ -59,6 +61,15 @@ export async function toolExecutor(
                 toolCall.arguments ?? "{}",
             ),
         );
+
+        const runtimeConfig:
+            SandboxRuntimeConfig = {
+            capabilityIds,
+            context: {
+                ...context,
+                toolCallId: toolCall.call_id,
+            },
+        };
 
         const { stdout, } = await executeCode({
             code: args.code,

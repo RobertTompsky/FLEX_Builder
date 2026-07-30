@@ -1,8 +1,8 @@
-import { defineCapability } from "../../runtime/execute/defineCapability";
 import { createArtifactAction } from "./actions/createArtifact";
 import { readArtifactAction } from "./actions/readArtifact";
+import { capability } from "../../runtime/execute";
 
-export default defineCapability({
+export const artifactCapability = capability({
     id: "artifact",
     description:
         "Provides controlled access to durable files in the agent workspace.",

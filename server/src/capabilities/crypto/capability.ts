@@ -1,9 +1,7 @@
-import {
-    defineCapability,
-} from "../../runtime/execute/defineCapability";
 import { fetchCryptoAction } from "./actions/fetchCryptoData";
+import { capability } from "../../runtime/execute";
 
-export default defineCapability({
+export const cryptoCapability = capability({
     id: 'crypto',
     description: "Provides cryptocurrency market data and analysis.",
     actions: {

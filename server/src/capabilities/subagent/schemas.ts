@@ -10,12 +10,12 @@ export const SubagentInputSchema = z.object({
         .min(1)
         .describe("A clear, self-contained task for the subagent."),
 
-    skills: z
+    capabilities: z
         .array(z.string().min(1))
         .min(1)
-        .describe("Names of skills to grant to the subagent."),
+        .describe("Names of capabilities to grant to the subagent."),
 });
 
 export const SubagentOutputSchema = z.object({
-    text: z.string(),
+    output: z.string().describe('Output of subagent'),
 });

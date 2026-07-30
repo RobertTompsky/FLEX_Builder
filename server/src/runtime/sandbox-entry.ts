@@ -2,7 +2,7 @@ import { CAPABILITIES_DIR } from "../shared/data";
 import {
   createExecute,
 } from "./execute/createExecute";
-import { loadCapabilities } from "./execute/resolveCapabilities";
+import { loadCapabilities } from "./execute";
 
 import {
   sandboxGlobal,

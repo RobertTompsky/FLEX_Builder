@@ -6,7 +6,7 @@ import { resolveArtifactPath } from "../utils/resolveArtifactPath";
 import { artifactHistoryLog } from "../utils/history";
 import fs from "fs-extra";
 import { emitRuntimeEvent } from "../../../runtime/events";
-import { defineAction } from "../../../runtime/execute/defineAction";
+import { action } from "../../../runtime/execute";
 
 export const ReadArtifactInputSchema =
     z.object({
@@ -92,7 +92,7 @@ export function readArtifact(
     });
 }
 
-export const readArtifactAction = defineAction({
+export const readArtifactAction = action({
     description: "Reads a file from the artifacts directory.",
     inputSchema: ReadArtifactInputSchema,
     outputSchema: ReadArtifactOutputSchema,
