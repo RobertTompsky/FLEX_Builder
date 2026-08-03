@@ -1,0 +1,242 @@
+// :root {
+//   --bg: #11d1d1;
+//   --window-bg: #d4d0c8;
+//   --border-light: #ffffff;
+//   --border-dark: #808080;
+//   --border-deep: #404040;
+//   --accent: #000080;
+//   --font: "MS Sans Serif", "Tahoma", sans-serif;
+// }
+
+:root {
+  font-family:
+    "MS Sans Serif", "Tahoma", sans-serif;
+
+  color: #111;
+  background: #10c9ca;
+
+  font-synthesis: none;
+  text-rendering: geometricPrecision;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  min-width: 960px;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.04),
+      rgba(0, 0, 0, 0.04)
+    ),
+    #10c9ca;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+.workspace {
+  --desktop-gray: #c0c0c0;
+  --desktop-light: #ffffff;
+  --desktop-shadow: #808080;
+  --desktop-dark: #202020;
+  --title-blue: #000080;
+  --terminal-bg: #101912;
+  --terminal-line: rgba(255, 255, 255, 0.06);
+  --terminal-text: #d7ded7;
+  --accent-green: #7fda4a;
+  --accent-yellow: #ffe85c;
+
+  display: grid;
+  grid-template-rows: 30px 32px minmax(0, 1fr) 28px;
+
+  width: calc(100% - 48px);
+  height: calc(100% - 48px);
+  margin: 24px;
+
+  background: var(--desktop-gray);
+
+  border-top: 2px solid var(--desktop-light);
+  border-left: 2px solid var(--desktop-light);
+  border-right: 2px solid var(--desktop-dark);
+  border-bottom: 2px solid var(--desktop-dark);
+
+  box-shadow:
+    1px 1px 0 #000,
+    -1px -1px 0 #dfdfdf;
+
+  &__titlebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 3px 4px 3px 7px;
+
+    color: white;
+    background: linear-gradient(
+      90deg,
+      #000080,
+      #1010ad
+    );
+  }
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+  }
+
+  &__app-icon {
+    color: #45e9dd;
+  }
+
+  &__controls {
+    display: flex;
+    gap: 2px;
+
+    button {
+      display: grid;
+      place-items: center;
+
+      width: 22px;
+      height: 22px;
+      padding: 0;
+
+      font-family: Arial, sans-serif;
+      font-weight: 700;
+      line-height: 1;
+
+      background: var(--desktop-gray);
+
+      border-top: 2px solid white;
+      border-left: 2px solid white;
+      border-right: 2px solid #202020;
+      border-bottom: 2px solid #202020;
+
+      &:active {
+        border-top-color: #202020;
+        border-left-color: #202020;
+        border-right-color: white;
+        border-bottom-color: white;
+      }
+    }
+  }
+
+  &__menu {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+
+    padding: 2px 10px;
+
+    border-bottom: 1px solid #808080;
+
+    button {
+      padding: 3px 7px;
+
+      background: transparent;
+      border: 1px solid transparent;
+
+      &:hover {
+        border-top-color: white;
+        border-left-color: white;
+        border-right-color: #808080;
+        border-bottom-color: #808080;
+      }
+    }
+  }
+
+  &__body {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    min-height: 0;
+    padding: 6px;
+    gap: 7px;
+  }
+
+  &__content {
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+
+    border-top: 2px solid #808080;
+    border-left: 2px solid #808080;
+    border-right: 2px solid white;
+    border-bottom: 2px solid white;
+
+    background: #d4d0c8;
+  }
+
+  &__statusbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    padding: 3px 5px;
+
+    font-size: 12px;
+
+    > div {
+      min-height: 19px;
+      padding: 2px 9px;
+
+      border-top: 1px solid #808080;
+      border-left: 1px solid #808080;
+      border-right: 1px solid white;
+      border-bottom: 1px solid white;
+    }
+  }
+
+  &__status {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  &__status-light {
+    width: 9px;
+    height: 9px;
+
+    background: #42c642;
+    border: 1px solid #205f20;
+  }
+
+  &__status-spacer {
+    flex: 1;
+  }
+}
+
+@media (max-width: 1180px) {
+  .workspace {
+    width: calc(100% - 20px);
+    height: calc(100% - 20px);
+    margin: 10px;
+
+    &__body {
+      grid-template-columns: 240px minmax(0, 1fr);
+    }
+  }
+}

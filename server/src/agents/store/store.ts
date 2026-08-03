@@ -13,7 +13,6 @@ import {
 
 import {
   AgentCheckpoint,
-  AgentCheckpointConfig,
   createCheckpointer,
 } from "./checkpointer";
 import { CreateAgentBody, CreateAgentBodySchema } from "../../routes/schemas";

@@ -3,7 +3,36 @@ import type {
   AgentStore,
 } from "../../agents/store/store";
 import { AgentParamsSchema } from "../schemas";
-import { toUIMessages } from "../../agents/shared/utils/messages";
+import { toUIMessages, UIMessage } from "../../agents/shared/utils/messages";
+import { AgentIdentity } from "../../agents/shared/schemas";
+import { AgentState, AgentCheckpoint } from "../../agents/store/checkpointer";
+
+export type UIAgentState =
+  Omit<
+    AgentState,
+    "messages"
+  > & {
+    messages: UIMessage[];
+  };
+
+export type UIAgentCheckpoint =
+  Omit<
+    AgentCheckpoint,
+    "data"
+  > & {
+    data:
+    Omit<
+      AgentCheckpoint["data"],
+      "state"
+    > & {
+      state: UIAgentState;
+    };
+  };
+
+export type AgentUISnapshot = {
+  identity: AgentIdentity;
+  checkpoint: UIAgentCheckpoint;
+};
 
 export function getAgentRoute(
   store: AgentStore,
@@ -25,8 +54,9 @@ export function getAgentRoute(
         };
       }
 
-      return {
-        identity: snapshot.identity,
+      const result: AgentUISnapshot = {
+        identity:
+          snapshot.identity,
 
         checkpoint: {
           ...snapshot.checkpoint,
@@ -34,12 +64,26 @@ export function getAgentRoute(
           data: {
             ...snapshot.checkpoint.data,
 
-            messages: toUIMessages(
-              snapshot.checkpoint.data.state.messages,
-            ),
+            state: {
+              ...snapshot
+                .checkpoint
+                .data
+                .state,
+
+              messages:
+                toUIMessages(
+                  snapshot
+                    .checkpoint
+                    .data
+                    .state
+                    .messages,
+                ),
+            },
           },
         },
       };
+
+      return result;
     },
     {
       params: AgentParamsSchema,

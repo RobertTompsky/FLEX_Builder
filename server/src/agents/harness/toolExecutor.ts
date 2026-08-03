@@ -33,9 +33,7 @@ export async function toolExecutor(
         signal,
     } = config;
 
-    const output:
-        ResponseInputItem.FunctionCallOutput[] =
-        [];
+    const output: ResponseInputItem.FunctionCallOutput[] = [];
 
     const safeEmit: Emit<AgentEnvelopeEvent['event']> = emit
         ? async (event) => {

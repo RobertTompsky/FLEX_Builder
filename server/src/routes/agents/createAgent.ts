@@ -10,15 +10,18 @@ export function createAgentRoute(
 ) {
   return new Elysia().post(
     "/",
-    async ({ body, set }) => {
-      const snapshot = await store.create(body);
+    async ({ set }) => {
+      //временно, потом дефолтное имя будет создаваться вместе с начальным чекпоинтом
+      const snapshot = await store.create({
+        name: 'default'
+      });
 
       set.status = 201;
 
-      return snapshot;
+      return snapshot.identity;
     },
-    {
-      body: CreateAgentBodySchema,
-    },
+    // {
+    //   body: CreateAgentBodySchema,
+    // },
   );
 }

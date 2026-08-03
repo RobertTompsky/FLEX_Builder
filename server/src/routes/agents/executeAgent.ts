@@ -16,6 +16,7 @@ import type {
 
 import {
     AGENTS_STORE_DIR,
+    Model,
     UPLOADS_DIR,
 } from "../../shared/data";
 
@@ -157,7 +158,7 @@ export function executeAgentRoute(
                     };
 
             const runConfig: AgentRunConfig = {
-                model: checkpointConfig.model,
+                model: checkpointConfig.model as Model,
                 state: {
                     messages,
                     activeRequest,
