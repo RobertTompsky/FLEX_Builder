@@ -2,8 +2,6 @@ export type ArtifactEvent =
     | {
         event: "artifact_read";
         data: {
-            runId: string;
-            toolCallId: string;
             filePath: string;
             report: string;
         };
@@ -11,8 +9,6 @@ export type ArtifactEvent =
     | {
         event: "artifact_created";
         data: {
-            runId: string;
-            toolCallId: string;
             filePath: string;
             report: string;
             description?: string;

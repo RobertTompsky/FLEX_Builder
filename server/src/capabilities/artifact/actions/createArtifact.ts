@@ -7,8 +7,9 @@ import { artifactRegistry } from "../utils/registry";
 import { artifactHistoryLog } from "../utils/history";
 import path from "path";
 import fs from "fs-extra";
-import { emitRuntimeEvent } from "../../../runtime/events";
+import { createRuntimeEmitter } from "../../../runtime/events";
 import { action } from "../../../runtime/execute";
+import { ArtifactEvent } from "../events";
 
 export const CreateArtifactInputSchema =
     z.object({
@@ -67,9 +68,7 @@ export function createArtifact(
         );
     }
 
-    fs.ensureDirSync(
-        path.dirname(fullPath),
-    );
+    fs.ensureDirSync(path.dirname(fullPath));
 
     fs.writeFileSync(
         fullPath,
@@ -91,9 +90,13 @@ export function createArtifact(
         report: input.report,
     });
 
-    emitRuntimeEvent({
+    const emitArtifactEvent = createRuntimeEmitter<ArtifactEvent>()
+
+    emitArtifactEvent({
         event: "artifact_created",
         data: {
+            runId: context.runId,
+            toolCallId: context.toolCallId,
             filePath: input.filePath,
             report: input.report,
             description: input.description,

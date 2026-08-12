@@ -17,16 +17,14 @@ export const AgentCheckpointConfigSchema =
       .int()
       .positive(),
 
-    capabilities: z.array(
-      AgentCapabilityConfigSchema
-    )
+    capabilities: z
+      .array(AgentCapabilityConfigSchema)
       .superRefine(
         (
           capabilities,
           context,
         ) => {
-          const seen =
-            new Set<string>();
+          const seen = new Set<string>();
 
           for (
             const [
@@ -35,36 +33,25 @@ export const AgentCheckpointConfigSchema =
             ]
             of capabilities.entries()
           ) {
-            if (
-              seen.has(
-                capability.id,
-              )
-            ) {
+            if (seen.has(capability.id,)) {
               context.addIssue({
-                code:
-                  "custom",
-
+                code: "custom",
                 path: [
                   index,
                   "id",
                 ],
-
-                message:
-                  `Duplicate capability id "${capability.id}"`,
+                message: `Duplicate capability id "${capability.id}"`,
               });
 
               continue;
             }
 
-            seen.add(
-              capability.id,
-            );
+            seen.add(capability.id,);
           }
         },
       ),
 
-    policies:
-      HookPolicySelectionSchema,
+    policies: HookPolicySelectionSchema,
   });
 
 export type AgentCheckpointConfig =
@@ -84,7 +71,6 @@ export type AgentState = {
 
 export type AgentCheckpoint = {
   updatedAt: number;
-
   data: {
     config: AgentCheckpointConfig;
     state: AgentState;
@@ -115,7 +101,8 @@ export function createCheckpointer(
     }
 
     try {
-      const checkpoint = await fs.readJson(checkpointPath) as AgentCheckpoint;
+      const checkpoint = await fs
+        .readJson(checkpointPath) as AgentCheckpoint;
 
       return checkpoint;
     } catch {

@@ -2,7 +2,7 @@ import type {
     ResponseFunctionToolCallItem,
     ResponseInputItem,
 } from "openai/resources/responses/responses.js";
-import { executeCode } from "../../code/executeCode";
+import { executeCode } from "../../runtime/code/executeCode";
 import { Emit } from "../../shared/utils/streamSSE";
 import { AgentIdentity, CodeGenSchema } from "../shared/schemas";
 import { AgentEnvelopeEvent } from "../events";
@@ -73,20 +73,8 @@ export async function toolExecutor(
             code: args.code,
             timeoutSeconds: sandboxTimeout,
             runtimeConfig,
-            onRuntimeEvent: async (runtimeEvent,) => {
-                if (
-                    runtimeEvent.event ===
-                    "agent_event"
-                ) {
-                    /*
-                     * Событие вложенного агента уже содержит
-                     * собственный AgentEnvelopeEvent.
-                     */
-                    await emit?.(runtimeEvent.data,);
-                    return;
-                }
-
-                await safeEmit(runtimeEvent,);
+            onRuntimeEvent: async (runtimeEvent) => {
+                await safeEmit(runtimeEvent);
             },
         });
 

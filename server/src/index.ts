@@ -2,7 +2,7 @@ import { Elysia } from "elysia";
 import 'dotenv'
 import z from "zod";
 import fs from 'fs-extra'
-import { MODELS, ALLOWED_FILE_EXTENSIONS, UPLOADS_DIR, AGENTS_STORE_DIR } from "./shared/data";
+import { MODELS, ALLOWED_FILE_EXTENSIONS, UPLOADS_DIR, AGENTS_STORE_DIR, CAPABILITIES_DIR } from "./shared/data";
 import path from 'path'
 import { cors } from '@elysia/cors'
 import { createAgentStore } from "./agents/store/store";
@@ -10,6 +10,9 @@ import { agentsRoutes } from "./routes/agents";
 import { createRunStore } from "./agents/store/runs";
 import { HookPoliciesInfo } from "./agents/harness/hooks/types";
 import { listPreToolUsePolicies } from "./agents/harness/hooks/preToolUse/policy";
+import { listCapabilities } from "./runtime/execute/resolveCapabilities";
+import { CapabilityAccessSchema } from "./runtime/execute/schemas";
+import { CapabilityAccess } from "./runtime/execute/types";
 
 const agentStore = createAgentStore(AGENTS_STORE_DIR);
 
@@ -27,14 +30,11 @@ const app = new Elysia()
 
   .use(agentsRoutes(agentStore, runStore))
 
-  .get("/", () => "Hello Elysia")
+  .get("/", () => "Марс вечен")
 
-  .get('/info', async () => {
-    // const skills = fs
-    //   .readdirSync(SKILLS_DIR, { withFileTypes: true })
-    //   .filter((entry) => entry.isDirectory())
-    //   .map((entry) => entry.name)
-    //   .sort((a, b) => a.localeCompare(b));
+  .get('/metadata', async () => {
+
+    const definitions = await listCapabilities(CAPABILITIES_DIR);
 
     const uploads = fs
       .readdirSync(UPLOADS_DIR, { withFileTypes: true })
@@ -46,12 +46,36 @@ const app = new Elysia()
       preToolUse: listPreToolUsePolicies(),
     };
 
+    type MetadataResponse = {
+      uploads: string[];
+      models: typeof MODELS;
+      capabilities: {
+        items: Array<{
+          id: string;
+          description: string;
+        }>;
+        accessOptions: readonly CapabilityAccess[];
+      };
+      policies: HookPoliciesInfo;
+    };
+
     return {
       uploads,
-      // skills,
       models: MODELS,
+      capabilities: {
+        items: definitions.map(
+          ({
+            id,
+            description,
+          }) => ({
+            id,
+            description,
+          }),
+        ),
+        accessOptions: CapabilityAccessSchema.options,
+      },
       policies
-    }
+    } as MetadataResponse
   })
 
   .post(

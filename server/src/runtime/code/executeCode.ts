@@ -1,27 +1,14 @@
 import { writeFile, unlink } from "fs-extra";
 import path from "path";
-import { SRC_DIR } from "../shared/data";
+import { SRC_DIR } from "../../shared/data";
 import { RUNTIME_EVENT_PREFIX, type RuntimeEvent } from "../events";
 import { validateCode } from "./validateCode";
-import { RuntimeContext, SandboxRuntimeConfig } from "../runtime/types";
+import { SandboxRuntimeConfig } from "../types";
+import { createSandboxEnv } from "./env";
 
 const MAX_OUTPUT_BYTES = 50 * 1024; // 50 KB
 
-const ENV_WHITELIST = [
-  "PATH", "PATHEXT", "SYSTEMROOT", "TEMP", "TMP",
-  "HOMEDRIVE", "HOMEPATH", "USERPROFILE",
-  "APPDATA", "LOCALAPPDATA", "COMSPEC",
-  "TAVILY_API_KEY", "OPENAI_API_KEY"
-];
-
-export const sandboxEnv: Record<string, string> = {};
-
-for (const key of ENV_WHITELIST) {
-  const val = process.env[key];
-  if (val) sandboxEnv[key] = val;
-}
-
-export type ExecuteCodeInput = {
+type ExecuteCodeInput = {
   code: string;
   timeoutSeconds?: number;
   runtimeConfig: SandboxRuntimeConfig;
@@ -30,9 +17,17 @@ export type ExecuteCodeInput = {
   ) => void | Promise<void>;
 };
 
-export type ExecuteCodeResult = {
+type ExecuteCodeResult = {
   stdout: string;
 };
+
+function parseRuntimeEvent(
+  raw: string,
+): RuntimeEvent {
+  return JSON.parse(
+    raw,
+  ) as RuntimeEvent;
+}
 
 export async function executeCode({
   code,
@@ -98,7 +93,7 @@ export async function executeCode({
           cwd: SRC_DIR,
           stdout: "pipe",
           stderr: "pipe",
-          env: sandboxEnv,
+          env: createSandboxEnv(),
         },
       );
 
@@ -125,7 +120,7 @@ export async function executeCode({
       const raw = line.slice(RUNTIME_EVENT_PREFIX.length,);
 
       try {
-        const event = JSON.parse(raw,) as RuntimeEvent;
+        const event = parseRuntimeEvent(raw);
 
         await onRuntimeEvent?.(event,);
       } catch (error) {

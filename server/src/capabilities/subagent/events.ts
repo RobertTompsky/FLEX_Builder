@@ -1,4 +1,5 @@
-import { AgentEnvelopeEvent } from "../../agents/events";
+import { AgentEvent } from "../../agents/events";
+import { AgentIdentity } from "../../agents/shared/schemas";
 
 export type SubagentEvent = {
     event: "subagent_event";
@@ -7,7 +8,8 @@ export type SubagentEvent = {
         parentToolCallId: string;
         // subagentCallId: string;
         subagentRunId: string;
-        event: AgentEnvelopeEvent;
+        subagent: AgentIdentity;
+        event: AgentEvent;
     };
 };
 

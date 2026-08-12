@@ -19,9 +19,6 @@ import type {
 } from "../shared/schemas";
 import type { Emit } from "../../shared/utils/streamSSE";
 import type {
-    ArtifactEvent,
-} from "../../capabilities/artifact/events";
-import type {
     AgentEnvelopeEvent,
     AgentEvent,
 } from "../events";
@@ -31,7 +28,6 @@ import { type AgentCapabilityConfig } from "../../runtime/execute/schemas";
 import { CAPABILITIES_DIR, Model } from "../../shared/data";
 import { resolveCapabilities } from "../../runtime/execute";
 import type { AgentRuntimeContext } from "../../runtime/types";
-
 
 export type AgentRuntimeConfig = {
     runId: string;
@@ -95,31 +91,33 @@ export async function agent(
 
     let turnsUsed = activeRequest.turnsUsed;
 
-    const safeEmit: Emit<
-        AgentEvent | ArtifactEvent
-    > = emit
-            ? async (event) => {
-                if (
-                    signal?.aborted &&
-                    event.event !== "stop"
-                ) {
-                    return;
-                }
+    let pendingToolCalls = getPendingToolCalls(messages);
 
-                await emit({
-                    agent: identity,
-                    event,
-                });
+    const emitAgentEvent: Emit<AgentEvent> = emit
+        ? async (event) => {
+            if (
+                signal?.aborted &&
+                event.event !== "stop"
+            ) {
+                return;
             }
-            : async () => { };
 
-    await safeEmit({
-        event: 'init',
-        data: {
-            runId: runtime.runId,
-            message: 'Agent started'
+            await emit({
+                agent: identity,
+                event,
+            });
         }
-    })
+        : async () => { };
+
+    if (pendingToolCalls.length === 0) {
+        await emitAgentEvent({
+            event: 'init',
+            data: {
+                runId: runtime.runId,
+                message: 'Agent started'
+            }
+        })
+    }
 
     throwIfAborted(signal);
 
@@ -140,7 +138,42 @@ export async function agent(
         throwIfAborted(signal);
 
         /*
-         * Один turn — один вызов модели.
+         * Pending tools всегда исполняются
+         * раньше следующего model turn.
+         *
+         * Они могут появиться:
+         *
+         * 1. после allow в текущем запуске;
+         * 2. из checkpoint после resume.
+         *
+         * В случае resume preToolUse повторно
+         * не вызывается: само продолжение запуска
+         * означает, что pending tools уже разрешены.
+         */
+        if (pendingToolCalls.length > 0) {
+            const execution = await toolExecutor(
+                {
+                    toolCalls: pendingToolCalls,
+                    capabilityIds: executableCapabilityIds,
+                    context: agentContext,
+                    sandboxTimeout,
+                    signal,
+                },
+                identity,
+                emit,
+            );
+
+            messages.push(...execution.output);
+
+            pendingToolCalls = [];
+
+            continue;
+        }
+
+        /*
+         * Один turn = один обычный вызов модели.
+         *
+         * Pending tool execution turn не расходует.
          */
         if (turnsUsed >= maxTurns) {
             const finalMessages: ResponseInputItem[] = [
@@ -173,7 +206,7 @@ export async function agent(
 
             messages.push(...finalStep.output);
 
-            await safeEmit({
+            await emitAgentEvent({
                 event: "end",
                 data: {
                     message: "Agent completed after reaching the turn limit",
@@ -209,11 +242,10 @@ export async function agent(
         messages.push(...step.output);
 
         if (step.status === "completed") {
-            await safeEmit({
+            await emitAgentEvent({
                 event: "end",
                 data: {
-                    message:
-                        "Agent completed",
+                    message: "Agent completed",
                 },
             });
 
@@ -250,11 +282,10 @@ export async function agent(
 
         switch (preToolUseResult.decision) {
             case "ask": {
-                await safeEmit({
+                await emitAgentEvent({
                     event: "pause",
                     data: {
-                        reason:
-                            "tool_approval_required",
+                        reason: "tool_approval_required",
                     },
                 });
 
@@ -275,9 +306,15 @@ export async function agent(
             }
 
             case "deny": {
-                const deniedOutput = createDeniedToolOutput(
-                    toolCalls,
-                    preToolUseResult.reason,
+                const deniedOutput = toolCalls.map(
+                    (toolCall): ResponseInputItem.FunctionCallOutput => ({
+                        type: "function_call_output",
+                        call_id: toolCall.call_id,
+                        output: JSON.stringify({
+                            error: "tool_use_denied",
+                            reason: preToolUseResult.reason,
+                        }),
+                    }),
                 );
 
                 messages.push(...deniedOutput,);
@@ -290,19 +327,12 @@ export async function agent(
             }
 
             case "allow": {
-                const execution = await toolExecutor(
-                    {
-                        toolCalls,
-                        capabilityIds: executableCapabilityIds,
-                        context: agentContext,
-                        sandboxTimeout,
-                        signal,
-                    },
-                    identity,
-                    emit,
-                );
-
-                messages.push(...execution.output,);
+                /*
+                 * Здесь ничего не исполняется.
+                 * Tool execution проходит
+                 * через единую ветку в начале loop.
+                 */
+                pendingToolCalls = toolCalls;
 
                 continue;
             }
@@ -310,19 +340,29 @@ export async function agent(
     }
 }
 
-function createDeniedToolOutput(
-    toolCalls: ResponseFunctionToolCallItem[],
-    reason: string,
-): ResponseInputItem.FunctionCallOutput[] {
-    return toolCalls.map(
-        (toolCall): ResponseInputItem.FunctionCallOutput => ({
-            type: "function_call_output",
-            call_id: toolCall.call_id,
-            output: JSON.stringify({
-                error: "tool_use_denied",
-                reason,
-            }),
-        }),
+function getPendingToolCalls(
+    messages: ResponseInputItem[],
+): ResponseFunctionToolCallItem[] {
+    const completedCallIds = new Set<string>();
+
+    for (const item of messages) {
+        if (
+            item.type ===
+            "function_call_output"
+        ) {
+            completedCallIds.add(item.call_id);
+        }
+    }
+
+    return messages.filter(
+        (
+            item,
+        ): item is ResponseFunctionToolCallItem =>
+            item.type ===
+            "function_call" &&
+            !completedCallIds.has(
+                item.call_id,
+            ),
     );
 }
 

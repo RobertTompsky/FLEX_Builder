@@ -5,8 +5,9 @@ import { getArtifactsDir } from "../runtime";
 import { resolveArtifactPath } from "../utils/resolveArtifactPath";
 import { artifactHistoryLog } from "../utils/history";
 import fs from "fs-extra";
-import { emitRuntimeEvent } from "../../../runtime/events";
+import { createRuntimeEmitter } from "../../../runtime/events";
 import { action } from "../../../runtime/execute";
+import { ArtifactEvent } from "../events";
 
 export const ReadArtifactInputSchema =
     z.object({
@@ -64,11 +65,7 @@ export function readArtifact(
         );
     }
 
-    const content =
-        fs.readFileSync(
-            fullPath,
-            "utf8",
-        );
+    const content = fs.readFileSync(fullPath, "utf8",);
 
     log.append({
         timestamp,
@@ -77,9 +74,13 @@ export function readArtifact(
         report: input.report,
     });
 
-    emitRuntimeEvent({
+    const emitArtifactEvent = createRuntimeEmitter<ArtifactEvent>()
+
+    emitArtifactEvent({
         event: "artifact_read",
         data: {
+            runId: context.runId,
+            toolCallId: context.toolCallId,
             filePath: input.filePath,
             report: input.report,
         },

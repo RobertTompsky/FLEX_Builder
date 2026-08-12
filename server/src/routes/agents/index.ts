@@ -6,8 +6,8 @@ import { getAgentRoute } from "./getAgent";
 import { deleteAgentRoute } from "./deleteAgent";
 import { RunStore } from "../../agents/store/runs";
 import { executeAgentRoute } from "./executeAgent";
-import { executeToolsRoute } from "./executeTools";
 import { stopAgentRoute } from "./stopAgent";
+import { updateAgentRoute } from "./updateConfig";
 
 export function agentsRoutes(
   agentStore: AgentStore,
@@ -19,12 +19,12 @@ export function agentsRoutes(
     .use(createAgentRoute(agentStore))
     .use(listAgentsRoute(agentStore))
     .use(getAgentRoute(agentStore))
+    .use(updateAgentRoute(agentStore))
     .use(deleteAgentRoute(agentStore))
     .use(executeAgentRoute(
       agentStore,
       runStore,
     ))
-    .use(executeToolsRoute(agentStore))
     .use(stopAgentRoute(
       agentStore,
       runStore,

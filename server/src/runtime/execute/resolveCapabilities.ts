@@ -281,6 +281,23 @@ async function loadCapabilityRegistry(
     return createCapabilityRegistry(capabilities,);
 }
 
+export async function listCapabilities(
+    capabilitiesDir: string,
+): Promise<CapabilityDefinition[]> {
+    const registry =
+        await loadCapabilityRegistry(
+            capabilitiesDir,
+        );
+
+    return [...registry.values()]
+        .sort(
+            (a, b) =>
+                a.id.localeCompare(
+                    b.id,
+                ),
+        );
+}
+
 export async function loadCapabilities(
     capabilitiesDir: string,
     capabilityIds: string[],

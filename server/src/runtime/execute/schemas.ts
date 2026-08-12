@@ -17,11 +17,6 @@ export const AgentCapabilityConfigSchema =
       CapabilityAccessSchema,
   });
 
-export type CapabilityAccess =
-  z.infer<
-    typeof CapabilityAccessSchema
-  >;
-
 export type AgentCapabilityConfig =
   z.infer<
     typeof AgentCapabilityConfigSchema

@@ -1,8 +1,7 @@
 import z from "zod";
 import { RuntimeContext } from "../../../runtime/types";
 import { ResponseInputItem } from "openai/resources/responses/responses.js";
-import { emitRuntimeEvent } from "../../../runtime/events";
-import { AgentEnvelopeEvent } from "../../../agents/events";
+import { createRuntimeEmitter, emitRuntimeEvent } from "../../../runtime/events";
 import { agent } from "../../../agents/harness/agent";
 import { MODELS } from "../../../shared/data";
 import { AgentState } from "../../../agents/store/checkpointer";
@@ -12,6 +11,7 @@ import { randomUUID } from 'crypto'
 import path from 'path'
 import fs from 'fs-extra'
 import { action } from "../../../runtime/execute";
+import { SubagentEvent } from "../events";
 
 export const SUBAGENT_CAPABILITY_IDS = [
     "web",
@@ -53,16 +53,16 @@ export const SubagentInputSchema = z.object({
 });
 
 export const SubagentOutputSchema = z.object({
-    output: z.string().describe("Final output produced by the subagent.",),
+    output: z
+        .string()
+        .describe("Final output produced by the subagent.",),
 });
 
 async function runSubagent(
     rawInput: z.infer<typeof SubagentInputSchema>,
     context: RuntimeContext,
 ): Promise<z.infer<typeof SubagentOutputSchema>> {
-    const input = SubagentInputSchema.parse(
-        rawInput,
-    );
+    const input = SubagentInputSchema.parse(rawInput);
 
     const subagentId = `subagent_${randomUUID()}`;
 
@@ -70,8 +70,7 @@ async function runSubagent(
 
     const subagentRequestId = `request_${randomUUID()}`;
 
-    const identity:
-        AgentIdentity = {
+    const identity: AgentIdentity = {
         id: subagentId,
         name: input.name,
     };
@@ -84,8 +83,7 @@ async function runSubagent(
 
     await fs.ensureDir(workspaceRoot);
 
-    const capabilities:
-        AgentCapabilityConfig[] =
+    const capabilities: AgentCapabilityConfig[] =
         input.capabilities.map(
             (id) => ({
                 id,
@@ -108,6 +106,8 @@ async function runSubagent(
         },
     };
 
+    const emitSubagentEvent = createRuntimeEmitter<SubagentEvent>()
+
     const result = await agent(
         {
             model: MODELS.luna,
@@ -123,26 +123,38 @@ async function runSubagent(
             },
         },
         identity,
-        async (event) => {
-            emitRuntimeEvent({
+        async ({ agent, event }) => {
+            if (event.event === "subagent_event") {
+                throw new Error(
+                    "Nested subagents are not supported",
+                );
+            }
+
+            if (
+                event.event === "artifact_created" ||
+                event.event === "artifact_read"
+            ) {
+                throw new Error(
+                    "Artifacts are not supported",
+                );
+            }
+
+            emitSubagentEvent({
                 event: "subagent_event",
                 data: {
                     parentRunId: context.runId,
                     parentToolCallId: context.toolCallId,
                     subagentRunId,
-                    event,
+                    subagent: agent,
+                    event
                 },
             });
         },
     );
 
-    const output = getLastAssistantText(
-        result.state.messages,
-    );
+    const output = getLastAssistantText(result.state.messages);
 
-    return SubagentOutputSchema.parse({
-        output,
-    });
+    return SubagentOutputSchema.parse({ output });
 }
 
 function getLastAssistantText(

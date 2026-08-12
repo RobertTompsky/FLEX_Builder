@@ -13,9 +13,9 @@ import {
 
 import {
   AgentCheckpoint,
+  AgentCheckpointConfig,
   createCheckpointer,
 } from "./checkpointer";
-import { CreateAgentBody, CreateAgentBodySchema } from "../../routes/schemas";
 
 export type AgentSnapshot = {
   identity: AgentIdentity;
@@ -39,6 +39,11 @@ export const DEFAULT_AGENT_CHECKPOINT_DATA:
   }
 };
 
+type UpdateAgentInput = {
+  name: string;
+  config: AgentCheckpointConfig;
+};
+
 export function createDefaultAgentCheckpoint():
   AgentCheckpoint["data"] {
   return DEFAULT_AGENT_CHECKPOINT_DATA
@@ -49,6 +54,25 @@ export function createAgentStore(
 ) {
   async function ensureAgentsDir() {
     await fs.ensureDir(agentsDir);
+  }
+
+  async function writeIdentity(
+    identity: AgentIdentity,
+  ): Promise<void> {
+    const paths = getAgentWorkspacePaths(
+      agentsDir,
+      identity.id,
+    );
+
+    await fs.writeJson(
+      paths.identity,
+      AgentIdentitySchema.parse(
+        identity,
+      ),
+      {
+        spaces: 2,
+      },
+    );
   }
 
   async function readIdentity(
@@ -70,19 +94,51 @@ export function createAgentStore(
     return AgentIdentitySchema.parse(rawIdentity);
   }
 
-  return {
-    async create(
-      rawInput: CreateAgentBody,
-    ): Promise<AgentSnapshot> {
-      const input = CreateAgentBodySchema.parse(
-        rawInput,
+  async function getSnapshot(
+    agentId: string,
+  ): Promise<AgentSnapshot | null> {
+    const identity =
+      await readIdentity(
+        agentId,
       );
 
+    if (!identity) {
+      return null;
+    }
+
+    const workspace =
+      getAgentWorkspacePaths(
+        agentsDir,
+        agentId,
+      );
+
+    const checkpointer =
+      createCheckpointer(
+        workspace.root,
+      );
+
+    const checkpoint =
+      await checkpointer.load();
+
+    if (!checkpoint) {
+      throw new Error(
+        `Checkpoint not found for agent: ${agentId}`,
+      );
+    }
+
+    return {
+      identity,
+      checkpoint,
+    };
+  }
+
+  return {
+    async create(): Promise<AgentSnapshot> {
       await ensureAgentsDir();
 
       const identity = AgentIdentitySchema.parse({
         id: `agent_${randomUUID()}`,
-        name: input.name,
+        name: "default",
       });
 
       const workspace = await createAgentWorkspace(
@@ -134,31 +190,45 @@ export function createAgentStore(
       );
     },
 
-    async get(
-      agentId: string,
-    ): Promise<AgentSnapshot | null> {
-      const identity = await readIdentity(agentId);
+    get: getSnapshot,
 
-      if (!identity) {
+    async update(
+      agentId: string,
+      input: UpdateAgentInput,
+    ): Promise<AgentSnapshot | null> {
+      const snapshot = await getSnapshot(agentId,);
+
+      if (!snapshot) {
         return null;
       }
+
+      const identity = AgentIdentitySchema.parse({
+        id: snapshot.identity.id,
+        name: input.name,
+      });
 
       const workspace = getAgentWorkspacePaths(
         agentsDir,
         agentId,
       );
 
-      const checkpointer = createCheckpointer(
-        workspace.root,
+      await fs.writeJson(
+        workspace.identity,
+        identity,
+        {
+          spaces: 2,
+        },
       );
 
-      const checkpoint = await checkpointer.load();
+      const checkpointer = createCheckpointer(workspace.root,);
 
-      if (!checkpoint) {
-        throw new Error(
-          `Checkpoint not found for agent: ${agentId}`,
-        );
-      }
+      const checkpoint = await checkpointer.save({
+        config: input.config,
+        state: snapshot
+          .checkpoint
+          .data
+          .state,
+      });
 
       return {
         identity,

@@ -11,7 +11,7 @@ export const ARTIFACTS_DIR = path.join(SRC_DIR, "artifacts");
 export const CAPABILITIES_DIR = path.join(SRC_DIR, "capabilities");
 export const UPLOADS_DIR = path.join(
   process.cwd(),
-  "data",
+  // "data",
   "uploads",
 );
 

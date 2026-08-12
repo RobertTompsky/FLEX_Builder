@@ -85,33 +85,34 @@ export function executeAgentRoute(
                 };
             }
 
-            const { state: checkpointState } = snapshot.checkpoint.data;
+            const {
+                state: checkpointState
+            } = snapshot.checkpoint.data;
 
-            const isResume = query === null;
+            const isResumeRequest = query === null;
+            const hasActiveRequest = checkpointState.activeRequest !== null;
 
             if (
-                isResume &&
-                !checkpointState.activeRequest
+                isResumeRequest &&
+                !hasActiveRequest
             ) {
                 set.status = 409;
 
                 return {
                     ok: false,
-                    error:
-                        "No active request to resume",
+                    error: "No active request to resume",
                 };
             }
 
             if (
-                !isResume &&
-                checkpointState.activeRequest
+                !isResumeRequest &&
+                hasActiveRequest
             ) {
                 set.status = 409;
 
                 return {
                     ok: false,
-                    error:
-                        "Agent already has an active request",
+                    error: "Agent already has an active request",
                 };
             }
 
@@ -143,15 +144,12 @@ export function executeAgentRoute(
                 query,
                 prompt: checkpointConfig.prompt,
                 filesContext,
-                isResume,
+                isResume: hasActiveRequest && isResumeRequest,
             });
 
             const activeRequest =
-                isResume
-                    ? {
-                        ...checkpointState
-                            .activeRequest!,
-                    }
+                hasActiveRequest
+                    ? checkpointState.activeRequest
                     : {
                         id: `request_${randomUUID()}`,
                         turnsUsed: 0,
