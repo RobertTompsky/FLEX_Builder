@@ -1,0 +1,204 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+  min-height: 0;
+
+  border: 2px inset #d4d0c8;
+
+  background: var(--color-window);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+
+  gap: 2px;
+
+  flex: 0 0 auto;
+
+  padding: 4px 7px;
+
+  border-bottom: 1px solid #808080;
+
+  background: #000080;
+
+  color: #fff;
+
+  font-weight: 500;
+
+  span {
+    font-size: 14px;
+    opacity: 0.97;
+  }
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+
+  min-width: 0;
+  min-height: 0;
+
+  gap: 8px;
+
+  padding: 8px;
+
+  background: var(--color-window);
+}
+
+.messages {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+
+  min-width: 0;
+  min-height: 0;
+
+  gap: 10px;
+
+  padding: 14px;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  border-top: 2px solid #808080;
+  border-left: 2px solid #808080;
+  border-right: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+
+  background: #000;
+
+  box-shadow:
+    inset 1px 1px 0 #404040;
+}
+
+.bottomBar {
+  display: flex;
+  align-items: center;
+
+  flex: 0 0 auto;
+
+  min-width: 0;
+
+  gap: 5px;
+
+  padding: 5px 6px;
+
+  border-top: 1px solid #808080;
+
+  background: #c0c0c0;
+}
+
+.input {
+  flex: 1;
+
+  min-width: 0;
+  // min-height: 38px;
+  // max-height: 78px;
+
+  resize: vertical;
+
+  padding: 4px 6px;
+
+  border: 1px solid #808080;
+
+  background: #ffffff;
+
+  // box-shadow:
+  //   inset 1px 1px 0 #404040,
+  //   inset -1px -1px 0 #e8e8e8;
+
+  color: #000;
+
+  font-family:
+    "Courier New",
+    monospace;
+
+  font-size: 11px;
+  line-height: 1.35;
+
+  outline: none;
+
+  &::placeholder {
+    color: #777;
+  }
+
+  &:focus {
+    border-color: #000080;
+
+    outline: 1px dotted #000080;
+    outline-offset: -3px;
+  }
+}
+
+.send,
+.stop {
+  flex: 0 0 auto;
+
+  min-width: 54px;
+  height: 24px;
+
+  padding: 1px 6px;
+
+   border: 0;
+  background: transparent;
+  box-shadow: none;
+
+  padding: 3px 5px;
+
+  color: #0000ee;
+
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+
+  text-decoration: underline;
+
+  cursor: pointer;
+
+  font-family:
+    Arial,
+    sans-serif;
+
+  font-size: 10px;
+  font-weight: 500;
+
+  cursor: pointer;
+
+  text-decoration: underline;
+
+  &:hover:not(:disabled) {
+    color: #0000ee;
+  }
+
+  &:active:not(:disabled) {
+    border-top-color: #404040;
+    border-left-color: #404040;
+    border-right-color: #fff;
+    border-bottom-color: #fff;
+
+    transform: translate(
+      1px,
+      1px
+    );
+  }
+
+  &:disabled {
+    color: #808080;
+
+    text-decoration: none;
+
+    cursor: default;
+  }
+}
+
+.stop {
+  color: #800000;
+
+  &:hover:not(:disabled) {
+    color: #cc0000;
+  }
+}

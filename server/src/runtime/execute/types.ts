@@ -1,11 +1,11 @@
 import z from "zod";
 
 import {
-    CapabilityAccessSchema,
     executeInputSchema,
     executeOutputSchema,
 } from "./schemas";
 import { RuntimeContext } from "../types";
+import { CapabilityAccess } from "@flex-builder/shared/capabilities";
 
 export type RuntimeAction = {
     description: string;
@@ -30,8 +30,6 @@ export type CapabilityDefinition = {
     instructions?: string;
     actions: CapabilityActions;
 };
-
-export type CapabilityAccess = z.infer<typeof CapabilityAccessSchema>
 
 export type ResolvedCapability = {
     definition: CapabilityDefinition;

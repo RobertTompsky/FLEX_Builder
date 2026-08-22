@@ -1,15 +1,17 @@
 import Elysia from "elysia";
-import { RunStore } from "../../agents/store/runs";
-import { AgentIdentity } from "../../agents/shared/schemas";
-import { AgentStore } from "../../agents/store/store";
+import type { RunStore } from "../../agents/store/runs";
+import type { AgentStore } from "../../agents/store/store";
 import { getPendingToolCalls } from "../../shared/utils/getPendingTools";
-import { AgentStreamEvent } from "../../events";
-import { streamSSE, createSSEWriter } from "../../shared/utils/streamSSE";
+import { streamSSE, createSSEWriter } from "../../sse";
 import { ResponseInputItem } from "openai/resources/responses/responses.js";
-import { AgentRunParamsSchema } from "../schemas";
 import { getAgentWorkspacePaths } from "../../agents/shared/utils/workspace";
 import { createCheckpointer } from "../../agents/store/checkpointer";
 import { AGENTS_STORE_DIR } from "../../shared/data";
+import { 
+  type AgentIdentity, 
+  AgentRunParamsSchema, 
+  type AgentSSEMessage 
+} from "@flex-builder/shared/agent";
 
 export function stopAgentRoute(
   agentStore: AgentStore,
@@ -24,10 +26,7 @@ export function stopAgentRoute(
       },
       set,
     }) => {
-      const snapshot =
-        await agentStore.get(
-          agentId,
-        );
+      const snapshot = await agentStore.get(agentId);
 
       if (!snapshot) {
         set.status = 404;
@@ -44,11 +43,10 @@ export function stopAgentRoute(
         state,
       } = snapshot.checkpoint.data;
 
-      const controller =
-        runStore.get(
-          agentId,
-          runId,
-        );
+      const controller = runStore.get(
+        agentId,
+        runId,
+      );
 
       /*
        * Новый request мог ещё не попасть
@@ -61,48 +59,35 @@ export function stopAgentRoute(
       if (controller) {
         controller.abort();
 
-        if (
-          state.activeRequest
-        ) {
-          const workspace =
-            getAgentWorkspacePaths(
-              AGENTS_STORE_DIR,
-              agentId,
-            );
+        if (state.activeRequest) {
+          const workspace = getAgentWorkspacePaths(
+            AGENTS_STORE_DIR,
+            agentId,
+          );
 
-          const checkpointer =
-            createCheckpointer(
-              workspace.root,
-            );
+          const checkpointer = createCheckpointer(
+            workspace.root,
+          );
 
           await checkpointer.save({
             config,
-
             state: {
               messages:
                 removeActiveRequestFromHistory(
                   state.messages,
                 ),
-
-              activeRequest:
-                null,
+              activeRequest: null,
             },
           });
         }
 
         return createStopStream({
-          identity:
-            snapshot.identity,
-
-          reason:
-            "live_abort",
+          identity: snapshot.identity,
+          reason: "live_abort",
         });
       }
 
-      const pendingTools =
-        getPendingToolCalls(
-          state.messages,
-        );
+      const pendingTools = getPendingToolCalls(state.messages);
 
       /*
        * Paused request уже записан
@@ -112,37 +97,26 @@ export function stopAgentRoute(
         state.activeRequest &&
         pendingTools.length > 0
       ) {
-        const workspace =
-          getAgentWorkspacePaths(
-            AGENTS_STORE_DIR,
-            agentId,
-          );
+        const workspace = getAgentWorkspacePaths(
+          AGENTS_STORE_DIR,
+          agentId,
+        );
 
-        const checkpointer =
-          createCheckpointer(
-            workspace.root,
-          );
+        const checkpointer = createCheckpointer(
+          workspace.root,
+        );
 
         await checkpointer.save({
           config,
-
           state: {
-            messages:
-              removeActiveRequestFromHistory(
-                state.messages,
-              ),
-
-            activeRequest:
-              null,
+            messages: removeActiveRequestFromHistory(state.messages),
+            activeRequest: null,
           },
         });
 
         return createStopStream({
-          identity:
-            snapshot.identity,
-
-          reason:
-            "paused_cleanup",
+          identity: snapshot.identity,
+          reason: "paused_cleanup",
         });
       }
 
@@ -170,28 +144,16 @@ function createStopStream({
 }) {
   return streamSSE(async (sse) => {
     const writeAgentSSE =
-      createSSEWriter<AgentStreamEvent>(
+      createSSEWriter<AgentSSEMessage>(
         sse,
-        ({ agent, event }) => ({
-          event: event.event,
-
-          data: {
-            agent,
-            data: event.data,
-          },
-        }),
       );
 
     await writeAgentSSE({
-      agent: identity,
-
-      event: {
-        event: "stop",
-
-        data: {
-          reason,
-        },
-      },
+      event: 'stop',
+      data: {
+        agent: identity,
+        data: { reason }
+      }
     });
   });
 }

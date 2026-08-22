@@ -1,0 +1,818 @@
+$background: #dedbd0;
+$surface: #ece9df;
+$surface-light: #f4f1e7;
+
+$border-light: #fff;
+$border-mid: #9c998f;
+$border-dark: #4f4d48;
+
+$blue: #000080;
+$blue-light: #2020a0;
+
+$text: #111;
+$text-muted: #66645e;
+
+$accent: #ffcc00;
+$danger: #990000;
+
+@mixin raised {
+  border-top: 2px solid
+    $border-light;
+
+  border-left: 2px solid
+    $border-light;
+
+  border-right: 2px solid
+    $border-dark;
+
+  border-bottom: 2px solid
+    $border-dark;
+
+  box-shadow:
+    inset 1px 1px 0 #dfdfdf,
+    inset -1px -1px 0 #8c8a82;
+}
+
+@mixin pressed {
+  border-top: 2px solid
+    $border-dark;
+
+  border-left: 2px solid
+    $border-dark;
+
+  border-right: 2px solid
+    $border-light;
+
+  border-bottom: 2px solid
+    $border-light;
+
+  box-shadow:
+    inset 1px 1px 0 #8c8a82;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+
+  width: 100%;
+  height: 100%;
+
+  min-width: 0;
+  min-height: 0;
+
+  overflow: hidden;
+
+  border: 2px inset #d4d0c8;
+
+  background: $background;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+
+  flex: 0 0 auto;
+
+  min-width: 0;
+
+  gap: 7px;
+
+  padding: 6px 9px;
+
+  border-bottom: 2px solid
+    #050550;
+
+  background:
+    linear-gradient(
+      90deg,
+      #000060,
+      #000090
+    );
+
+  color: #fff;
+
+  font-family:
+    Consolas,
+    "Courier New",
+    monospace;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  letter-spacing: 0.08em;
+}
+
+.headerIcon {
+  color: $accent;
+
+  font-size: 8px;
+
+  text-shadow:
+    0 0 4px
+    rgba(
+      255,
+      204,
+      0,
+      0.35
+    );
+}
+
+.headerTitle {
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.headerCount {
+  flex: 0 0 auto;
+
+  margin-left: auto;
+
+  color: $accent;
+
+  font-size: 10px;
+
+  letter-spacing: 0.05em;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+
+  min-width: 0;
+  min-height: 0;
+
+  gap: 7px;
+
+  padding: 8px;
+
+  background:
+    radial-gradient(
+      rgba(
+        80,
+        76,
+        65,
+        0.13
+      )
+      0.6px,
+      transparent
+      0.6px
+    ),
+    $background;
+
+  background-size: 4px 4px;
+}
+
+.fileInput {
+  display: none;
+}
+
+.uploadSection {
+  display: flex;
+  align-items: center;
+
+  flex: 0 0 auto;
+
+  min-width: 0;
+
+  gap: 8px;
+
+  padding: 6px;
+
+  border-top: 1px solid #fff;
+  border-left: 1px solid #fff;
+  border-right: 1px solid
+    $border-mid;
+  border-bottom: 1px solid
+    $border-mid;
+
+  background: $surface;
+}
+
+.uploadIntro {
+  display: flex;
+  align-items: center;
+
+  min-width: 0;
+
+  gap: 7px;
+
+  color: $text;
+
+  font-family:
+    Consolas,
+    "Courier New",
+    monospace;
+
+  font-size: 9px;
+
+  span:last-child {
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.folderIcon {
+  flex: 0 0 auto;
+
+  color: #9d7900;
+
+  font-size: 15px;
+}
+
+.selectButton {
+  flex: 0 0 auto;
+
+  margin-left: auto;
+
+  padding: 4px 8px;
+
+  @include raised;
+
+  background: #d4d0c8;
+
+  color: #101010;
+
+  font-family:
+    Consolas,
+    "Courier New",
+    monospace;
+
+  font-size: 8px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: #eee;
+  }
+
+  &:active:not(:disabled) {
+    @include pressed;
+  }
+
+  &:focus-visible {
+    outline: 1px dotted #111;
+    outline-offset: -5px;
+  }
+
+  &:disabled {
+    color: #808080;
+
+    cursor: default;
+
+    text-shadow:
+      1px 1px 0 #fff;
+  }
+}
+
+.dropZone {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 76px;
+
+  gap: 4px;
+
+  padding: 8px;
+
+  border: 1px dashed #8b7d36;
+
+  background:
+    rgba(
+      255,
+      249,
+      216,
+      0.55
+    );
+
+  color: $text;
+
+  font-family:
+    Consolas,
+    "Courier New",
+    monospace;
+
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: $accent;
+
+    background:
+      rgba(
+        255,
+        249,
+        216,
+        0.9
+      );
+  }
+
+  &:focus-visible {
+    outline: 1px dotted #111;
+    outline-offset: -4px;
+  }
+
+  &:disabled {
+    cursor: default;
+
+    opacity: 0.65;
+  }
+}
+
+.documentIcon,
+.fileDocument {
+  position: relative;
+
+  display: block;
+
+  flex: 0 0 auto;
+
+  border: 2px solid #111;
+
+  background: #faf9f2;
+
+  box-shadow:
+    1px 1px 0 #77756e,
+    inset 1px 1px 0 #fff;
+
+  &::before {
+    content: "";
+
+    position: absolute;
+
+    top: -2px;
+    right: -2px;
+
+    width: 8px;
+    height: 8px;
+
+    border-left: 2px solid #111;
+    border-bottom: 2px solid #111;
+
+    background: #d7d5cc;
+  }
+
+  > span {
+    position: absolute;
+
+    left: 5px;
+
+    display: block;
+
+    height: 2px;
+
+    background: #111;
+
+    &:nth-child(1) {
+      top: 12px;
+    }
+
+    &:nth-child(2) {
+      top: 17px;
+    }
+
+    &:nth-child(3) {
+      top: 22px;
+
+      width: 11px;
+    }
+  }
+}
+
+.documentIcon {
+  width: 29px;
+  height: 35px;
+
+  > span {
+    width: 16px;
+  }
+}
+
+.dropTitle {
+  font-size: 9px;
+  font-weight: 700;
+
+  letter-spacing: 0.08em;
+}
+
+.dropHint {
+  color: $text-muted;
+
+  font-size: 7px;
+
+  letter-spacing: 0.03em;
+}
+
+.pending {
+  display: flex;
+  align-items: center;
+
+  flex: 0 0 auto;
+
+  gap: 6px;
+
+  padding: 4px 5px;
+
+  border: 1px solid
+    $border-mid;
+
+  background: $surface-light;
+}
+
+.pendingInfo {
+  display: flex;
+
+  flex: 1;
+
+  min-width: 0;
+
+  justify-content: space-between;
+
+  color: #55521d;
+
+  font-family:
+    Consolas,
+    "Courier New",
+    monospace;
+
+  font-size: 7px;
+  font-weight: 700;
+}
+
+.pendingActions {
+  display: flex;
+
+  flex: 0 0 auto;
+
+  gap: 4px;
+}
+
+.smallButton {
+  padding: 2px 5px;
+
+  @include raised;
+
+  background: #d4d0c8;
+
+  color: $text;
+
+  font-family:
+    Consolas,
+    "Courier New",
+    monospace;
+
+  font-size: 7px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  &:active:not(:disabled) {
+    @include pressed;
+  }
+
+  &:disabled {
+    color: #808080;
+
+    cursor: default;
+  }
+}
+
+.filesSection {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+
+  min-width: 0;
+  min-height: 0;
+
+  padding-top: 2px;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+
+  flex: 0 0 auto;
+
+  min-width: 0;
+
+  gap: 6px;
+
+  padding: 4px 2px 5px;
+
+  color: #535321;
+
+  font-family:
+    Consolas,
+    "Courier New",
+    monospace;
+
+  font-size: 8px;
+  font-weight: 700;
+
+  letter-spacing: 0.08em;
+}
+
+.sectionMarker {
+  color: #73731f;
+
+  font-size: 7px;
+}
+
+.sectionLine {
+  flex: 1;
+
+  min-width: 0;
+  height: 1px;
+
+  background: #aaa69a;
+}
+
+.files {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+
+  min-width: 0;
+  min-height: 0;
+
+  gap: 4px;
+
+  padding: 4px;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  border-top: 2px solid
+    $border-mid;
+
+  border-left: 2px solid
+    $border-mid;
+
+  border-right: 2px solid
+    #fff;
+
+  border-bottom: 2px solid
+    #fff;
+
+  background:
+    rgba(
+      255,
+      251,
+      230,
+      0.45
+    );
+
+  box-shadow:
+    inset 1px 1px 0
+    #66645e;
+}
+
+.fileRow {
+  display: flex;
+  align-items: center;
+
+  flex: 0 0 auto;
+
+  min-width: 0;
+
+  gap: 8px;
+
+  padding: 5px 6px;
+
+  border: 1px solid
+    transparent;
+
+  color: $text;
+
+  cursor: pointer;
+
+  user-select: none;
+
+  &:hover {
+    border-color: #aaa69a;
+
+    background:
+      rgba(
+        255,
+        255,
+        255,
+        0.55
+      );
+  }
+
+  &.selected {
+    border: 1px dotted #fff;
+
+    background: $blue;
+
+    color: #fff;
+
+    .fileName {
+      color: #fff;
+    }
+
+    .fileMeta {
+      color: #c7c7ff;
+    }
+
+    .checkboxVisual {
+      color: $accent;
+    }
+  }
+}
+
+.fileCheckbox {
+  position: absolute;
+
+  width: 1px;
+  height: 1px;
+
+  opacity: 0;
+
+  pointer-events: none;
+}
+
+.fileDocument {
+  width: 23px;
+  height: 28px;
+
+  > span {
+    left: 4px;
+
+    width: 12px;
+
+    &:nth-child(1) {
+      top: 9px;
+    }
+
+    &:nth-child(2) {
+      top: 13px;
+    }
+
+    &:nth-child(3) {
+      top: 17px;
+
+      width: 8px;
+    }
+  }
+}
+
+.fileInfo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+
+  min-width: 0;
+
+  gap: 1px;
+}
+
+.fileName {
+  overflow: hidden;
+
+  color: $text;
+
+  font-family:
+    Consolas,
+    "Courier New",
+    monospace;
+
+  font-size: 9px;
+  font-weight: 700;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileMeta {
+  color: $text-muted;
+
+  font-family:
+    Consolas,
+    "Courier New",
+    monospace;
+
+  font-size: 7px;
+}
+
+.checkboxVisual {
+  flex: 0 0 auto;
+
+  color: #555;
+
+  font-family:
+    Consolas,
+    "Courier New",
+    monospace;
+
+  font-size: 8px;
+}
+
+.empty {
+  display: grid;
+
+  flex: 1;
+
+  place-items: center;
+
+  min-height: 54px;
+
+  color: $text-muted;
+
+  font-family:
+    Consolas,
+    "Courier New",
+    monospace;
+
+  font-size: 8px;
+  font-weight: 700;
+
+  letter-spacing: 0.08em;
+}
+
+.error {
+  flex: 0 0 auto;
+
+  padding: 4px 6px;
+
+  border: 1px solid $danger;
+
+  background: #fff;
+
+  color: $danger;
+
+  font-family:
+    Consolas,
+    "Courier New",
+    monospace;
+
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.actions {
+  display: flex;
+
+  flex: 0 0 auto;
+
+  gap: 7px;
+
+  padding-top: 6px;
+
+  border-top: 1px solid
+    #aaa69a;
+}
+
+.actionButton {
+  flex: 1;
+
+  min-width: 0;
+  min-height: 24px;
+
+  padding: 3px 6px;
+
+  @include raised;
+
+  background: #d4d0c8;
+
+  color: $text;
+
+  font-family:
+    Consolas,
+    "Courier New",
+    monospace;
+
+  font-size: 8px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: #eee;
+  }
+
+  &:active:not(:disabled) {
+    @include pressed;
+  }
+
+  &:disabled {
+    color: #808080;
+
+    cursor: default;
+
+    text-shadow:
+      1px 1px 0 #fff;
+  }
+}
+
+.deleteButton:not(:disabled) {
+  color: $danger;
+}

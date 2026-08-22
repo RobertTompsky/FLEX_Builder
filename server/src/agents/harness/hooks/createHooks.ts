@@ -1,14 +1,11 @@
 import type {
-    HookPolicySelection,
-} from "./schemas";
-
-import type {
     AgentHooks,
 } from "./types";
 
 import {
     getPreToolUseHook,
 } from "./preToolUse/policy";
+import { HookPolicySelection } from "@flex-builder/shared/hooks";
 
 export function createHooks(
     policies: HookPolicySelection,

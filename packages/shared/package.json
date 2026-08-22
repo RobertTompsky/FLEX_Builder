@@ -1,8 +1,0 @@
-{
-  "name": "@app/shared",
-  "private": true,
-  "type": "module",
-  "exports": {
-    "./events": "./src/events/index.ts"
-  }
-}

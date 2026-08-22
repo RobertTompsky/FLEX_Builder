@@ -1,58 +1,31 @@
 import Elysia from "elysia";
 import path from "path";
 import fs from "fs-extra";
-import type {
-    ResponseInputItem,
-} from "openai/resources/responses/responses.js";
-import { z } from "zod";
-
-import type {
-    RunStore,
-} from "../../agents/store/runs";
-
-import type {
-    AgentStore,
-} from "../../agents/store/store";
-
+import type { ResponseInputItem, } from "openai/resources/responses/responses.js";
+import type { RunStore, } from "../../agents/store/runs";
+import type { AgentStore, } from "../../agents/store/store";
 import {
     AGENTS_STORE_DIR,
     Model,
     UPLOADS_DIR,
 } from "../../shared/data";
-
 import {
     createSSEWriter,
     streamSSE,
-} from "../../shared/utils/streamSSE";
-
+} from "../../sse";
 import {
     agent,
+    type AgentRunConfig
 } from "../../agents/harness/agent";
-
-import type {
-    AgentRunConfig,
-} from "../../agents/harness/agent";
-
-import {
-    createHooks,
-} from "../../agents/harness/hooks/createHooks";
-
-import type {
-    AgentEnvelopeEvent,
-} from "../../agents/events";
-
-import {
-    AgentParamsSchema,
-} from "../schemas";
-import { AgentCheckpointConfigSchema, createCheckpointer } from "../../agents/store/checkpointer";
+import { createHooks } from "../../agents/harness/hooks/createHooks";
+import { createCheckpointer } from "../../agents/store/checkpointer";
 import { getAgentWorkspacePaths } from "../../agents/shared/utils/workspace";
 import { randomUUID } from "crypto";
-
-const ExecuteAgentBodySchema =
-    AgentCheckpointConfigSchema.extend({
-        query: z.string().nullable(),
-        files: z.array(z.string()).optional(),
-    });
+import {
+    AgentParamsSchema,
+    AgentSSEMessage,
+    ExecuteAgentBodySchema,
+} from "@flex-builder/shared/agent";
 
 export function executeAgentRoute(
     agentStore: AgentStore,
@@ -205,16 +178,7 @@ export function executeAgentRoute(
             );
 
             return streamSSE(async (stream) => {
-                const writeAgentSSE = createSSEWriter<AgentEnvelopeEvent>(
-                    stream,
-                    ({ agent, event }) => ({
-                        event: event.event,
-                        data: {
-                            agent,
-                            data: event.data,
-                        },
-                    }),
-                );
+                const writeAgentSSE = createSSEWriter<AgentSSEMessage>(stream);
 
                 try {
                     const result = await agent(

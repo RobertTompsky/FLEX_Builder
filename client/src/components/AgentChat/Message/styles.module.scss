@@ -1,0 +1,201 @@
+.message {
+  display: block;
+
+  color: #d8d8d8;
+
+  font-family:
+    Consolas,
+    "Courier New",
+    monospace;
+
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.tag {
+  font-size: 10px;
+
+  letter-spacing: 0.5px;
+}
+
+.user {
+  .tag {
+    color: #00ff00;
+  }
+}
+
+.assistant {
+  .tag {
+    color: #8aa7ff;
+  }
+
+  &[data-status="in_progress"] {
+    .text::after {
+      content: "_";
+
+      display: inline-block;
+
+      position: relative;
+      top: -4px;
+
+      margin-left: 2px;
+
+      font-family:
+        "Courier New",
+        monospace;
+
+      font-weight: 700;
+      line-height: 1;
+
+      vertical-align: baseline;
+
+      animation:
+        terminal-caret-blink
+        0.9s
+        steps(1, end)
+        infinite;
+    }
+  }
+}
+
+.text {
+  min-width: 0;
+
+  white-space: normal;
+  word-break: break-word;
+
+  line-height: 1.45;
+
+  > p {
+    margin: 0;
+
+    &:first-of-type {
+      display: inline;
+    }
+
+    &:empty {
+      display: none;
+    }
+
+    > br:only-child {
+      display: none;
+    }
+  }
+
+  > p + p {
+    margin-top: 6px;
+  }
+
+  ul,
+  ol {
+    display: flex;
+    flex-direction: column;
+
+    margin: 4px 0 0;
+    padding: 0;
+
+    list-style-position: inside;
+  }
+
+  li {
+    margin: 0;
+    padding: 0;
+  }
+
+//   pre {
+//     max-width: 100%;
+
+//     margin: 6px 0;
+
+//     overflow: auto;
+
+//     border: 1px solid #333;
+
+//     background: #0d0d0d;
+//   }
+
+//   code {
+//     padding: 0 2px;
+
+//     border: 1px solid #333;
+
+//     background: #111;
+
+//     font-family:
+//       Consolas,
+//       "Courier New",
+//       monospace;
+
+//     font-size: 11px;
+//   }
+
+  pre code {
+    padding: 0;
+
+    border: 0;
+
+    background: transparent;
+  }
+
+  a {
+    color: #8aa7ff;
+
+    text-decoration: underline;
+  }
+
+  hr {
+    margin: 8px 0;
+
+    border: 0;
+    border-top: 1px solid #888;
+    border-bottom: 1px solid #222;
+  }
+
+  blockquote {
+    margin:
+      6px
+      0;
+
+    padding-left: 10px;
+
+    border-left: 2px solid #888;
+
+    color: #b8b8b8;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin:
+      8px
+      0
+      4px;
+
+    font-size: inherit;
+    font-weight: 700;
+  }
+}
+
+.assistant:is(
+  [data-status="in_progress"],
+  [data-status="incomplete"]
+) {
+  .text {
+    opacity: 0.75;
+  }
+}
+
+@keyframes terminal-caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+
+  50%,
+  100% {
+    opacity: 0;
+  }
+}

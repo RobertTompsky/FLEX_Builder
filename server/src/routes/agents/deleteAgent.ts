@@ -3,7 +3,7 @@ import { Elysia } from "elysia";
 import type {
   AgentStore,
 } from "../../agents/store/store";
-import { AgentParamsSchema } from "../schemas";
+import { AgentParamsSchema } from "@flex-builder/shared/agent";
 
 export function deleteAgentRoute(
   store: AgentStore,

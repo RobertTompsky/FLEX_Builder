@@ -1,0 +1,15 @@
+{
+  "name": "@flex-builder/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./agent": "./src/agent/index.ts",
+    "./capabilities": "./src/capabilities/index.ts",
+    "./hooks": "./src/hooks/index.ts",
+    "./data": "./src/data/index.ts"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  }
+}

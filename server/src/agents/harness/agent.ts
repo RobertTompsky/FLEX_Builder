@@ -14,20 +14,20 @@ import type {
 import {
     createPreToolUseContext,
 } from "./hooks/preToolUse/hook";
-import type {
-    AgentIdentity,
-} from "../shared/schemas";
-import type { Emit } from "../../shared/utils/streamSSE";
-import type {
-    AgentEnvelopeEvent,
-    AgentEvent,
-} from "../events";
-import type { AgentState } from "../store/checkpointer";
+import { createAgentEmitter, type Emit } from "../../sse";
 import { buildRunTsTool } from "./tools/runTsTool";
-import { type AgentCapabilityConfig } from "../../runtime/execute/schemas";
 import { CAPABILITIES_DIR, Model } from "../../shared/data";
 import { resolveCapabilities } from "../../runtime/execute";
 import type { AgentRuntimeContext } from "../../runtime/types";
+import {
+    type AgentIdentity,
+    type AgentEvent,
+    type AgentSSEMessage,
+    type AgentState,
+    toAgentSSEMessage
+} from "@flex-builder/shared/agent";
+import type { AgentCapabilityConfig } from "@flex-builder/shared/capabilities";
+import { getPendingToolCalls } from "../../shared/utils/getPendingTools";
 
 export type AgentRuntimeConfig = {
     runId: string;
@@ -36,7 +36,7 @@ export type AgentRuntimeConfig = {
 
 export type AgentRunConfig = {
     model: Model;
-    state: AgentState;
+    state: AgentState<{ messages: ResponseInputItem }>;
     capabilities: AgentCapabilityConfig[];
     runtime: AgentRuntimeConfig;
     hooks?: AgentHooks;
@@ -54,13 +54,13 @@ export type AgentRunStatus =
 
 export type AgentRunResult = {
     status: AgentRunStatus;
-    state: AgentState;
+    state: AgentState<{ messages: ResponseInputItem }>;
 };
 
 export async function agent(
     config: AgentRunConfig,
     identity: AgentIdentity,
-    emit?: Emit<AgentEnvelopeEvent>,
+    emit?: Emit<AgentSSEMessage>,
 ): Promise<AgentRunResult> {
     const {
         state,
@@ -93,21 +93,11 @@ export async function agent(
 
     let pendingToolCalls = getPendingToolCalls(messages);
 
-    const emitAgentEvent: Emit<AgentEvent> = emit
-        ? async (event) => {
-            if (
-                signal?.aborted &&
-                event.event !== "stop"
-            ) {
-                return;
-            }
-
-            await emit({
-                agent: identity,
-                event,
-            });
-        }
-        : async () => { };
+    const emitAgentEvent = createAgentEmitter<AgentEvent>(
+        identity,
+        emit,
+        signal,
+    );
 
     if (pendingToolCalls.length === 0) {
         await emitAgentEvent({
@@ -122,7 +112,8 @@ export async function agent(
     throwIfAborted(signal);
 
     const resolvedCapabilities = await resolveCapabilities(
-        CAPABILITIES_DIR, capabilities
+        CAPABILITIES_DIR,
+        capabilities
     );
 
     const tools = [
@@ -184,6 +175,7 @@ export async function agent(
                         "The maximum number of agent turns has been reached. " +
                         "Do not call tools. Provide the best final response using " +
                         "the information already available.",
+                    status: 'completed'
                 },
             ];
 
@@ -338,32 +330,6 @@ export async function agent(
             }
         }
     }
-}
-
-function getPendingToolCalls(
-    messages: ResponseInputItem[],
-): ResponseFunctionToolCallItem[] {
-    const completedCallIds = new Set<string>();
-
-    for (const item of messages) {
-        if (
-            item.type ===
-            "function_call_output"
-        ) {
-            completedCallIds.add(item.call_id);
-        }
-    }
-
-    return messages.filter(
-        (
-            item,
-        ): item is ResponseFunctionToolCallItem =>
-            item.type ===
-            "function_call" &&
-            !completedCallIds.has(
-                item.call_id,
-            ),
-    );
 }
 
 function throwIfAborted(

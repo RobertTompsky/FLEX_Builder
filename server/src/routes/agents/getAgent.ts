@@ -2,32 +2,8 @@ import { Elysia } from "elysia";
 import type {
   AgentStore,
 } from "../../agents/store/store";
-import { AgentParamsSchema } from "../schemas";
-import { toUIMessages, UIMessage } from "../../agents/shared/utils/messages";
-import { AgentIdentity } from "../../agents/shared/schemas";
-import { AgentState, AgentCheckpoint } from "../../agents/store/checkpointer";
-
-export type UIAgentState =
-  Omit<
-    AgentState,
-    "messages"
-  > & {
-    messages: UIMessage[];
-  };
-
-export type UIAgentCheckpoint =
-  Omit<
-    AgentCheckpoint,
-    "data"
-  > & {
-    data:
-    Omit<
-      AgentCheckpoint["data"],
-      "state"
-    > & {
-      state: UIAgentState;
-    };
-  };
+import { toUIMessages} from "../../agents/shared/utils/messages";
+import { AgentIdentity, AgentParamsSchema, UIAgentCheckpoint } from "@flex-builder/shared/agent";
 
 export type AgentUISnapshot = {
   identity: AgentIdentity;

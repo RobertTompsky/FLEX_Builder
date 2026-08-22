@@ -1,3 +1,4 @@
+import { UIMessage } from "@flex-builder/shared/agent";
 import type {
   ResponseInputItem,
 } from "openai/resources/responses/responses.js";
@@ -26,12 +27,6 @@ export function getLastAssistantMessage(
     isAssistantMessage,
   );
 }
-
-export type UIMessage = {
-    role: "assistant" | "user";
-    content: string;
-    status?: "in_progress" | "completed" | "incomplete";
-};
 
 function isUIMessage(
   message: ResponseInputItem,

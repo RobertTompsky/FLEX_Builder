@@ -3,10 +3,10 @@ import type {
     ResponseInputItem,
 } from "openai/resources/responses/responses.js";
 import { executeCode } from "../../runtime/code/executeCode";
-import { Emit } from "../../shared/utils/streamSSE";
-import { AgentIdentity, CodeGenSchema } from "../shared/schemas";
-import { AgentEnvelopeEvent } from "../events";
+import { createAgentEmitter, Emit } from "../../sse";
 import { AgentRuntimeContext, SandboxRuntimeConfig } from "../../runtime/types";
+import { AgentIdentity, AgentSourceEvent, AgentSSEMessage } from "@flex-builder/shared/agent";
+import { CodeGenSchema } from "@flex-builder/shared/capabilities";
 
 export type ToolExecutorConfig = {
     toolCalls: ResponseFunctionToolCallItem[];
@@ -23,7 +23,7 @@ export type ToolExecutorResult = {
 export async function toolExecutor(
     config: ToolExecutorConfig,
     identity: AgentIdentity,
-    emit?: Emit<AgentEnvelopeEvent>,
+    emit?: Emit<AgentSSEMessage>,
 ): Promise<ToolExecutorResult> {
     const {
         capabilityIds,
@@ -35,21 +35,11 @@ export async function toolExecutor(
 
     const output: ResponseInputItem.FunctionCallOutput[] = [];
 
-    const safeEmit: Emit<AgentEnvelopeEvent['event']> = emit
-        ? async (event) => {
-            if (
-                signal?.aborted &&
-                event.event !== "stop"
-            ) {
-                return;
-            }
-
-            await emit({
-                agent: identity,
-                event,
-            });
-        }
-        : async () => { };
+    const safeEmit = createAgentEmitter<AgentSourceEvent>(
+        identity,
+        emit,
+        signal,
+    );
 
     for (const toolCall of toolCalls) {
         throwIfAborted(signal);

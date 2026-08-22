@@ -3,6 +3,7 @@ import { Elysia } from "elysia";
 import type {
   AgentStore,
 } from "../../agents/store/store";
+import { AgentListItem } from "@flex-builder/shared/agent";
 
 export function createAgentRoute(
   store: AgentStore,
@@ -15,7 +16,12 @@ export function createAgentRoute(
 
       set.status = 201;
 
-      return snapshot.identity;
+      const listItem: AgentListItem = {
+        ...snapshot.identity,
+        updatedAt: snapshot.checkpoint.updatedAt,
+      };
+
+      return listItem;
     },
     // {
     //   body: CreateAgentBodySchema,

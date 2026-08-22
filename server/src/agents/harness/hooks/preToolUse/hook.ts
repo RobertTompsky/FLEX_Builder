@@ -1,37 +1,40 @@
 import type {
     ResponseFunctionToolCallItem,
 } from "openai/resources/responses/responses.js";
-import { AgentIdentity, CodeGenSchema } from "../../../shared/schemas";
-import { z } from 'zod'
-
-export const PRE_TOOL_USE_HOOK =
-    "preToolUse" as const;
-
-export type PreToolUseHookName =
-    typeof PRE_TOOL_USE_HOOK;
+import { PreToolUsePolicy } from "@flex-builder/shared/hooks";
+import { CodeGenInput, CodeGenSchema } from "@flex-builder/shared/capabilities";
+import { AgentIdentity } from "@flex-builder/shared/agent";
 
 export type RunTsToolCall = {
     call: ResponseFunctionToolCallItem;
-    input: z.infer<typeof CodeGenSchema>
+    input: CodeGenInput
 };
 
-export type PreToolUseContext = {
+type PreToolUseContext = {
     agent: AgentIdentity;
     toolCalls: RunTsToolCall[];
 };
 
-export type PreToolUseResult =
-    | {
+type PreToolUseResultMap = {
+    allow: {
         decision: "allow";
-    }
-    | {
+    };
+
+    ask: {
         decision: "ask";
         reason?: string;
-    }
-    | {
+    };
+
+    deny: {
         decision: "deny";
         reason: string;
     };
+};
+
+type PreToolUseResult =
+    PreToolUseResultMap[
+    PreToolUsePolicy
+    ];
 
 export type PreToolUseHook = (
     context: PreToolUseContext,

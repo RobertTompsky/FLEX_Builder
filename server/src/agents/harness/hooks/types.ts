@@ -1,10 +1,7 @@
+import { PreToolUsePolicyInfo } from "@flex-builder/shared/hooks";
 import type {
     PreToolUseHook,
 } from "./preToolUse/hook";
-
-import type {
-    PreToolUsePolicyInfo,
-} from "./preToolUse/policy";
 
 type HookRegistry = {
     preToolUse: {
@@ -17,8 +14,3 @@ export type AgentHooks = Partial<{
     [HookName in keyof HookRegistry]:
         HookRegistry[HookName]["hook"];
 }>;
-
-export type HookPoliciesInfo = {
-    [HookName in keyof HookRegistry]:
-        HookRegistry[HookName]["policy"][];
-};

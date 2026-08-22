@@ -1,79 +1,18 @@
 import type {
   ResponseInputItem,
 } from "openai/resources/responses/responses.js";
-import { z } from 'zod'
 import fs from "fs-extra";
 import path from "path";
-import { HookPolicySelectionSchema } from "../harness/hooks/schemas";
-import { AgentCapabilityConfigSchema } from "../../runtime/execute/schemas";
-
-export const AgentCheckpointConfigSchema =
-  z.object({
-    model: z.string(),
-    prompt: z.string(),
-
-    maxTurns: z
-      .number()
-      .int()
-      .positive(),
-
-    capabilities: z
-      .array(AgentCapabilityConfigSchema)
-      .superRefine(
-        (
-          capabilities,
-          context,
-        ) => {
-          const seen = new Set<string>();
-
-          for (
-            const [
-              index,
-              capability,
-            ]
-            of capabilities.entries()
-          ) {
-            if (seen.has(capability.id,)) {
-              context.addIssue({
-                code: "custom",
-                path: [
-                  index,
-                  "id",
-                ],
-                message: `Duplicate capability id "${capability.id}"`,
-              });
-
-              continue;
-            }
-
-            seen.add(capability.id,);
-          }
-        },
-      ),
-
-    policies: HookPolicySelectionSchema,
-  });
-
-export type AgentCheckpointConfig =
-  z.infer<
-    typeof AgentCheckpointConfigSchema
-  >;
-
-export type ActiveRequest = {
-  id: string;
-  turnsUsed: number;
-};
-
-export type AgentState = {
-  messages: ResponseInputItem[];
-  activeRequest: ActiveRequest | null;
-};
+import type {
+  AgentCheckpointConfig, 
+  AgentState
+} from "@flex-builder/shared/agent";
 
 export type AgentCheckpoint = {
   updatedAt: number;
   data: {
     config: AgentCheckpointConfig;
-    state: AgentState;
+    state: AgentState<{ messages: ResponseInputItem }>;
   };
 };
 

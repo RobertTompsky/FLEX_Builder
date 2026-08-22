@@ -1,7 +1,14 @@
 import { defineConfig } from 'vite'
-import { svelte } from '@sveltejs/vite-plugin-svelte'
+import react, { reactCompilerPreset } from '@vitejs/plugin-react'
+import babel from '@rolldown/plugin-babel'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [svelte()],
+  plugins: [
+    react(),
+    babel({ presets: [reactCompilerPreset()] })
+  ],
+  server: {
+    host: "127.0.0.1",
+  },
 })

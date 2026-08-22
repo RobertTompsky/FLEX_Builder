@@ -81,21 +81,25 @@ export async function executeCode({
       "utf8",
     );
 
-    const child =
-      Bun.spawn(
-        [
-          "bun",
-          entryFile,
-          userFile,
-          JSON.stringify(normalizedRuntimeConfig),
-        ],
-        {
-          cwd: SRC_DIR,
-          stdout: "pipe",
-          stderr: "pipe",
-          env: createSandboxEnv(),
+    const child = Bun.spawn(
+      [
+        "bun",
+        entryFile,
+        userFile,
+      ],
+      {
+        cwd: SRC_DIR,
+        stdout: "pipe",
+        stderr: "pipe",
+        env: {
+          ...createSandboxEnv(),
+          RUNTIME_CONFIG:
+            JSON.stringify(
+              normalizedRuntimeConfig,
+            ),
         },
-      );
+      },
+    );
 
     const timeout = setTimeout(() => {
       timedOut = true;

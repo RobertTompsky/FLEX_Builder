@@ -1,8 +1,8 @@
 import { FunctionTool } from "openai/resources/responses/responses.js";
-import { CodeGenSchema } from "../../shared/schemas";
 import { z } from 'zod'
 import { buildExecutePrompt } from "../../../runtime/execute/prompt/buildExecutePrompt";
 import { ResolvedCapability } from "../../../runtime/execute/types";
+import { CodeGenSchema } from "@flex-builder/shared/capabilities";
 
 export function buildRunTsTool(capabilities: ResolvedCapability[]): FunctionTool {
     const sections = [

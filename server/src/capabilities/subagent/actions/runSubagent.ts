@@ -1,17 +1,15 @@
 import z from "zod";
 import { RuntimeContext } from "../../../runtime/types";
 import { ResponseInputItem } from "openai/resources/responses/responses.js";
-import { createRuntimeEmitter, emitRuntimeEvent } from "../../../runtime/events";
+import { createRuntimeEmitter } from "../../../runtime/events";
 import { agent } from "../../../agents/harness/agent";
-import { MODELS } from "../../../shared/data";
-import { AgentState } from "../../../agents/store/checkpointer";
-import { AgentCapabilityConfig } from "../../../runtime/execute/schemas";
-import { AgentIdentity } from "../../../agents/shared/schemas";
 import { randomUUID } from 'crypto'
 import path from 'path'
 import fs from 'fs-extra'
 import { action } from "../../../runtime/execute";
-import { SubagentEvent } from "../events";
+import { MODELS } from "@flex-builder/shared/data";
+import { AgentIdentity, AgentState } from "@flex-builder/shared/agent";
+import { AgentCapabilityConfig, SubagentEvent } from "@flex-builder/shared/capabilities";
 
 export const SUBAGENT_CAPABILITY_IDS = [
     "web",
@@ -65,9 +63,7 @@ async function runSubagent(
     const input = SubagentInputSchema.parse(rawInput);
 
     const subagentId = `subagent_${randomUUID()}`;
-
     const subagentRunId = `run_${randomUUID()}`;
-
     const subagentRequestId = `request_${randomUUID()}`;
 
     const identity: AgentIdentity = {
@@ -98,7 +94,7 @@ async function runSubagent(
         },
     ];
 
-    const state: AgentState = {
+    const state: AgentState<{messages: ResponseInputItem }> = {
         messages,
         activeRequest: {
             id: subagentRequestId,
@@ -123,7 +119,11 @@ async function runSubagent(
             },
         },
         identity,
-        async ({ agent, event }) => {
+        async (streamEvent) => {
+            const {
+                ...event
+            } = streamEvent;
+
             if (event.event === "subagent_event") {
                 throw new Error(
                     "Nested subagents are not supported",
@@ -145,8 +145,7 @@ async function runSubagent(
                     parentRunId: context.runId,
                     parentToolCallId: context.toolCallId,
                     subagentRunId,
-                    subagent: agent,
-                    event
+                    subevent: event,
                 },
             });
         },
@@ -193,19 +192,16 @@ function getLastAssistantText(
             .map((item,): string => {
                 if (
                     !item ||
-                    typeof item !==
-                    "object"
+                    typeof item !== "object"
                 ) {
                     return "";
                 }
 
                 if (
                     "type" in item &&
-                    item.type ===
-                    "output_text" &&
+                    item.type === "output_text" &&
                     "text" in item &&
-                    typeof item.text ===
-                    "string"
+                    typeof item.text === "string"
                 ) {
                     return item.text;
                 }

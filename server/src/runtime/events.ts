@@ -1,14 +1,8 @@
-import { CapabilityEvent } from "../capabilities/events";
+import { CapabilityEvent } from "@flex-builder/shared/capabilities";
 
 export const RUNTIME_EVENT_PREFIX = "__RUNTIME_EVENT__:";
 
 export type RuntimeEvent = CapabilityEvent
-
-export function emitRuntimeEvent(event: RuntimeEvent): void {
-    process.stdout.write(
-        `${RUNTIME_EVENT_PREFIX}${JSON.stringify(event)}\n`,
-    );
-}
 
 export function createRuntimeEmitter<
     TEvent extends {

@@ -2,17 +2,25 @@ import { Elysia } from "elysia";
 import 'dotenv'
 import z from "zod";
 import fs from 'fs-extra'
-import { MODELS, ALLOWED_FILE_EXTENSIONS, UPLOADS_DIR, AGENTS_STORE_DIR, CAPABILITIES_DIR } from "./shared/data";
+import { 
+  ALLOWED_FILE_EXTENSIONS, 
+  UPLOADS_DIR, 
+  AGENTS_STORE_DIR, 
+  CAPABILITIES_DIR 
+} from "./shared/data";
 import path from 'path'
 import { cors } from '@elysia/cors'
 import { createAgentStore } from "./agents/store/store";
 import { agentsRoutes } from "./routes/agents";
 import { createRunStore } from "./agents/store/runs";
-import { HookPoliciesInfo } from "./agents/harness/hooks/types";
 import { listPreToolUsePolicies } from "./agents/harness/hooks/preToolUse/policy";
 import { listCapabilities } from "./runtime/execute/resolveCapabilities";
-import { CapabilityAccessSchema } from "./runtime/execute/schemas";
-import { CapabilityAccess } from "./runtime/execute/types";
+import { MODELS } from "@flex-builder/shared/data";
+import { HookPoliciesInfo } from "@flex-builder/shared/hooks";
+import { 
+  CapabilityAccessSchema 
+} from "@flex-builder/shared/capabilities";
+import { MetadataResponse } from "@flex-builder/shared/agent";
 
 const agentStore = createAgentStore(AGENTS_STORE_DIR);
 
@@ -44,19 +52,6 @@ const app = new Elysia()
 
     const policies: HookPoliciesInfo = {
       preToolUse: listPreToolUsePolicies(),
-    };
-
-    type MetadataResponse = {
-      uploads: string[];
-      models: typeof MODELS;
-      capabilities: {
-        items: Array<{
-          id: string;
-          description: string;
-        }>;
-        accessOptions: readonly CapabilityAccess[];
-      };
-      policies: HookPoliciesInfo;
     };
 
     return {

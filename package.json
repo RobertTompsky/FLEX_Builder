@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "workspaces": [
+    "client",
+    "server",
+    "flex-builder/*"
+  ],
+  "scripts": {
+    "dev:client": "bun --cwd client vite",
+    "dev:server": "bun --watch server/src/index.ts",
+    "dev": "bun run --parallel dev:client dev:server"
+  }
+}

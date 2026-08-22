@@ -2,20 +2,22 @@ import fs from "fs-extra";
 import { randomUUID } from "crypto";
 
 import {
-  AgentIdentitySchema,
-  type AgentIdentity,
-} from "../shared/schemas";
-
-import {
   createAgentWorkspace,
   getAgentWorkspacePaths,
 } from "../shared/utils/workspace";
 
 import {
   AgentCheckpoint,
-  AgentCheckpointConfig,
   createCheckpointer,
 } from "./checkpointer";
+
+import { 
+  AgentIdentity, 
+  AgentCheckpointConfig, 
+  AgentIdentitySchema, 
+  AgentListItem, 
+  UpdateAgentInput
+} from "@flex-builder/shared/agent";
 
 export type AgentSnapshot = {
   identity: AgentIdentity;
@@ -37,11 +39,6 @@ export const DEFAULT_AGENT_CHECKPOINT_DATA:
     messages: [],
     activeRequest: null,
   }
-};
-
-type UpdateAgentInput = {
-  name: string;
-  config: AgentCheckpointConfig;
 };
 
 export function createDefaultAgentCheckpoint():
@@ -132,6 +129,23 @@ export function createAgentStore(
     };
   }
 
+  async function readListItem(
+    agentId: string,
+  ): Promise<AgentListItem | null> {
+    const snapshot =
+      await getSnapshot(agentId);
+
+    if (!snapshot) {
+      return null;
+    }
+
+    return {
+      ...snapshot.identity,
+      updatedAt:
+        snapshot.checkpoint.updatedAt,
+    };
+  }
+
   return {
     async create(): Promise<AgentSnapshot> {
       await ensureAgentsDir();
@@ -166,7 +180,7 @@ export function createAgentStore(
       };
     },
 
-    async list(): Promise<AgentIdentity[]> {
+    async list(): Promise<AgentListItem[]> {
       await ensureAgentsDir();
 
       const entries = await fs.readdir(
@@ -176,17 +190,19 @@ export function createAgentStore(
         },
       );
 
-      const identities = await Promise.all(
+      const items = await Promise.all(
         entries
-          .filter((entry) => entry.isDirectory())
+          .filter((entry) =>
+            entry.isDirectory(),
+          )
           .map((entry) =>
-            readIdentity(entry.name),
+            readListItem(entry.name),
           ),
       );
 
-      return identities.filter(
-        (identity): identity is AgentIdentity =>
-          identity !== null,
+      return items.filter(
+        (item): item is AgentListItem =>
+          item !== null,
       );
     },
 

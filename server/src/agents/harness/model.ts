@@ -6,13 +6,14 @@ import type {
 } from "openai/resources/responses/responses.js";
 import { toResponseInputItems } from 'openai/lib/responses/ResponseInputItems';
 
+import { createAgentEmitter, Emit } from "../../sse";
 import {
-    CodeGenSchema,
     type AgentIdentity,
-} from "../shared/schemas";
-
-import { Emit } from "../../shared/utils/streamSSE";
-import { AgentEnvelopeEvent, AgentEvent } from "../events";
+    type AgentEvent,
+    type AgentSSEMessage,
+    toAgentSSEMessage
+} from "@flex-builder/shared/agent";
+import { CodeGenSchema } from "@flex-builder/shared/capabilities";
 
 export type ModelConfig = {
     model: string;
@@ -34,7 +35,7 @@ const openai = new OpenAI({
 export async function model(
     config: ModelConfig,
     identity: AgentIdentity,
-    emit?: Emit<AgentEnvelopeEvent>,
+    emit?: Emit<AgentSSEMessage>,
 ): Promise<ModelStepResult> {
     const {
         model,
@@ -43,21 +44,12 @@ export async function model(
         signal,
     } = config;
 
-    const safeEmit: Emit<AgentEvent> = emit
-        ? async (event) => {
-            if (
-                signal?.aborted &&
-                event.event !== "stop"
-            ) {
-                return;
-            }
-
-            await emit({
-                agent: identity,
-                event,
-            });
-        }
-        : async () => { };
+    const safeEmit =
+        createAgentEmitter<AgentEvent>(
+            identity,
+            emit,
+            signal,
+        );
 
     throwIfAborted(signal);
 

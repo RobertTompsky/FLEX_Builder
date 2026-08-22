@@ -13,7 +13,7 @@ import type {
     ResolvedCapability,
     RuntimeAction,
 } from "./types";
-import { AgentCapabilityConfig } from "./schemas";
+import { AgentCapabilityConfig } from "@flex-builder/shared/capabilities";
 
 function isRecord(value: unknown): value is Record<PropertyKey, unknown> {
     return (

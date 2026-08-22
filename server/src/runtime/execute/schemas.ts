@@ -1,27 +1,5 @@
 import z from "zod";
 
-export const CapabilityAccessSchema =
-    z.enum([
-        "execute",
-        "delegate",
-        "both",
-    ]);
-
-export const AgentCapabilityConfigSchema =
-  z.object({
-    id: z
-      .string()
-      .min(1),
-
-    access:
-      CapabilityAccessSchema,
-  });
-
-export type AgentCapabilityConfig =
-  z.infer<
-    typeof AgentCapabilityConfigSchema
-  >;
-
 export const executeInputSchema =
     z.object({
         action:

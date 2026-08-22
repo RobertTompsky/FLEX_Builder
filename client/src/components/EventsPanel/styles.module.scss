@@ -1,0 +1,953 @@
+$background: #1111aa;
+$background-dark: #000088;
+
+$border: #5555dd;
+
+$text: #ffffff;
+$text-muted: #8888cc;
+$text-secondary: #aaaaff;
+
+$green: #55ff55;
+$yellow: #ffff55;
+$cyan: #55ccff;
+
+$pause: #ffcc55;
+$stop: #ff9955;
+$error: #ff5555;
+
+$subagent-content-offset: 12px;
+
+.panel {
+  display: flex;
+  flex-direction: column;
+
+  width: 100%;
+  height: 100%;
+
+  min-width: 0;
+  min-height: 0;
+
+  overflow: hidden;
+
+  border: 2px solid $border;
+
+  border-radius: 4px;
+
+  background:
+    $background;
+
+  font-family:
+    Consolas,
+    "Courier New",
+    monospace;
+
+  box-shadow:
+    0 0 16px rgba(80, 80, 220, 0.12),
+    inset 0 0 20px rgba(0, 0, 60, 0.3);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  flex: 0 0 auto;
+
+  padding: 4px 10px;
+
+  border-bottom:
+    2px solid $border;
+
+  background: #cccccc;
+
+  color: $background;
+}
+
+.headerTitle {
+  font-size: 11px;
+  font-weight: 700;
+
+  letter-spacing: 1px;
+}
+
+.headerCount {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.screen {
+  flex: 1;
+
+  min-width: 0;
+  min-height: 0;
+
+  padding: 8px 10px 16px;
+
+  overflow: auto;
+
+  box-sizing: border-box;
+
+  background:
+    $background;
+
+  color:
+    $text;
+
+  &::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background:
+      $background-dark;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border: 1px solid $border;
+
+    background: #cccccc;
+
+    &:hover {
+      background: #ffffff;
+    }
+  }
+}
+
+.empty {
+  color:
+    $text-muted;
+
+  font-size: 11px;
+}
+
+.line {
+  display: block;
+
+  padding: 1px 4px;
+
+  color:
+    $text;
+
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.dim {
+  margin-left: 6px;
+
+  color:
+    $text-muted;
+
+  font-size: 9px;
+}
+
+.init,
+.done,
+.error,
+.pauseTitle,
+.stopTitle {
+  font-weight: 700;
+}
+
+.init,
+.tool,
+.done,
+.error,
+.pauseTitle,
+.stopTitle,
+.artifact,
+.subagent {
+  &::before {
+    content: "■";
+
+    display:
+      inline-block;
+
+    width: 12px;
+
+    margin-right: 4px;
+  }
+}
+
+.init::before {
+  color: $text;
+}
+
+.tool::before {
+  color: $yellow;
+}
+
+.done::before {
+  color: $green;
+}
+
+.error::before {
+  color: $error;
+}
+
+.pauseTitle::before {
+  color: $pause;
+}
+
+.stopTitle::before {
+  color: $stop;
+}
+
+.artifact::before {
+  color: $cyan;
+}
+
+.subagent::before {
+  color: #cc88ff;
+}
+
+.toolBlock {
+  margin: 2px 0 6px;
+}
+
+.expandable {
+  margin: 0;
+
+  &[open] {
+    margin-bottom: 4px;
+  }
+}
+
+.file {
+  display: block;
+
+  padding:
+    1px 4px 1px 16px;
+
+  box-sizing:
+    border-box;
+
+  width: 100%;
+
+  color:
+    $text-secondary;
+
+  font-size: 11px;
+  line-height: 1.4;
+
+  list-style: none;
+
+  cursor: pointer;
+
+  &::-webkit-details-marker {
+    display: none;
+  }
+
+  &::before {
+    content: "▸";
+
+    display:
+      inline-block;
+
+    width: 12px;
+  }
+
+  .expandable[open]>&::before {
+    content: "▾";
+  }
+
+  &:hover {
+    background:
+      #ffffff;
+
+    color:
+      $background;
+  }
+}
+
+.code,
+.detail {
+  margin:
+    2px 0 4px 16px;
+
+  border: 1px solid $border;
+
+  background:
+    $background-dark;
+
+  font-family:
+    Consolas,
+    "Courier New",
+    monospace;
+
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.code {
+  padding: 6px 8px;
+
+  overflow-x: auto;
+
+  color:
+    $green;
+
+  code {
+    display: block;
+
+    white-space: pre;
+  }
+}
+
+.detail {
+  max-height: 140px;
+
+  padding: 4px 8px;
+
+  overflow: auto;
+
+  color:
+    $text-secondary;
+
+  white-space:
+    pre-wrap;
+}
+
+/*
+ * Всё, что было порождено конкретным
+ * tool call, уходит внутрь этого rail.
+ */
+.nested {
+  position: relative;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 4px;
+
+  margin:
+    4px 0 5px 18px;
+
+  padding-left: 10px;
+
+  border-left:
+    1px solid rgba(170,
+      170,
+      255,
+      0.5);
+}
+
+.nestedEvent {
+  position: relative;
+
+  min-width: 0;
+
+  &::before {
+    content: "";
+
+    position: absolute;
+
+    top: 8px;
+    left: -10px;
+
+    width: 7px;
+
+    border-top:
+      1px solid rgba(170,
+        170,
+        255,
+        0.5);
+  }
+}
+
+.nestedMeta {
+  margin:
+    2px 0 0 20px;
+
+  overflow: hidden;
+
+  color:
+    $text-muted;
+
+  font-size: 9px;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nestedDetails {
+  margin:
+    5px 0 0 20px;
+
+  color:
+    $text-secondary;
+
+  font-size: 10px;
+
+  summary {
+    cursor: pointer;
+
+    &:hover {
+      color: #ffffff;
+    }
+  }
+
+  &[open] {
+    margin-bottom: 4px;
+  }
+
+  >.detail {
+    margin:
+      4px 0 0;
+
+    max-height: 140px;
+  }
+}
+
+.subagentEvent {
+  display: grid;
+
+  grid-template-columns:
+    auto minmax(0, 1fr);
+
+  gap: 8px;
+
+  margin:
+    2px 0 0 20px;
+
+  padding: 2px 5px;
+
+  background:
+    rgba(0,
+      0,
+      80,
+      0.25);
+
+  color:
+    $text-secondary;
+
+  font-size: 9px;
+}
+
+.subagentEventName {
+  color: #cc88ff;
+
+  font-weight: 700;
+
+  text-transform:
+    uppercase;
+}
+
+.pause {
+  display: flex;
+  flex-direction: column;
+
+  gap: 4px;
+
+  margin-top: 10px;
+
+  padding: 4px;
+
+  border-top:
+    1px solid $border;
+
+  background:
+    rgba(0,
+      0,
+      80,
+      0.18);
+}
+
+.pauseReason {
+  padding: 1px 4px;
+
+  color:
+    $text-secondary;
+
+  font-size: 11px;
+
+  span {
+    color: $text;
+  }
+}
+
+.stop {
+  margin-top: 10px;
+
+  padding: 4px;
+
+  border-top:
+    1px solid #aa7744;
+
+  background:
+    rgba(80,
+      40,
+      0,
+      0.18);
+}
+
+.stopReason {
+  padding: 1px 4px;
+
+  color: #ffbb88;
+
+  font-size: 11px;
+
+  span {
+    color: $text;
+  }
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  flex: 0 0 auto;
+
+  padding: 4px 10px;
+
+  border-top:
+    2px solid $border;
+
+  background:
+    #cccccc;
+
+  color:
+    $background;
+
+  font-size: 9px;
+
+  letter-spacing:
+    0.5px;
+}
+
+.resultCode {
+  margin:
+    4px 0 4px 16px;
+
+  overflow-x: auto;
+
+  border:
+    1px solid #5555dd;
+
+  background: #000088;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+
+  gap: 6px;
+
+  font-size: 9px;
+  font-weight: 700;
+
+  text-transform:
+    uppercase;
+
+  &::before {
+    content: "";
+
+    display:
+      inline-block;
+
+    width: 8px;
+    height: 8px;
+
+    box-sizing:
+      border-box;
+
+    border: 1px solid $border;
+
+    background:
+      #999999;
+  }
+}
+
+.statusRunning::before {
+  background:
+    $green;
+
+  animation:
+    ledBlink 1s steps(1) infinite;
+}
+
+.statusPaused::before {
+  background:
+    $pause;
+}
+
+.statusCompleted::before {
+  background:
+    $green;
+}
+
+.statusStopped::before {
+  background:
+    $stop;
+}
+
+.statusError::before {
+  background:
+    $error;
+}
+
+.statusIdle::before {
+  background:
+    #999999;
+}
+
+@keyframes ledBlink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.subagentBlock {
+  min-width: 0;
+
+  margin: 4px 0 6px;
+
+  padding: 4px 6px;
+
+  border: 1px solid rgba(204, 136, 255, 0.45);
+
+  background:
+    rgba(20, 10, 90, 0.35);
+}
+
+.subagentTool {
+  min-width: 0;
+
+  margin:
+    5px 0 5px $subagent-content-offset;
+}
+
+.subagentToolTitle {
+  padding: 1px 4px;
+
+  color: #ffff55;
+
+  font-size: 10px;
+  font-weight: 700;
+
+  &::before {
+    content: "■";
+
+    display: inline-block;
+
+    width: 12px;
+
+    margin-right: 4px;
+
+    color: #ffff55;
+  }
+}
+
+.response {
+  margin:
+    2px 0 4px 16px;
+
+  padding:
+    6px 8px;
+
+  border:
+    1px solid #5555dd;
+
+  background:
+    #000088;
+
+  color:
+    #ddddff;
+
+  font-size: 10px;
+  line-height: 1.45;
+
+  overflow-x: auto;
+
+  p {
+    margin:
+      0 0 6px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  pre {
+    margin:
+      6px 0;
+
+    overflow-x: auto;
+  }
+
+  code {
+    font-family:
+      Consolas,
+      "Courier New",
+      monospace;
+  }
+}
+
+.responseStreaming {
+  border-color:
+    #8888ff;
+
+  &::after {
+    content: "█";
+
+    margin-left: 3px;
+
+    color:
+      #ffffff;
+
+    animation:
+      cursorBlink 0.8s steps(1) infinite;
+  }
+}
+
+.subagentDone,
+.subagentStopped,
+.subagentError {
+  margin:
+    4px 0 0 $subagent-content-offset;
+
+  padding: 1px 4px;
+
+  font-size: 10px;
+  font-weight: 700;
+
+  &::before {
+    content: "■";
+
+    display: inline-block;
+
+    width: 12px;
+
+    margin-right: 4px;
+  }
+}
+
+.subagentDone {
+  color: #55ff55;
+
+  &::before {
+    color: #55ff55;
+  }
+}
+
+.subagentStopped {
+  color: #ff9955;
+
+  &::before {
+    color: #ff9955;
+  }
+}
+
+.subagentError {
+  color: #ff5555;
+
+  &::before {
+    color: #ff5555;
+  }
+}
+
+.pendingTools {
+  margin:
+    8px 6px 10px;
+
+  border:
+    1px solid #ffff55;
+
+  background:
+    rgba(40,
+      35,
+      110,
+      0.72);
+}
+
+.pendingHeader {
+  display: flex;
+  align-items: center;
+  justify-content:
+    space-between;
+
+  padding:
+    5px 7px;
+
+  border-bottom:
+    1px solid rgba(255,
+      255,
+      85,
+      0.55);
+
+  background:
+    rgba(255,
+      255,
+      85,
+      0.1);
+
+  color:
+    #ffff55;
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.pendingCount {
+  color:
+    #ffffff;
+}
+
+.pendingList {
+  display: flex;
+  flex-direction: column;
+
+  padding:
+    4px;
+}
+
+.pendingTool {
+  display: grid;
+
+  grid-template-columns:
+    16px minmax(0, 1fr) auto;
+
+  align-items: center;
+
+  width: 100%;
+
+  padding:
+    5px 6px;
+
+  gap: 5px;
+
+  border: 0;
+
+  background:
+    transparent;
+
+  color:
+    #aaaaff;
+
+  font: inherit;
+  font-size: 10px;
+
+  text-align: left;
+
+  cursor: pointer;
+
+  &:hover {
+    background:
+      rgba(255,
+        255,
+        255,
+        0.07);
+  }
+}
+
+.pendingToolApproved {
+  background:
+    rgba(85,
+      255,
+      85,
+      0.08);
+
+  color:
+    #ffffff;
+
+  .pendingCheckbox,
+  .pendingToolState {
+    color:
+      #55ff55;
+  }
+}
+
+.pendingCheckbox {
+  color:
+    #7777bb;
+
+  font-size: 11px;
+}
+
+.pendingToolName {
+  overflow: hidden;
+
+  font-weight: 700;
+
+  text-overflow:
+    ellipsis;
+
+  white-space: nowrap;
+}
+
+.pendingToolState {
+  color:
+    #ff9955;
+
+  font-size: 9px;
+}
+
+.pendingHint {
+  padding:
+    5px 8px;
+
+  border-top:
+    1px solid rgba(170,
+      170,
+      255,
+      0.2);
+
+  color:
+    #8888cc;
+
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.pendingActions {
+  display: grid;
+
+  grid-template-columns:
+    1fr 1fr;
+
+  gap: 5px;
+
+  padding:
+    5px;
+}
+
+.resumeButton,
+.stopButton {
+  min-height: 26px;
+
+  border:
+    1px solid currentColor;
+
+  background:
+    #000088;
+
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+
+    cursor: default;
+  }
+}
+
+.resumeButton {
+  color:
+    #55ff55;
+}
+
+.stopButton {
+  color:
+    #ff9955;
+}
+
+@keyframes cursorBlink {
+  50% {
+    opacity: 0;
+  }
+}

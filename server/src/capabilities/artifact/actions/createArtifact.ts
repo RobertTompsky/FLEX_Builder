@@ -9,7 +9,7 @@ import path from "path";
 import fs from "fs-extra";
 import { createRuntimeEmitter } from "../../../runtime/events";
 import { action } from "../../../runtime/execute";
-import { ArtifactEvent } from "../events";
+import { ArtifactEvent } from "@flex-builder/shared/capabilities";
 
 export const CreateArtifactInputSchema =
     z.object({

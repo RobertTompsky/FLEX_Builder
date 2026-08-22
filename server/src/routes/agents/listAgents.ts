@@ -10,10 +10,6 @@ export function listAgentsRoute(
   return new Elysia().get(
     "/",
     async () => {
-      const agents = (await store.list()).map((agent) => ({
-        
-      }))
-
       return store.list();
     },
   );

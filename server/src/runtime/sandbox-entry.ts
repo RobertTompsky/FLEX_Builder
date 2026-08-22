@@ -14,7 +14,7 @@ import type {
 
 const userFile = process.argv.at(2);
 
-const rawRuntimeConfig = process.argv.at(3);
+const rawRuntimeConfig = process.env.RUNTIME_CONFIG;
 
 if (!userFile) {
   throw new Error(
