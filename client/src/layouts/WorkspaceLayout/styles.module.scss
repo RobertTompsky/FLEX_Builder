@@ -6,8 +6,8 @@
     minmax(0, 1fr)
     28px;
 
-  width: 90vw;
-  height: 90vh;
+  width: 85vw;
+  height: 85vh;
 
   min-width: 960px;
   min-height: 600px;
@@ -159,7 +159,7 @@
 .body {
   display: grid;
   grid-template-columns:
-    320px
+    270px
     minmax(0, 1fr);
 
   gap: 7px;

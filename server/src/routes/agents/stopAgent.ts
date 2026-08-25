@@ -1,16 +1,15 @@
 import Elysia from "elysia";
 import type { RunStore } from "../../agents/store/runs";
 import type { AgentStore } from "../../agents/store/store";
-import { getPendingToolCalls } from "../../shared/utils/getPendingTools";
 import { streamSSE, createSSEWriter } from "../../sse";
 import { ResponseInputItem } from "openai/resources/responses/responses.js";
-import { getAgentWorkspacePaths } from "../../agents/shared/utils/workspace";
+import { getAgentWorkspacePaths, getPendingToolCalls } from "../../agents/shared/utils";
 import { createCheckpointer } from "../../agents/store/checkpointer";
 import { AGENTS_STORE_DIR } from "../../shared/data";
-import { 
-  type AgentIdentity, 
-  AgentRunParamsSchema, 
-  type AgentSSEMessage 
+import {
+  type AgentIdentity,
+  AgentRunParamsSchema,
+  type AgentSSEMessage
 } from "@flex-builder/shared/agent";
 
 export function stopAgentRoute(
@@ -81,7 +80,7 @@ export function stopAgentRoute(
           });
         }
 
-        return createStopStream({
+        return sendStopEvent({
           identity: snapshot.identity,
           reason: "live_abort",
         });
@@ -102,9 +101,7 @@ export function stopAgentRoute(
           agentId,
         );
 
-        const checkpointer = createCheckpointer(
-          workspace.root,
-        );
+        const checkpointer = createCheckpointer(workspace.root);
 
         await checkpointer.save({
           config,
@@ -114,7 +111,7 @@ export function stopAgentRoute(
           },
         });
 
-        return createStopStream({
+        return sendStopEvent({
           identity: snapshot.identity,
           reason: "paused_cleanup",
         });
@@ -133,7 +130,7 @@ export function stopAgentRoute(
   );
 }
 
-function createStopStream({
+function sendStopEvent({
   identity,
   reason,
 }: {
@@ -143,10 +140,7 @@ function createStopStream({
   | "paused_cleanup";
 }) {
   return streamSSE(async (sse) => {
-    const writeAgentSSE =
-      createSSEWriter<AgentSSEMessage>(
-        sse,
-      );
+    const writeAgentSSE = createSSEWriter<AgentSSEMessage>(sse);
 
     await writeAgentSSE({
       event: 'stop',
@@ -185,8 +179,7 @@ function removeActiveRequestFromHistory(
 
   let requestStart = userMessageIndex;
 
-  const previousItem =
-    history[userMessageIndex - 1];
+  const previousItem = history[userMessageIndex - 1];
 
   if (
     previousItem &&
@@ -196,8 +189,5 @@ function removeActiveRequestFromHistory(
     requestStart--;
   }
 
-  return history.slice(
-    0,
-    requestStart,
-  );
+  return history.slice(0, requestStart);
 }

@@ -2,7 +2,7 @@ import { Elysia } from "elysia";
 import type {
   AgentStore,
 } from "../../agents/store/store";
-import { toUIMessages} from "../../agents/shared/utils/messages";
+import { toUIMessages} from "../../agents/shared/utils";
 import { AgentIdentity, AgentParamsSchema, UIAgentCheckpoint } from "@flex-builder/shared/agent";
 
 export type AgentUISnapshot = {

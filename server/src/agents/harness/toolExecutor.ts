@@ -4,8 +4,14 @@ import type {
 } from "openai/resources/responses/responses.js";
 import { executeCode } from "../../runtime/code/executeCode";
 import { createAgentEmitter, Emit } from "../../sse";
-import { AgentRuntimeContext, SandboxRuntimeConfig } from "../../runtime/types";
-import { AgentIdentity, AgentSourceEvent, AgentSSEMessage } from "@flex-builder/shared/agent";
+import type { 
+    AgentRuntimeContext, 
+    SandboxRuntimeConfig } from "../../runtime/types";
+import type { 
+    AgentIdentity, 
+    AgentSourceEvent, 
+    AgentSSEMessage 
+} from "@flex-builder/shared/agent";
 import { CodeGenSchema } from "@flex-builder/shared/capabilities";
 
 export type ToolExecutorConfig = {

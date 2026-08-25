@@ -6,7 +6,7 @@ import { validateCode } from "./validateCode";
 import { SandboxRuntimeConfig } from "../types";
 import { createSandboxEnv } from "./env";
 
-const MAX_OUTPUT_BYTES = 50 * 1024; // 50 KB
+const MAX_OUTPUT_BYTES = 1000 * 1024; // 50 KB
 
 type ExecuteCodeInput = {
   code: string;
@@ -31,7 +31,7 @@ function parseRuntimeEvent(
 
 export async function executeCode({
   code,
-  timeoutSeconds = 10,
+  timeoutSeconds = 90,
   runtimeConfig,
   onRuntimeEvent,
 }: ExecuteCodeInput): Promise<ExecuteCodeResult> {

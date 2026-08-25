@@ -21,11 +21,11 @@ import { useState } from "react";
 import {
   js as beautifyJs,
 } from "js-beautify";
-import type { 
-  AgentEvent, 
-  AgentIdentity, 
-  AgentSSEMessage, 
-  ToAgentSSEMessage 
+import type {
+  AgentEvent,
+  AgentIdentity,
+  AgentSSEMessage,
+  ToAgentSSEMessage
 } from "@flex-builder/shared/agent";
 
 type EventsPanelProps = {
@@ -155,15 +155,94 @@ function cx(
     .join(" ");
 }
 
+function decodePartialJsonString(
+  value: string,
+): string {
+  let result = "";
+
+  for (
+    let index = 0;
+    index < value.length;
+    index++
+  ) {
+    const char = value[index];
+
+    if (char === '"') {
+      break;
+    }
+
+    if (char !== "\\") {
+      result += char;
+      continue;
+    }
+
+    const next = value[index + 1];
+
+    if (next === undefined) {
+      break;
+    }
+
+    switch (next) {
+      case "n":
+        result += "\n";
+        break;
+
+      case "r":
+        result += "\r";
+        break;
+
+      case "t":
+        result += "\t";
+        break;
+
+      case '"':
+        result += '"';
+        break;
+
+      case "\\":
+        result += "\\";
+        break;
+
+      default:
+        result += next;
+        break;
+    }
+
+    index++;
+  }
+
+  return result;
+}
+
+function extractStreamingCode(
+  raw: string,
+): string | null {
+  const match =
+    /"code"\s*:\s*"/.exec(raw);
+
+  if (
+    !match ||
+    match.index === undefined
+  ) {
+    return null;
+  }
+
+  const start =
+    match.index +
+    match[0].length;
+
+  return decodePartialJsonString(
+    raw.slice(start),
+  );
+}
+
 function extractCode(
   raw: string,
 ): string {
   try {
     const parsed =
-      JSON.parse(
-        raw.trim(),
-      ) as {
-        code?: string;
+      JSON.parse(raw.trim()) as {
+        code?: unknown;
       };
 
     return typeof parsed.code ===
@@ -171,7 +250,10 @@ function extractCode(
       ? parsed.code
       : raw;
   } catch {
-    return raw;
+    return (
+      extractStreamingCode(raw) ??
+      raw
+    );
   }
 }
 

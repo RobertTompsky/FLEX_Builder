@@ -6,13 +6,14 @@
     "dev": "bun run --watch src/index.ts"
   },
   "dependencies": {
-    "@flex-builder/shared": "workspace:*",
     "@elysia/cors": "^1.4.2",
+    "@flex-builder/shared": "workspace:*",
     "@types/fs-extra": "^11.0.4",
     "dotenv": "^17.4.2",
     "elysia": "latest",
     "fs-extra": "^11.4.0",
     "openai": "^7.5.0",
+    "playwright": "^1.62.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {

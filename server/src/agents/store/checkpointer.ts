@@ -4,44 +4,31 @@ import type {
 import fs from "fs-extra";
 import path from "path";
 import type {
-  AgentCheckpointConfig, 
-  AgentState
+  AgentCheckpoint
 } from "@flex-builder/shared/agent";
 
-export type AgentCheckpoint = {
-  updatedAt: number;
-  data: {
-    config: AgentCheckpointConfig;
-    state: AgentState<{ messages: ResponseInputItem }>;
-  };
-};
+export type ServerCheckpoint = AgentCheckpoint<ResponseInputItem>
 
 export type Checkpointer = {
-  save(data: AgentCheckpoint["data"]): Promise<AgentCheckpoint>;
-  load(): Promise<AgentCheckpoint | null>;
+  save(data: ServerCheckpoint["data"]): Promise<ServerCheckpoint>;
+  load(): Promise<ServerCheckpoint | null>;
   clear(): Promise<void>;
 };
 
-export function createCheckpointer(
-  agentDir: string,
-): Checkpointer {
+export function createCheckpointer(agentDir: string): Checkpointer {
   const checkpointPath = path.join(
     agentDir,
     "checkpoint.json",
   );
 
-  async function ensureAgentDir() {
-    await fs.ensureDir(agentDir);
-  }
-
-  async function loadCheckpoint(): Promise<AgentCheckpoint | null> {
+  async function loadCheckpoint(): Promise<ServerCheckpoint | null> {
     if (!(await fs.pathExists(checkpointPath))) {
       return null;
     }
 
     try {
       const checkpoint = await fs
-        .readJson(checkpointPath) as AgentCheckpoint;
+        .readJson(checkpointPath) as ServerCheckpoint;
 
       return checkpoint;
     } catch {
@@ -51,9 +38,9 @@ export function createCheckpointer(
 
   return {
     async save(data) {
-      await ensureAgentDir();
+      await fs.ensureDir(agentDir);
 
-      const checkpoint: AgentCheckpoint = {
+      const checkpoint: ServerCheckpoint = {
         updatedAt: Date.now(),
         data,
       };

@@ -150,6 +150,7 @@ $error: #ff4444;
   padding: 10px 12px;
 
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .section {
@@ -278,11 +279,170 @@ $error: #ff4444;
   display: grid;
 
   grid-template-columns:
-    minmax(100px, 1fr) auto;
+    minmax(0, 1fr) auto;
 
   gap: 12px;
 
   min-width: 0;
+}
+
+.capabilityInfo {
+  display: flex;
+  align-items: center;
+
+  min-width: 0;
+
+  gap: 5px;
+}
+
+.chip {
+  min-width: 0;
+  flex: 1;
+}
+
+.tooltip {
+  position: relative;
+
+  display: inline-flex;
+  align-items: center;
+
+  flex: 0 0 auto;
+
+  &:hover,
+  &:focus-within {
+    .tooltipContent {
+      visibility: visible;
+      opacity: 1;
+
+      transform:
+        translateY(0);
+    }
+
+    .tooltipTrigger {
+      border-color:
+        $accent;
+
+      color:
+        $accent;
+    }
+  }
+}
+
+.tooltipContent {
+  position: absolute;
+
+  z-index: 100;
+
+  left: 50%;
+  bottom:
+    calc(100% + 7px);
+
+  width: 220px;
+  max-width:
+    calc(100vw - 32px);
+
+  box-sizing:
+    border-box;
+
+  padding: 7px 9px;
+
+  visibility: hidden;
+
+  border:
+    1px solid $border-light;
+
+  border-radius: 2px;
+
+  background:
+    #08082a;
+
+  color:
+    $text-light;
+
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.55);
+
+  opacity: 0;
+
+  transform:
+    translate(-50%, 3px);
+
+  transition:
+    opacity 100ms ease,
+    transform 100ms ease,
+    visibility 100ms ease;
+
+  pointer-events: none;
+
+  font:
+    10px Consolas,
+    "Courier New",
+    monospace;
+
+  line-height: 1.45;
+
+  white-space: normal;
+
+  text-align: center;
+}
+
+.tooltipTrigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 13px;
+  height: 13px;
+
+  box-sizing: border-box;
+
+  border: 1px solid $border;
+
+  border-radius: 50%;
+
+  background:
+    $control-background;
+
+  color: $text-muted;
+
+  font:
+    700 9px Consolas,
+    "Courier New",
+    monospace;
+
+  line-height: 1;
+
+  cursor: help;
+}
+
+
+.tooltip {
+
+  &:hover,
+  &:focus-within {
+    .tooltipContent {
+      visibility: visible;
+      opacity: 1;
+
+      transform:
+        translate(-50%, 0);
+    }
+  }
+}
+
+
+.capabilityName {
+  min-width: 0;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.labelContent {
+  display: inline-flex;
+  align-items: center;
 }
 
 .accessOptions {

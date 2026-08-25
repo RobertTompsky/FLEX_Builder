@@ -11,7 +11,6 @@ import {
     type AgentIdentity,
     type AgentEvent,
     type AgentSSEMessage,
-    toAgentSSEMessage
 } from "@flex-builder/shared/agent";
 import { CodeGenSchema } from "@flex-builder/shared/capabilities";
 
@@ -44,12 +43,11 @@ export async function model(
         signal,
     } = config;
 
-    const safeEmit =
-        createAgentEmitter<AgentEvent>(
-            identity,
-            emit,
-            signal,
-        );
+    const safeEmit = createAgentEmitter<AgentEvent>(
+        identity,
+        emit,
+        signal,
+    );
 
     throwIfAborted(signal);
 

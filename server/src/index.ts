@@ -2,25 +2,16 @@ import { Elysia } from "elysia";
 import 'dotenv'
 import z from "zod";
 import fs from 'fs-extra'
-import { 
-  ALLOWED_FILE_EXTENSIONS, 
-  UPLOADS_DIR, 
-  AGENTS_STORE_DIR, 
-  CAPABILITIES_DIR 
+import {
+  ALLOWED_FILE_EXTENSIONS,
+  UPLOADS_DIR,
+  AGENTS_STORE_DIR,
 } from "./shared/data";
 import path from 'path'
 import { cors } from '@elysia/cors'
 import { createAgentStore } from "./agents/store/store";
-import { agentsRoutes } from "./routes/agents";
+import { agentsRoutes, metadataRoutes } from "./routes";
 import { createRunStore } from "./agents/store/runs";
-import { listPreToolUsePolicies } from "./agents/harness/hooks/preToolUse/policy";
-import { listCapabilities } from "./runtime/execute/resolveCapabilities";
-import { MODELS } from "@flex-builder/shared/data";
-import { HookPoliciesInfo } from "@flex-builder/shared/hooks";
-import { 
-  CapabilityAccessSchema 
-} from "@flex-builder/shared/capabilities";
-import { MetadataResponse } from "@flex-builder/shared/agent";
 
 const agentStore = createAgentStore(AGENTS_STORE_DIR);
 
@@ -36,43 +27,40 @@ const fileSchema = z.file().refine((file: File) => {
 const app = new Elysia()
   .use(cors())
 
-  .use(agentsRoutes(agentStore, runStore))
-
   .get("/", () => "Марс вечен")
 
-  .get('/metadata', async () => {
+  .use(agentsRoutes(agentStore, runStore))
 
-    const definitions = await listCapabilities(CAPABILITIES_DIR);
+  .use(metadataRoutes())
+  .get('/web', async () => {
+    const apiKey =
+      process.env.TAVILY_API_KEY?.trim();
 
-    const uploads = fs
-      .readdirSync(UPLOADS_DIR, { withFileTypes: true })
-      .filter((entry) => entry.isFile())
-      .map((entry) => entry.name)
-      .sort((a, b) => a.localeCompare(b));
-
-    const policies: HookPoliciesInfo = {
-      preToolUse: listPreToolUsePolicies(),
-    };
-
-    return {
-      uploads,
-      models: MODELS,
-      capabilities: {
-        items: definitions.map(
-          ({
-            id,
-            description,
-          }) => ({
-            id,
-            description,
-          }),
-        ),
-        accessOptions: CapabilityAccessSchema.options,
+    const res = await fetch(
+      "https://api.tavily.com/search",
+      {
+        method: "POST",
+        headers: {
+          Authorization:
+            `Bearer ${apiKey}`,
+          "Content-Type":
+            "application/json",
+        },
+        body: JSON.stringify({
+          query: "bitcoin",
+          max_results: 1,
+        }),
       },
-      policies
-    } as MetadataResponse
-  })
+    );
 
+    console.log({
+      status: res.status,
+      headers: Object.fromEntries(
+        res.headers.entries(),
+      ),
+      body: await res.text(),
+    });
+  })
   .post(
     "/upload",
     async ({ body: { files }, set }) => {

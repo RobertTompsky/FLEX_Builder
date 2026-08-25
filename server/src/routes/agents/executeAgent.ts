@@ -19,7 +19,7 @@ import {
 } from "../../agents/harness/agent";
 import { createHooks } from "../../agents/harness/hooks/createHooks";
 import { createCheckpointer } from "../../agents/store/checkpointer";
-import { getAgentWorkspacePaths } from "../../agents/shared/utils/workspace";
+import { getAgentWorkspacePaths } from "../../agents/shared/utils";
 import { randomUUID } from "crypto";
 import {
     AgentParamsSchema,

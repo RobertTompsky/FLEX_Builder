@@ -106,7 +106,7 @@ async function runSubagent(
 
     const result = await agent(
         {
-            model: MODELS.luna,
+            model: MODELS.terra,
             state,
             capabilities,
             runtime: {

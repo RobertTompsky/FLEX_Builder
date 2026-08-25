@@ -1,5 +1,6 @@
 import {
   reatomComponent,
+  bindField,
 } from "@reatom/react";
 
 import type {
@@ -130,6 +131,13 @@ export const AgentConfigPanel =
       );
     };
 
+    const selectedPreToolUsePolicy =
+      policyOptions.find(
+        (policy) =>
+          policy.id ===
+          preToolUseValue,
+      );
+
     return (
       <aside
         className={styles.bios}
@@ -200,23 +208,10 @@ export const AgentConfigPanel =
 
                 <input
                   id="agent-name"
-                  className={
-                    styles.input
-                  }
+                  className={styles.input}
                   type="text"
-                  value={
-                    nameValue
-                  }
                   placeholder="default"
-                  onChange={(
-                    event,
-                  ) => {
-                    name.change(
-                      event
-                        .currentTarget
-                        .value,
-                    );
-                  }}
+                  {...bindField(name)}
                 />
               </div>
 
@@ -238,43 +233,22 @@ export const AgentConfigPanel =
 
                 <select
                   id="agent-model"
-                  className={
-                    styles.select
-                  }
-                  value={
-                    modelValue
-                  }
-                  disabled={
-                    models.length === 0
-                  }
-                  onChange={(
-                    event,
-                  ) => {
-                    model.change(
-                      event
-                        .currentTarget
-                        .value,
-                    );
-                  }}
+                  className={styles.select}
+                  disabled={models.length === 0}
+                  {...bindField(model)}
                 >
                   <option value="">
                     [Select]
                   </option>
 
-                  {models.map(
-                    (modelName) => (
-                      <option
-                        key={
-                          modelName
-                        }
-                        value={
-                          modelName
-                        }
-                      >
-                        {modelName}
-                      </option>
-                    ),
-                  )}
+                  {models.map((modelName) => (
+                    <option
+                      key={modelName}
+                      value={modelName}
+                    >
+                      {modelName}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -364,26 +338,51 @@ export const AgentConfigPanel =
 
                     return (
                       <div className={styles.capability} key={item.id}>
-                        <button
-                          type="button"
-                          className={[
-                            styles.chip,
-                            selected && styles.active,
-                          ]
-                            .filter(Boolean)
-                            .join(" ")}
-                          onClick={() => {
-                            toggleCapability(item.id);
-                          }}
+                        <div
+                          className={
+                            styles.capabilityInfo
+                          }
                         >
-                          <span
-                            className={styles.chipIndicator}
+                          <button
+                            type="button"
+                            className={[
+                              styles.chip,
+                              selected &&
+                              styles.active,
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                            onClick={() => {
+                              toggleCapability(
+                                item.id,
+                              );
+                            }}
                           >
-                            {selected ? "■" : "□"}
-                          </span>
+                            <span
+                              className={
+                                styles.chipIndicator
+                              }
+                            >
+                              {selected ? "■" : "□"}
+                            </span>
 
-                          {item.id}
-                        </button>
+                            <span
+                              className={
+                                styles.capabilityName
+                              }
+                            >
+                              {item.id}
+                            </span>
+                          </button>
+
+                          {item.description && (
+                            <Tooltip
+                              text={
+                                item.description
+                              }
+                            />
+                          )}
+                        </div>
 
                         <div className={styles.accessOptions}>
                           {accessOptions.map((access) => {
@@ -438,7 +437,23 @@ export const AgentConfigPanel =
                     className={styles.label}
                     htmlFor="agent-pre-tool-use"
                   >
-                    Pre Tool Use
+                    <span
+                      className={
+                        styles.labelContent
+                      }
+                    >
+                      Pre Tool Use
+
+                      {selectedPreToolUsePolicy
+                        ?.description && (
+                          <Tooltip
+                            text={
+                              selectedPreToolUsePolicy
+                                .description
+                            }
+                          />
+                        )}
+                    </span>
                   </label>
 
                   <select
@@ -459,7 +474,7 @@ export const AgentConfigPanel =
                           key={policy.id}
                           value={policy.id}
                         >
-                          {policy.id}
+                          {policy.label}
                         </option>
                       ),
                     )}
@@ -485,25 +500,10 @@ export const AgentConfigPanel =
 
                 <textarea
                   id="agent-prompt"
-                  className={
-                    styles.textarea
-                  }
+                  className={styles.textarea}
                   rows={5}
-                  value={
-                    promptValue
-                  }
-                  placeholder={
-                    "You are a helpful agent."
-                  }
-                  onChange={(
-                    event,
-                  ) => {
-                    prompt.change(
-                      event
-                        .currentTarget
-                        .value,
-                    );
-                  }}
+                  placeholder="You are a helpful agent."
+                  {...bindField(prompt)}
                 />
               </div>
             </div>
@@ -536,3 +536,36 @@ export const AgentConfigPanel =
       </aside>
     );
   });
+
+type TooltipProps = {
+  text: string;
+};
+
+function Tooltip({
+  text,
+}: TooltipProps) {
+  return (
+    <span
+      className={styles.tooltip}
+      tabIndex={0}
+    >
+      <span
+        className={
+          styles.tooltipTrigger
+        }
+        aria-label={text}
+      >
+        ?
+      </span>
+
+      <span
+        className={
+          styles.tooltipContent
+        }
+        role="tooltip"
+      >
+        {text}
+      </span>
+    </span>
+  );
+}

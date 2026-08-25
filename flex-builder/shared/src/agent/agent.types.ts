@@ -3,6 +3,8 @@ import { AgentCheckpointConfigSchema, AgentIdentitySchema } from './agent.schema
 
 export type AgentIdentity = z.infer<typeof AgentIdentitySchema>;
 
+export type AgentCheckpointConfig = z.infer<typeof AgentCheckpointConfigSchema>
+
 export type ActiveRequest = {
     id: string;
     turnsUsed: number;
@@ -18,29 +20,32 @@ export type AgentState<
 };
 
 export type UIAgentState = AgentState<{
-  messages: UIMessage;
+    messages: UIMessage;
 }>;
 
-export type UIAgentCheckpoint = {
-  updatedAt: number;
-  data: {
-    config: AgentCheckpointConfig;
-    state: UIAgentState;
-  };
+export type AgentCheckpoint<
+    TMessage,
+> = {
+    updatedAt: number;
+
+    data: {
+        config:
+        AgentCheckpointConfig;
+
+        state:
+        AgentState<{ messages: TMessage }>;
+    };
 };
 
-export type UISnapshot = {
-  identity: AgentIdentity;
-  checkpoint: UIAgentCheckpoint | null;
-};
+export type UIAgentCheckpoint = AgentCheckpoint<UIMessage>;
+
+// export type UISnapshot = {
+//     identity: AgentIdentity;
+//     checkpoint: UIAgentCheckpoint | null;
+// };
 
 export type AgentListItem = AgentIdentity & {
     updatedAt: number;
-};
-
-export type UpdateAgentInput = {
-    name: string;
-    config: AgentCheckpointConfig;
 };
 
 export type UIMessage = {
@@ -49,11 +54,9 @@ export type UIMessage = {
     status?: "in_progress" | "completed" | "incomplete";
 };
 
-export type AgentCheckpointConfig = z.infer<typeof AgentCheckpointConfigSchema>
-
 export type AgentSnapshot<
-  TCheckpoint = UIAgentCheckpoint,
+    TCheckpoint = UIAgentCheckpoint,
 > = {
-  identity: AgentIdentity;
-  checkpoint: TCheckpoint;
+    identity: AgentIdentity;
+    checkpoint: TCheckpoint;
 };

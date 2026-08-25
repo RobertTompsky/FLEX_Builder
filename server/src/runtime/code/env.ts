@@ -12,6 +12,7 @@ const ENV_WHITELIST = [
     "COMSPEC",
     "TAVILY_API_KEY",
     "OPENAI_API_KEY",
+    "COINMARKETCAP_API_KEY"
 ] as const;
 
 export function createSandboxEnv():

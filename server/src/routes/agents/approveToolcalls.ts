@@ -1,7 +1,7 @@
 import Elysia from "elysia";
 import { AgentStore } from "../../agents/store/store";
 import { createCheckpointer } from "../../agents/store/checkpointer";
-import { getAgentWorkspacePaths } from "../../agents/shared/utils/workspace";
+import { getAgentWorkspacePaths } from "../../agents/shared/utils";
 import { AGENTS_STORE_DIR } from "../../shared/data";
 import { ResponseInputItem } from "openai/resources/responses/responses.js";
 import { ToolCallsBodySchema } from "@flex-builder/shared/agent";

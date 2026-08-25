@@ -57,7 +57,7 @@ export const searchWeb = async ({
             topic: "news",
             search_depth: "basic",
             max_results: 6,
-            days: 1,
+            days: 2,
             include_answer: true,
         }),
     });

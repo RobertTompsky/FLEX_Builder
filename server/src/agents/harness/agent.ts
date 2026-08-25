@@ -24,10 +24,9 @@ import {
     type AgentEvent,
     type AgentSSEMessage,
     type AgentState,
-    toAgentSSEMessage
 } from "@flex-builder/shared/agent";
 import type { AgentCapabilityConfig } from "@flex-builder/shared/capabilities";
-import { getPendingToolCalls } from "../../shared/utils/getPendingTools";
+import { getPendingToolCalls } from "../shared/utils";
 
 export type AgentRuntimeConfig = {
     runId: string;

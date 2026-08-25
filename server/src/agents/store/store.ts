@@ -4,28 +4,25 @@ import { randomUUID } from "crypto";
 import {
   createAgentWorkspace,
   getAgentWorkspacePaths,
-} from "../shared/utils/workspace";
+} from "../shared/utils";
 
 import {
-  AgentCheckpoint,
+  ServerCheckpoint,
   createCheckpointer,
 } from "./checkpointer";
 
-import { 
-  AgentIdentity, 
-  AgentCheckpointConfig, 
-  AgentIdentitySchema, 
-  AgentListItem, 
-  UpdateAgentInput
+import {
+  AgentIdentity,
+  AgentIdentitySchema,
+  AgentListItem,
+  AgentSnapshot,
+  UpdateAgentBody
 } from "@flex-builder/shared/agent";
 
-export type AgentSnapshot = {
-  identity: AgentIdentity;
-  checkpoint: AgentCheckpoint;
-};
+export type ServerSnapshot = AgentSnapshot<ServerCheckpoint>
 
-export const DEFAULT_AGENT_CHECKPOINT_DATA:
-  AgentCheckpoint['data'] = {
+const DEFAULT_AGENT_CHECKPOINT_DATA:
+  ServerCheckpoint['data'] = {
   config: {
     model: "",
     prompt: "",
@@ -41,8 +38,8 @@ export const DEFAULT_AGENT_CHECKPOINT_DATA:
   }
 };
 
-export function createDefaultAgentCheckpoint():
-  AgentCheckpoint["data"] {
+function createDefaultAgentCheckpoint():
+  ServerCheckpoint["data"] {
   return DEFAULT_AGENT_CHECKPOINT_DATA
 }
 
@@ -84,16 +81,14 @@ export function createAgentStore(
       return null;
     }
 
-    const rawIdentity = await fs.readJson(
-      paths.identity,
-    );
+    const rawIdentity = await fs.readJson(paths.identity);
 
     return AgentIdentitySchema.parse(rawIdentity);
   }
 
   async function getSnapshot(
     agentId: string,
-  ): Promise<AgentSnapshot | null> {
+  ): Promise<ServerSnapshot | null> {
     const identity =
       await readIdentity(
         agentId,
@@ -114,8 +109,7 @@ export function createAgentStore(
         workspace.root,
       );
 
-    const checkpoint =
-      await checkpointer.load();
+    const checkpoint = await checkpointer.load();
 
     if (!checkpoint) {
       throw new Error(
@@ -147,7 +141,7 @@ export function createAgentStore(
   }
 
   return {
-    async create(): Promise<AgentSnapshot> {
+    async create(): Promise<ServerSnapshot> {
       await ensureAgentsDir();
 
       const identity = AgentIdentitySchema.parse({
@@ -210,8 +204,8 @@ export function createAgentStore(
 
     async update(
       agentId: string,
-      input: UpdateAgentInput,
-    ): Promise<AgentSnapshot | null> {
+      input: UpdateAgentBody,
+    ): Promise<ServerSnapshot | null> {
       const snapshot = await getSnapshot(agentId,);
 
       if (!snapshot) {
