@@ -155,7 +155,7 @@ export const fetchCrypto = async (
         throw new Error(`CoinPaprika returned no USD quote for ${ticker}`);
     }
 
-    return cryptoOutputSchema.parse({
+    return {
         ticker,
         name,
         quantity,
@@ -178,7 +178,7 @@ export const fetchCrypto = async (
         },
         totalSupply: data.total_supply,
         betaValue: data.beta_value,
-    })
+    }
 }
 
 export const fetchCryptoAction = action({

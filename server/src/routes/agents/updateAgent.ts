@@ -6,7 +6,7 @@ import {
     UpdateAgentBodySchema,
     UpdateAgentResponse
 } from '@flex-builder/shared/agent';
-import { toUIMessages } from '../../agents/shared/utils';
+import { toUIMessages } from '../../agents/shared';
 
 function toUpdateAgentResponse(
     snapshot: ServerSnapshot,

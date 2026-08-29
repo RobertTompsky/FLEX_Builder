@@ -24,25 +24,22 @@ if (!userFile) {
 
 if (!rawRuntimeConfig) {
   throw new Error(
-    "Sandbox runtime config is missing",
+    "Sandbox runtime config is missing in env",
   );
 }
 
-const runtimeConfig =
-  JSON.parse(
-    rawRuntimeConfig,
-  ) as SandboxRuntimeConfig;
+const runtimeConfig = JSON.parse(
+  rawRuntimeConfig,
+) as SandboxRuntimeConfig;
 
-const capabilities =
-  await loadCapabilities(
-    CAPABILITIES_DIR,
-    runtimeConfig.capabilityIds,
-  );
+const capabilities = await loadCapabilities(
+  CAPABILITIES_DIR,
+  runtimeConfig.capabilityIds,
+);
 
-sandboxGlobal.execute =
-  createExecute(
-    capabilities,
-    runtimeConfig.context
-  );
+sandboxGlobal.execute = createExecute(
+  capabilities,
+  runtimeConfig.context
+);
 
 await import(userFile);

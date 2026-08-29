@@ -8,12 +8,13 @@ import path from 'path'
 import fs from 'fs-extra'
 import { action } from "../../../runtime/execute";
 import { MODELS } from "@flex-builder/shared/data";
-import { AgentIdentity, AgentState } from "@flex-builder/shared/agent";
+import { AgentIdentity } from "@flex-builder/shared/agent";
 import { AgentCapabilityConfig, SubagentEvent } from "@flex-builder/shared/capabilities";
 
 export const SUBAGENT_CAPABILITY_IDS = [
     "web",
     "crypto",
+    "browser"
 ] as const;
 
 export type SubagentCapabilityId =
@@ -57,10 +58,9 @@ export const SubagentOutputSchema = z.object({
 });
 
 async function runSubagent(
-    rawInput: z.infer<typeof SubagentInputSchema>,
+    input: z.infer<typeof SubagentInputSchema>,
     context: RuntimeContext,
 ): Promise<z.infer<typeof SubagentOutputSchema>> {
-    const input = SubagentInputSchema.parse(rawInput);
 
     const subagentId = `subagent_${randomUUID()}`;
     const subagentRunId = `run_${randomUUID()}`;
@@ -94,7 +94,7 @@ async function runSubagent(
         },
     ];
 
-    const state: AgentState<{messages: ResponseInputItem }> = {
+    const state = {
         messages,
         activeRequest: {
             id: subagentRequestId,
@@ -114,7 +114,7 @@ async function runSubagent(
                 workspaceRoot,
             },
             opts: {
-                maxTurns: 3,
+                maxTurns: 2,
                 sandboxTimeout: 10,
             },
         },
@@ -153,7 +153,7 @@ async function runSubagent(
 
     const output = getLastAssistantText(result.state.messages);
 
-    return SubagentOutputSchema.parse({ output });
+    return { output };
 }
 
 function getLastAssistantText(

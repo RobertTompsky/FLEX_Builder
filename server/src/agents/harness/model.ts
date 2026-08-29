@@ -13,11 +13,13 @@ import {
     type AgentSSEMessage,
 } from "@flex-builder/shared/agent";
 import { CodeGenSchema } from "@flex-builder/shared/capabilities";
+import { Reasoning } from "openai/resources.js";
 
 export type ModelConfig = {
     model: string;
     messages: ResponseInputItem[];
     tools: FunctionTool[];
+    reasoning?: Reasoning
     signal?: AbortSignal;
 };
 
@@ -31,6 +33,29 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 
+function isFirstTurn(
+    messages: ResponseInputItem[],
+): boolean {
+    const lastUserIndex =
+        messages.findLastIndex(
+            (item) =>
+                item.type === "message" &&
+                item.role === "user",
+        );
+
+    if (lastUserIndex === -1) {
+        return true;
+    }
+
+    return !messages
+        .slice(lastUserIndex + 1)
+        .some(
+            (item) =>
+                item.type === "function_call" ||
+                item.type === "function_call_output",
+        );
+}
+
 export async function model(
     config: ModelConfig,
     identity: AgentIdentity,
@@ -40,6 +65,7 @@ export async function model(
         model,
         messages,
         tools,
+        reasoning,
         signal,
     } = config;
 
@@ -58,6 +84,8 @@ export async function model(
     let turnText = "";
 
     // console.log(config.messages)
+    const firstTurn =
+        isFirstTurn(messages);
 
     const responseStream =
         openai.responses.stream(
@@ -65,9 +93,7 @@ export async function model(
                 model: config.model,
                 input: config.messages,
                 tools,
-                reasoning: {
-                    effort: 'none'
-                }
+                reasoning,
             },
             {
                 signal,

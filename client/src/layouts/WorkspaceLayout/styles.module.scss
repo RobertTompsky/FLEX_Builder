@@ -1,7 +1,7 @@
 .workspace {
   display: grid;
   grid-template-rows:
-    30px
+    24px
     28px
     minmax(0, 1fr)
     28px;
@@ -42,7 +42,7 @@
   justify-content: space-between;
 
   min-width: 0;
-  padding: 3px 4px 3px 7px;
+  padding: 0px 4px 0px 7px;
 
   color: #fff;
 
@@ -61,8 +61,8 @@
 
   min-width: 0;
 
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 500;
   letter-spacing: 0.6px;
 
   span:last-child {
@@ -88,8 +88,8 @@
     display: grid;
     place-items: center;
 
-    width: 22px;
-    height: 22px;
+    width: 16px;
+    height: 16px;
     padding: 0;
 
     font-family:

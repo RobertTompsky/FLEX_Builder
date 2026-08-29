@@ -67,17 +67,8 @@ export const WorkspaceLayout = reatomComponent(() => {
             styles.title
           }
         >
-          <span
-            className={
-              styles.appIcon
-            }
-            aria-hidden="true"
-          >
-            ▣
-          </span>
-
           <span>
-            AGENT WORKSPACE
+            флекс_BUILDER
           </span>
         </div>
 

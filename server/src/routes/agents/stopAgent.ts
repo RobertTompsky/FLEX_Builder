@@ -3,7 +3,7 @@ import type { RunStore } from "../../agents/store/runs";
 import type { AgentStore } from "../../agents/store/store";
 import { streamSSE, createSSEWriter } from "../../sse";
 import { ResponseInputItem } from "openai/resources/responses/responses.js";
-import { getAgentWorkspacePaths, getPendingToolCalls } from "../../agents/shared/utils";
+import { getAgentWorkspacePaths, getPendingToolCalls } from "../../agents/shared";
 import { createCheckpointer } from "../../agents/store/checkpointer";
 import { AGENTS_STORE_DIR } from "../../shared/data";
 import {

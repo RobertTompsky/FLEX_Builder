@@ -1,7 +1,7 @@
 import Elysia from "elysia";
 import { AgentStore } from "../../agents/store/store";
 import { createCheckpointer } from "../../agents/store/checkpointer";
-import { getAgentWorkspacePaths } from "../../agents/shared/utils";
+import { getAgentWorkspacePaths, getPendingToolCalls } from "../../agents/shared";
 import { AGENTS_STORE_DIR } from "../../shared/data";
 import { ResponseInputItem } from "openai/resources/responses/responses.js";
 import { ToolCallsBodySchema } from "@flex-builder/shared/agent";
@@ -57,7 +57,7 @@ export function approveToolCallsRoute(
       const checkpointer = createCheckpointer(workspace.root);
 
       const messages =
-        removeRejectedToolCalls(
+        applyToolCallApproval(
           state.messages,
           approvedToolCallIds,
         );
@@ -81,17 +81,69 @@ export function approveToolCallsRoute(
   );
 }
 
-function removeRejectedToolCalls(
+function applyToolCallApproval(
   history: ResponseInputItem[],
   approvedToolCallIds: string[],
 ): ResponseInputItem[] {
-  const approved = new Set(approvedToolCallIds);
+  const pending =
+    getPendingToolCalls(history);
 
-  return history.filter((item) => {
-    if (item.type !== "function_call") {
-      return true;
+  const pendingIds =
+    new Set(
+      pending.map(
+        (call) => call.call_id,
+      ),
+    );
+
+  for (
+    const callId of
+    approvedToolCallIds
+  ) {
+    if (
+      !pendingIds.has(callId)
+    ) {
+      throw new Error(
+        `Unknown or already resolved tool call: ${callId}`,
+      );
     }
+  }
 
-    return approved.has(item.call_id);
-  });
+  const approved =
+    new Set(
+      approvedToolCallIds,
+    );
+
+  const rejectedOutputs =
+    pending
+      .filter(
+        (call) =>
+          !approved.has(
+            call.call_id,
+          ),
+      )
+      .map(
+        (
+          call,
+        ): ResponseInputItem.FunctionCallOutput => ({
+          type:
+            "function_call_output",
+
+          call_id:
+            call.call_id,
+
+          output:
+            JSON.stringify({
+              ok: false,
+              error:
+                "tool_use_denied",
+              reason:
+                "User rejected tool call.",
+            }),
+        }),
+      );
+
+  return [
+    ...history,
+    ...rejectedOutputs,
+  ];
 }

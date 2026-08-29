@@ -19,7 +19,7 @@ import {
 } from "../../agents/harness/agent";
 import { createHooks } from "../../agents/harness/hooks/createHooks";
 import { createCheckpointer } from "../../agents/store/checkpointer";
-import { getAgentWorkspacePaths } from "../../agents/shared/utils";
+import { getAgentWorkspacePaths } from "../../agents/shared";
 import { randomUUID } from "crypto";
 import {
     AgentParamsSchema,
@@ -227,55 +227,56 @@ export function executeAgentRoute(
 }
 
 function buildRunMessages({
-    history,
-    query,
-    prompt,
-    filesContext,
-    isResume,
+  history,
+  query,
+  prompt,
+  filesContext,
+  isResume,
 }: {
-    history: ResponseInputItem[];
-    query: string | null;
-    prompt: string;
-    filesContext: string;
-    isResume: boolean;
+  history: ResponseInputItem[];
+  query: string | null;
+  prompt: string;
+  filesContext: string;
+  isResume: boolean;
 }): ResponseInputItem[] {
-    const systemContent = [
-        prompt,
+  const systemContent = [
+    prompt,
+    filesContext
+      ? [
+          "Attached files:",
+          filesContext,
+        ].join("\n")
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 
-        filesContext
-            ? [
-                "Attached files:",
-                filesContext,
-            ].join("\n")
-            : "",
-    ]
-        .filter(Boolean)
-        .join("\n\n");
-
-    const systemMessage: ResponseInputItem = {
-        role: "system",
-        content: systemContent,
-        status: "completed",
+  const systemMessage:
+    ResponseInputItem = {
+      role: "system",
+      content: systemContent,
+      status: "completed",
     };
 
-    if (isResume) {
-        return [
-            ...history,
-            systemMessage,
-        ];
-    }
-
-    const userMessage: ResponseInputItem = {
-        role: "user",
-        content: query ?? "",
-        status: "completed",
-    };
-
+  if (isResume) {
     return [
-        ...history,
-        systemMessage,
-        userMessage,
+      systemMessage,
+      ...history,
     ];
+  }
+
+  const userMessage:
+    ResponseInputItem = {
+      role: "user",
+      content: query ?? "",
+      status: "completed",
+    };
+
+  return [
+    systemMessage,
+    ...history,
+    userMessage,
+  ];
 }
 
 async function buildFilesContext(

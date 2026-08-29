@@ -4,7 +4,7 @@ import { randomUUID } from "crypto";
 import {
   createAgentWorkspace,
   getAgentWorkspacePaths,
-} from "../shared/utils";
+} from "../shared";
 
 import {
   ServerCheckpoint,

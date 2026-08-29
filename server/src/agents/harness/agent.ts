@@ -26,7 +26,7 @@ import {
     type AgentState,
 } from "@flex-builder/shared/agent";
 import type { AgentCapabilityConfig } from "@flex-builder/shared/capabilities";
-import { getPendingToolCalls } from "../shared/utils";
+import { getPendingToolCalls } from "../shared";
 
 export type AgentRuntimeConfig = {
     runId: string;
@@ -221,6 +221,9 @@ export async function agent(
                 messages,
                 tools,
                 signal,
+                reasoning: {
+                    effort: "none"
+                },
             },
             identity,
             emit,

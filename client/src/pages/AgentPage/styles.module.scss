@@ -2,7 +2,7 @@
   display: grid;
 
   grid-template-columns:
-    minmax(280px, 340px) minmax(360px, 1fr) minmax(320px, 380px);
+    minmax(280px, 320px) minmax(360px, 1fr) minmax(320px, 380px);
 
   grid-template-rows:
     50px minmax(0, 1fr);
@@ -22,7 +22,6 @@
 
   background: var(--color-window);
 }
-
 
 .header {
   grid-column: 1 / 3;
