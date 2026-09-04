@@ -9,11 +9,14 @@ import {
 } from "./shared/data";
 import path from 'path'
 import { cors } from '@elysia/cors'
-import { createAgentStore } from "./agents/store/store";
-import { agentsRoutes, metadataRoutes } from "./routes";
+import { createWorkspaceStore } from "./agents/store/store";
+import { agentsRoutes, chatRoutes, metadataRoutes } from "./routes";
 import { createRunStore } from "./agents/store/runs";
+import { conversationRepository } from "./db/chats";
+import { agentRepository } from "./db/agents"
+import { capabilityRepository } from "./db/capabilities";
 
-const agentStore = createAgentStore(AGENTS_STORE_DIR);
+const workspaceStore = createWorkspaceStore(AGENTS_STORE_DIR);
 
 const runStore = createRunStore();
 
@@ -29,38 +32,20 @@ const app = new Elysia()
 
   .get("/", () => "Марс вечен")
 
-  .use(agentsRoutes(agentStore, runStore))
+  .use(agentsRoutes({
+    workspaceStore,
+    runStore,
+    agentRepository,
+    capabilityRepository,
+    conversationRepository
+  }))
+
+  .use(chatRoutes({
+    conversationRepository
+  }))
 
   .use(metadataRoutes())
-  .get('/web', async () => {
-    const apiKey =
-      process.env.TAVILY_API_KEY?.trim();
 
-    const res = await fetch(
-      "https://api.tavily.com/search",
-      {
-        method: "POST",
-        headers: {
-          Authorization:
-            `Bearer ${apiKey}`,
-          "Content-Type":
-            "application/json",
-        },
-        body: JSON.stringify({
-          query: "bitcoin",
-          max_results: 1,
-        }),
-      },
-    );
-
-    console.log({
-      status: res.status,
-      headers: Object.fromEntries(
-        res.headers.entries(),
-      ),
-      body: await res.text(),
-    });
-  })
   .post(
     "/upload",
     async ({ body: { files }, set }) => {

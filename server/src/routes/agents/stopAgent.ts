@@ -1,20 +1,21 @@
 import Elysia from "elysia";
-import type { RunStore } from "../../agents/store/runs";
-import type { AgentStore } from "../../agents/store/store";
-import { streamSSE, createSSEWriter } from "../../sse";
-import { ResponseInputItem } from "openai/resources/responses/responses.js";
-import { getAgentWorkspacePaths, getPendingToolCalls } from "../../agents/shared";
-import { createCheckpointer } from "../../agents/store/checkpointer";
-import { AGENTS_STORE_DIR } from "../../shared/data";
+
 import {
-  type AgentIdentity,
   AgentRunParamsSchema,
-  type AgentSSEMessage
+  type AgentSSEMessage,
+  type AgentIdentity,
 } from "@flex-builder/shared/agent";
 
+import {
+  streamSSE,
+  createSSEWriter,
+} from "../../sse";
+import { RouteDeps } from "../types";
+
+type StopAgentRouteDeps = Pick<RouteDeps, 'runStore' | "agentRepository">
+
 export function stopAgentRoute(
-  agentStore: AgentStore,
-  runStore: RunStore,
+  deps: StopAgentRouteDeps,
 ) {
   return new Elysia().post(
     "/:agentId/runs/:runId/stop",
@@ -25,104 +26,34 @@ export function stopAgentRoute(
       },
       set,
     }) => {
-      const snapshot = await agentStore.get(agentId);
+      const agent = await deps.agentRepository.get(agentId);
 
-      if (!snapshot) {
+      if (!agent) {
         set.status = 404;
 
         return {
           ok: false,
-          error:
-            "Agent not found",
+          error: "Agent not found",
         };
       }
 
-      const {
-        config,
-        state,
-      } = snapshot.checkpoint.data;
+      const controller = deps.runStore.get(agentId, runId);
 
-      const controller = runStore.get(
-        agentId,
-        runId,
-      );
+      if (!controller) {
+        set.status = 409;
 
-      /*
-       * Новый request мог ещё не попасть
-       * в checkpoint. Тогда старый checkpoint
-       * уже является нужным устойчивым состоянием.
-       *
-       * При resume activeRequest уже сохранён,
-       * поэтому его необходимо очистить.
-       */
-      if (controller) {
-        controller.abort();
-
-        if (state.activeRequest) {
-          const workspace = getAgentWorkspacePaths(
-            AGENTS_STORE_DIR,
-            agentId,
-          );
-
-          const checkpointer = createCheckpointer(
-            workspace.root,
-          );
-
-          await checkpointer.save({
-            config,
-            state: {
-              messages:
-                removeActiveRequestFromHistory(
-                  state.messages,
-                ),
-              activeRequest: null,
-            },
-          });
-        }
-
-        return sendStopEvent({
-          identity: snapshot.identity,
-          reason: "live_abort",
-        });
+        return {
+          ok: false,
+          error: "Nothing to stop",
+        };
       }
 
-      const pendingTools = getPendingToolCalls(state.messages);
+      controller.abort();
 
-      /*
-       * Paused request уже записан
-       * в checkpoint.
-       */
-      if (
-        state.activeRequest &&
-        pendingTools.length > 0
-      ) {
-        const workspace = getAgentWorkspacePaths(
-          AGENTS_STORE_DIR,
-          agentId,
-        );
-
-        const checkpointer = createCheckpointer(workspace.root);
-
-        await checkpointer.save({
-          config,
-          state: {
-            messages: removeActiveRequestFromHistory(state.messages),
-            activeRequest: null,
-          },
-        });
-
-        return sendStopEvent({
-          identity: snapshot.identity,
-          reason: "paused_cleanup",
-        });
-      }
-
-      set.status = 409;
-
-      return {
-        ok: false,
-        error: "Nothing to stop",
-      };
+      return sendStopEvent({
+        identity: agent.identity,
+        reason: "live_abort",
+      });
     },
     {
       params: AgentRunParamsSchema,
@@ -135,59 +66,19 @@ function sendStopEvent({
   reason,
 }: {
   identity: AgentIdentity;
-  reason:
-  | "live_abort"
-  | "paused_cleanup";
+  reason: "live_abort";
 }) {
   return streamSSE(async (sse) => {
     const writeAgentSSE = createSSEWriter<AgentSSEMessage>(sse);
 
     await writeAgentSSE({
-      event: 'stop',
+      event: "stop",
       data: {
         agent: identity,
-        data: { reason }
-      }
+        data: {
+          reason,
+        },
+      },
     });
   });
-}
-
-function removeActiveRequestFromHistory(
-  history: ResponseInputItem[],
-): ResponseInputItem[] {
-  let userMessageIndex = -1;
-
-  for (
-    let index = history.length - 1;
-    index >= 0;
-    index--
-  ) {
-    const item = history[index];
-
-    if (
-      "role" in item &&
-      item.role === "user"
-    ) {
-      userMessageIndex = index;
-      break;
-    }
-  }
-
-  if (userMessageIndex === -1) {
-    return history;
-  }
-
-  let requestStart = userMessageIndex;
-
-  const previousItem = history[userMessageIndex - 1];
-
-  if (
-    previousItem &&
-    "role" in previousItem &&
-    previousItem.role === "system"
-  ) {
-    requestStart--;
-  }
-
-  return history.slice(0, requestStart);
 }

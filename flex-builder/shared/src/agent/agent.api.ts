@@ -1,8 +1,10 @@
 import { z } from 'zod'
-import { AgentCheckpointConfigSchema } from './agent.schemas';
-import { CapabilityAccess } from '../capabilities/capabilities.types';
+import { AgentConfigSchema, AgentIdentitySchema } from './agent.schemas';
+import { AgentCapabilityConfig, CapabilityAccess } from '../capabilities/capabilities.types';
 import { HookPoliciesInfo } from '../hooks/hooks.types';
-import { AgentSnapshot, UIAgentCheckpoint } from './agent.types';
+import { Agent, AgentSnapshot, UIAgentSnapshot, UIMessage } from './agent.types';
+import { AgentCapabilityConfigSchema } from '../capabilities/cababilities.schemas';
+import { Chat, ChatParamsSchema } from '../chat';
 
 export const AgentParamsSchema = z.object({
     agentId: z.string().min(1),
@@ -34,8 +36,43 @@ export const ToolCallsBodySchema = z.object({
 
 export type ToolCallsBody = z.infer<typeof ToolCallsBodySchema>
 
+export const ExecuteAgentParamsSchema = AgentParamsSchema.extend(ChatParamsSchema.shape)
+
 export const ExecuteAgentBodySchema =
-    AgentCheckpointConfigSchema.extend({
+    AgentConfigSchema.extend({
+        capabilities: z
+            .array(AgentCapabilityConfigSchema)
+            .superRefine(
+                (
+                    capabilities,
+                    context,
+                ) => {
+                    const seen = new Set<string>();
+
+                    for (
+                        const [
+                            index,
+                            capability,
+                        ]
+                        of capabilities.entries()
+                    ) {
+                        if (seen.has(capability.id,)) {
+                            context.addIssue({
+                                code: "custom",
+                                path: [
+                                    index,
+                                    "id",
+                                ],
+                                message: `Duplicate capability id "${capability.id}"`,
+                            });
+
+                            continue;
+                        }
+
+                        seen.add(capability.id,);
+                    }
+                },
+            ),
         query: z.string().nullable(),
         files: z.array(z.string()).optional(),
     });
@@ -43,13 +80,13 @@ export const ExecuteAgentBodySchema =
 export type ExecuteAgentBody = z.infer<typeof ExecuteAgentBodySchema>
 
 export const UpdateAgentBodySchema = z.object({
-    name: z
-        .string()
-        .min(1),
-    config: AgentCheckpointConfigSchema,
+    name: AgentIdentitySchema.shape.name,
+    config: AgentConfigSchema,
+    capabilities: z.array(AgentCapabilityConfigSchema)
 });
 
-export type UpdateAgentBody = z.infer<typeof UpdateAgentBodySchema>
+export type UpdateAgentBody =
+    z.infer<typeof UpdateAgentBodySchema>;
 
 export type MetadataResponse = {
     uploads: string[];
@@ -72,12 +109,9 @@ export type MetadataResponse = {
     policies: HookPoliciesInfo;
 };
 
-export type GetAgentResponse =
-    AgentSnapshot<
-        UIAgentCheckpoint | null
-    >;
+export type GetAgentResponse = Agent & {
+    capabilities: AgentCapabilityConfig[]
+    chats: Chat[];
+};;
 
-export type UpdateAgentResponse =
-    AgentSnapshot<
-        UIAgentCheckpoint
-    >;
+export type UpdateAgentResponse = Omit<GetAgentResponse, 'chats'>;

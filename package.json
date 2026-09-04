@@ -9,5 +9,8 @@
     "dev:client": "bun --cwd client vite",
     "dev:server": "bun --watch server/src/index.ts",
     "dev": "bun run --parallel dev:client dev:server"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
   }
 }

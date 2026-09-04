@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+export const CapabilityAccessValues = [
+  "execute",
+  "orchestrate",
+  "both",
+] as const;
+
 export const CodeGenSchema = z.object({
     code: z.string()
         .min(1)
@@ -7,11 +13,7 @@ export const CodeGenSchema = z.object({
 })
 
 export const CapabilityAccessSchema =
-    z.enum([
-        "execute",
-        "delegate",
-        "both",
-    ]);
+    z.enum(CapabilityAccessValues);
 
 export const AgentCapabilityConfigSchema =
     z.object({

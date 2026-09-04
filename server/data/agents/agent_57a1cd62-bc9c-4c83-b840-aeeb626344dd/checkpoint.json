@@ -1,0 +1,18 @@
+{
+  "updatedAt": 1788265788556,
+  "data": {
+    "config": {
+      "model": "",
+      "prompt": "",
+      "maxTurns": 3,
+      "capabilities": [],
+      "policies": {
+        "preToolUse": "allow"
+      }
+    },
+    "state": {
+      "messages": [],
+      "activeRequest": null
+    }
+  }
+}

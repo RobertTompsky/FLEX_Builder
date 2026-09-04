@@ -1,70 +1,68 @@
-import type { AgentStore, ServerSnapshot } from '../../agents/store/store';
-import Elysia from 'elysia';
+import { Elysia } from "elysia";
+
 import {
     AgentParamsSchema,
-    UIMessage,
+    GetAgentResponse,
     UpdateAgentBodySchema,
-    UpdateAgentResponse
-} from '@flex-builder/shared/agent';
-import { toUIMessages } from '../../agents/shared';
+    UpdateAgentResponse,
+} from "@flex-builder/shared/agent";
 
-function toUpdateAgentResponse(
-    snapshot: ServerSnapshot,
-): UpdateAgentResponse {
-    return {
-        identity: snapshot.identity,
-        checkpoint: {
-            updatedAt:
-                snapshot.checkpoint.updatedAt,
+import {
+    AgentRepository,
+} from "../../db/agents/repository";
 
-            data: {
-                config:
-                    snapshot.checkpoint.data.config,
+import {
+    CapabilityRepository,
+} from "../../db/capabilities";
 
-                state: {
-                    ...snapshot.checkpoint.data.state,
-
-                    messages: toUIMessages(
-                        snapshot.checkpoint
-                            .data.state.messages,
-                    ),
-                },
-            },
-        },
-    };
-}
+type UpdateAgentRouteDeps = {
+    agentRepository: AgentRepository;
+    capabilityRepository: CapabilityRepository;
+};
 
 export function updateAgentRoute(
-    store: AgentStore,
+    deps: UpdateAgentRouteDeps,
 ) {
     return new Elysia().patch(
         "/:agentId",
         async ({
-            params: {
-                agentId,
-            },
+            params: { agentId },
             body,
             set,
         }) => {
-            const result = await store.update(
-                agentId,
-                body,
-            );
+            const {
+                agentRepository,
+                capabilityRepository,
+            } = deps;
 
-            if (!result) {
+            const agent = await agentRepository.get(agentId);
+
+            if (!agent) {
                 set.status = 404;
 
                 return {
+                    ok: false,
                     error: "Agent not found",
                 };
             }
 
-            return toUpdateAgentResponse(result);
+            const updated = await agentRepository.update(
+                agentId,
+                {
+                    ...body.config,
+                },
+            );
+
+            await capabilityRepository.setForAgent(agentId, body.capabilities);
+
+            return {
+                ...updated!,
+                capabilities: await capabilityRepository.getByAgentId(agentId),
+            } satisfies UpdateAgentResponse
         },
         {
             body: UpdateAgentBodySchema,
             params: AgentParamsSchema,
         },
-
     );
 }

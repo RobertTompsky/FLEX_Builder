@@ -1,30 +1,65 @@
 import { Elysia } from "elysia";
+import { randomUUID } from "crypto";
+import { Agent, AgentListItem } from "@flex-builder/shared/agent";
+import { RouteDeps } from "../types";
 
-import type {
-  AgentStore,
-} from "../../agents/store/store";
-import { AgentListItem } from "@flex-builder/shared/agent";
+export type CreateAgentRouteDeps = Pick<
+  RouteDeps,
+  "workspaceStore" | "agentRepository"
+>;
 
 export function createAgentRoute(
-  store: AgentStore,
+  deps: CreateAgentRouteDeps,
 ) {
   return new Elysia().post(
     "/",
     async ({ set }) => {
-      //временно, потом дефолтное имя будет создаваться вместе с начальным чекпоинтом
-      const snapshot = await store.create();
+      const {
+        workspaceStore,
+        agentRepository,
+      } = deps;
+
+      const now = Date.now();
+
+      const agent: Agent = {
+        identity: {
+          id: `agent_${randomUUID()}`,
+          name: "New Agent",
+        },
+        config: {
+          model: "",
+          prompt: "",
+          maxTurns: 3,
+          policies: {
+            preToolUse: "allow",
+          },
+        },
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      agentRepository.create(agent);
+
+      try {
+        await workspaceStore.create(
+          agent.identity.id,
+        );
+      } catch (error) {
+        agentRepository.delete(
+          agent.identity.id,
+        );
+
+        throw error;
+      }
 
       set.status = 201;
 
       const listItem: AgentListItem = {
-        ...snapshot.identity,
-        updatedAt: snapshot.checkpoint.updatedAt,
+        ...agent.identity,
+        updatedAt: agent.updatedAt,
       };
 
       return listItem;
     },
-    // {
-    //   body: CreateAgentBodySchema,
-    // },
   );
 }

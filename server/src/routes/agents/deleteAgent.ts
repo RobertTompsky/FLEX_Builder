@@ -1,12 +1,17 @@
 import { Elysia } from "elysia";
 
-import type {
-  AgentStore,
-} from "../../agents/store/store";
-import { AgentParamsSchema } from "@flex-builder/shared/agent";
+import {
+  AgentParamsSchema,
+} from "@flex-builder/shared/agent";
+import { RouteDeps } from "../types";
+
+type DeleteAgentRouteDeps = Pick<
+  RouteDeps,
+  "workspaceStore" | "agentRepository"
+>
 
 export function deleteAgentRoute(
-  store: AgentStore,
+  deps: DeleteAgentRouteDeps,
 ) {
   return new Elysia().delete(
     "/:agentId",
@@ -14,9 +19,15 @@ export function deleteAgentRoute(
       params: { agentId },
       set,
     }) => {
-      const deleted = await store.delete(agentId);
+      const {
+        agentRepository,
+        workspaceStore,
+      } = deps;
 
-      if (!deleted) {
+      const agent =
+        await agentRepository.get(agentId);
+
+      if (!agent) {
         set.status = 404;
 
         return {
@@ -24,6 +35,10 @@ export function deleteAgentRoute(
           error: "Agent not found",
         };
       }
+
+      await workspaceStore.delete(agentId);
+
+      await agentRepository.delete(agentId);
 
       return {
         ok: true,

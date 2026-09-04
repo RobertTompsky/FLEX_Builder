@@ -1,48 +1,17 @@
 import z from 'zod'
-import { AgentCheckpointConfigSchema, AgentIdentitySchema } from './agent.schemas';
+import { AgentConfigSchema, AgentIdentitySchema } from './agent.schemas';
+import { AgentCapabilityConfig } from '../capabilities';
 
 export type AgentIdentity = z.infer<typeof AgentIdentitySchema>;
 
-export type AgentCheckpointConfig = z.infer<typeof AgentCheckpointConfigSchema>
+export type AgentConfig = z.infer<typeof AgentConfigSchema>
 
-export type ActiveRequest = {
-    id: string;
-    turnsUsed: number;
-};
-
-export type AgentState<
-    TState extends {
-        messages: unknown;
-    },
-> = {
-    messages: TState["messages"][];
-    activeRequest: ActiveRequest | null;
-};
-
-export type UIAgentState = AgentState<{
-    messages: UIMessage;
-}>;
-
-export type AgentCheckpoint<
-    TMessage,
-> = {
+export type Agent = {
+    identity: AgentIdentity;
+    config: AgentConfig;
+    createdAt: number;
     updatedAt: number;
-
-    data: {
-        config:
-        AgentCheckpointConfig;
-
-        state:
-        AgentState<{ messages: TMessage }>;
-    };
 };
-
-export type UIAgentCheckpoint = AgentCheckpoint<UIMessage>;
-
-// export type UISnapshot = {
-//     identity: AgentIdentity;
-//     checkpoint: UIAgentCheckpoint | null;
-// };
 
 export type AgentListItem = AgentIdentity & {
     updatedAt: number;
@@ -55,8 +24,10 @@ export type UIMessage = {
 };
 
 export type AgentSnapshot<
-    TCheckpoint = UIAgentCheckpoint,
-> = {
-    identity: AgentIdentity;
-    checkpoint: TCheckpoint;
+    TMessage = UIMessage,
+> = Agent & {
+    capabilities: AgentCapabilityConfig[]
+    chats: TMessage[];
 };
+
+export type UIAgentSnapshot = AgentSnapshot<UIMessage>;

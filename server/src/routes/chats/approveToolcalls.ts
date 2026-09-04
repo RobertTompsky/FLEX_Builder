@@ -1,46 +1,54 @@
 import Elysia from "elysia";
-import { AgentStore } from "../../agents/store/store";
-import { createCheckpointer } from "../../agents/store/checkpointer";
-import { getAgentWorkspacePaths, getPendingToolCalls } from "../../agents/shared";
-import { AGENTS_STORE_DIR } from "../../shared/data";
-import { ResponseInputItem } from "openai/resources/responses/responses.js";
-import { ToolCallsBodySchema } from "@flex-builder/shared/agent";
+
+import type {
+  ResponseInputItem,
+} from "openai/resources/responses/responses.js";
+
+import {
+  getPendingToolCalls,
+} from "../../agents/shared";
+
+import {
+  ExecuteAgentParamsSchema,
+  ToolCallsBodySchema,
+} from "@flex-builder/shared/agent";
+
+
+import { ChatParamsSchema } from "@flex-builder/shared/chat";
+import { RouteDeps } from "../types";
+
+type ApproveToolCallsRouteDeps = Pick<RouteDeps, 'chatRepository'>
 
 export function approveToolCallsRoute(
-  agentStore: AgentStore,
+  deps: ApproveToolCallsRouteDeps,
 ) {
   return new Elysia().post(
-    "/:agentId/requests/:requestId/tool-calls/approve",
+    "/chats/:chatId/tool-calls/approve",
     async ({
       params: {
-        agentId,
-        requestId,
+        chatId,
       },
       body: {
         approvedToolCallIds,
       },
       set,
     }) => {
-      const snapshot = await agentStore.get(agentId);
+      const conversation = await deps.chatRepository.get(chatId);
 
-      if (!snapshot) {
+      if (!conversation) {
         set.status = 404;
 
         return {
           ok: false,
-          error: "Agent not found",
+          error: "Conversation not found",
         };
       }
 
-      const {
-        config,
-        state,
-      } = snapshot.checkpoint.data;
+      const history = await deps.chatRepository.getItems(chatId);
 
-      if (
-        !state.activeRequest ||
-        state.activeRequest.id !== requestId
-      ) {
+      const pending = getPendingToolCalls(history);
+
+      if (pending.length === 0) {
         set.status = 409;
 
         return {
@@ -49,26 +57,10 @@ export function approveToolCallsRoute(
         };
       }
 
-      const workspace = getAgentWorkspacePaths(
-        AGENTS_STORE_DIR,
-        agentId,
+      const messages = applyToolCallApproval(history, approvedToolCallIds,);
+
+      await deps.chatRepository.appendItems(chatId, messages.slice(history.length)
       );
-
-      const checkpointer = createCheckpointer(workspace.root);
-
-      const messages =
-        applyToolCallApproval(
-          state.messages,
-          approvedToolCallIds,
-        );
-
-      await checkpointer.save({
-        config,
-        state: {
-          ...state,
-          messages,
-        },
-      });
 
       return {
         ok: true,
@@ -77,6 +69,7 @@ export function approveToolCallsRoute(
     },
     {
       body: ToolCallsBodySchema,
+      params: ChatParamsSchema,
     },
   );
 }

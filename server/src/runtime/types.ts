@@ -1,19 +1,15 @@
-export type AgentRuntimeContext = {
-    agentId: string;
-    runId: string;
-    requestId: string;
-    workspaceRoot: string;
-};
+import { AgentRunParamsSchema } from '@flex-builder/shared/agent';
+import z from 'zod'
 
-export type RuntimeContext = {
-    agentId: string;
-    runId: string;
-    requestId: string;
+export type AgentRuntimeContext = z.infer<typeof AgentRunParamsSchema> & {
     workspaceRoot: string;
+}
+
+export type RuntimeContext = AgentRuntimeContext & {
     toolCallId: string;
-};
+}
 
 export type SandboxRuntimeConfig = {
-  capabilityIds: string[];
-  context: RuntimeContext
+    capabilityIds: string[];
+    context: RuntimeContext
 };

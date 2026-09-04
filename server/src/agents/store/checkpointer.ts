@@ -4,10 +4,16 @@ import type {
 import fs from "fs-extra";
 import path from "path";
 import type {
-  AgentCheckpoint
+  AgentConfig
 } from "@flex-builder/shared/agent";
 
-export type ServerCheckpoint = AgentCheckpoint<ResponseInputItem>
+export type ServerCheckpoint = {
+  updatedAt: number;
+  data: {
+    config: AgentConfig;
+    messages: ResponseInputItem[];
+  };
+};
 
 export type Checkpointer = {
   save(data: ServerCheckpoint["data"]): Promise<ServerCheckpoint>;
@@ -15,7 +21,9 @@ export type Checkpointer = {
   clear(): Promise<void>;
 };
 
-export function createCheckpointer(agentDir: string): Checkpointer {
+export function createCheckpointer(
+  agentDir: string,
+): Checkpointer {
   const checkpointPath = path.join(
     agentDir,
     "checkpoint.json",
@@ -27,10 +35,7 @@ export function createCheckpointer(agentDir: string): Checkpointer {
     }
 
     try {
-      const checkpoint = await fs
-        .readJson(checkpointPath) as ServerCheckpoint;
-
-      return checkpoint;
+      return await fs.readJson(checkpointPath) as ServerCheckpoint;
     } catch {
       return null;
     }
@@ -48,9 +53,7 @@ export function createCheckpointer(agentDir: string): Checkpointer {
       await fs.writeJson(
         checkpointPath,
         checkpoint,
-        {
-          spaces: 2,
-        },
+        { spaces: 2 },
       );
 
       return checkpoint;

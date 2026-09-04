@@ -6,10 +6,11 @@
   "exports": {
     "./agent": "./src/agent/index.ts",
     "./capabilities": "./src/capabilities/index.ts",
+    "./chat": "./src/chat/index.ts",
     "./hooks": "./src/hooks/index.ts",
     "./data": "./src/data/index.ts"
   },
   "dependencies": {
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   }
 }

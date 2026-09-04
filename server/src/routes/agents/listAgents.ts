@@ -1,16 +1,15 @@
 import { Elysia } from "elysia";
+import { RouteDeps } from "../types";
 
-import type {
-  AgentStore,
-} from "../../agents/store/store";
+type ListAgentsRouteDeps = Pick<RouteDeps, "agentRepository">
 
 export function listAgentsRoute(
-  store: AgentStore,
+  deps: ListAgentsRouteDeps
 ) {
   return new Elysia().get(
     "/",
     async () => {
-      return store.list();
+      return await deps.agentRepository.list();
     },
   );
 }

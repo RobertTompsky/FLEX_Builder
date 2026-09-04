@@ -1,17 +1,19 @@
 import { Elysia } from "elysia";
-import type {
-  AgentStore,
-} from "../../agents/store/store";
-import { toUIMessages} from "../../agents/shared";
-import { AgentIdentity, AgentParamsSchema, UIAgentCheckpoint } from "@flex-builder/shared/agent";
 
-export type AgentUISnapshot = {
-  identity: AgentIdentity;
-  checkpoint: UIAgentCheckpoint;
-};
+import {
+  AgentParamsSchema,
+  GetAgentResponse,
+} from "@flex-builder/shared/agent";
+
+import { RouteDeps } from "../types";
+
+type GetAgentRouteDeps = Pick<
+  RouteDeps,
+  'agentRepository' | 'capabilityRepository' | 'chatRepository'
+>
 
 export function getAgentRoute(
-  store: AgentStore,
+  deps: GetAgentRouteDeps,
 ) {
   return new Elysia().get(
     "/:agentId",
@@ -19,9 +21,15 @@ export function getAgentRoute(
       params: { agentId },
       set,
     }) => {
-      const snapshot = await store.get(agentId);
+      const {
+        agentRepository,
+        capabilityRepository,
+        chatRepository,
+      } = deps;
 
-      if (!snapshot) {
+      const agent = await agentRepository.get(agentId);
+      console.log(agent)
+      if (!agent) {
         set.status = 404;
 
         return {
@@ -30,36 +38,15 @@ export function getAgentRoute(
         };
       }
 
-      const result: AgentUISnapshot = {
-        identity:
-          snapshot.identity,
+      const capabilities = await capabilityRepository.getByAgentId(agentId);
 
-        checkpoint: {
-          ...snapshot.checkpoint,
+      const chats = await chatRepository.listChatsByAgentId(agentId,);
 
-          data: {
-            ...snapshot.checkpoint.data,
-
-            state: {
-              ...snapshot
-                .checkpoint
-                .data
-                .state,
-
-              messages:
-                toUIMessages(
-                  snapshot
-                    .checkpoint
-                    .data
-                    .state
-                    .messages,
-                ),
-            },
-          },
-        },
-      };
-
-      return result;
+      return {
+        ...agent,
+        capabilities,
+        chats,
+      } satisfies GetAgentResponse;
     },
     {
       params: AgentParamsSchema,

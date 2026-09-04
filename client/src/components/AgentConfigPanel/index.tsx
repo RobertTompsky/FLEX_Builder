@@ -20,7 +20,7 @@ type AgentConfigPanelProps = {
 
 const ACCESS_LABELS = {
   execute: "EXEC",
-  delegate: "DEL",
+  orchestrate: "ORC",
   both: "BOTH",
 } as const;
 
@@ -40,10 +40,7 @@ export const AgentConfigPanel =
       policies,
     } = agent.configForm.fields;
 
-    const nameValue = name();
-    const modelValue = model();
     const maxTurnsValue = maxTurns();
-    const promptValue = prompt();
     const capabilitiesValue = capabilities();
     const preToolUseValue = policies.preToolUse();
 

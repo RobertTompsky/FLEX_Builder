@@ -23,7 +23,6 @@ import {
     type AgentIdentity,
     type AgentEvent,
     type AgentSSEMessage,
-    type AgentState,
 } from "@flex-builder/shared/agent";
 import type { AgentCapabilityConfig } from "@flex-builder/shared/capabilities";
 import { getPendingToolCalls } from "../shared";
@@ -35,9 +34,9 @@ export type AgentRuntimeConfig = {
 
 export type AgentRunConfig = {
     model: Model;
-    state: AgentState<{ messages: ResponseInputItem }>;
+    messages: ResponseInputItem[];
     capabilities: AgentCapabilityConfig[];
-    runtime: AgentRuntimeConfig;
+    runtime: AgentRuntimeContext;
     hooks?: AgentHooks;
     opts?: {
         maxTurns?: number;
@@ -53,7 +52,7 @@ export type AgentRunStatus =
 
 export type AgentRunResult = {
     status: AgentRunStatus;
-    state: AgentState<{ messages: ResponseInputItem }>;
+    messages: ResponseInputItem[];
 };
 
 export async function agent(
@@ -62,7 +61,6 @@ export async function agent(
     emit?: Emit<AgentSSEMessage>,
 ): Promise<AgentRunResult> {
     const {
-        state,
         capabilities,
         runtime,
         hooks,
@@ -72,23 +70,9 @@ export async function agent(
     const maxTurns = opts?.maxTurns ?? 3;
     const sandboxTimeout = opts?.sandboxTimeout ?? 10;
     const signal = opts?.signal;
-    const messages = [...state.messages];
-    const activeRequest = state.activeRequest;
+    const messages = [...config.messages];
 
-    if (!activeRequest) {
-        throw new Error(
-            "Agent cannot run without an active request",
-        );
-    }
-
-    const agentContext: AgentRuntimeContext = {
-        agentId: identity.id,
-        runId: config.runtime.runId,
-        requestId: activeRequest.id,
-        workspaceRoot: config.runtime.workspaceRoot,
-    };
-
-    let turnsUsed = activeRequest.turnsUsed;
+    let turnsUsed = countAgentTurns(messages);
 
     let pendingToolCalls = getPendingToolCalls(messages);
 
@@ -145,7 +129,7 @@ export async function agent(
                 {
                     toolCalls: pendingToolCalls,
                     capabilityIds: executableCapabilityIds,
-                    context: agentContext,
+                    context: runtime,
                     sandboxTimeout,
                     signal,
                 },
@@ -206,10 +190,7 @@ export async function agent(
 
             return {
                 status: "turn_limit",
-                state: {
-                    messages,
-                    activeRequest: null,
-                },
+                messages
             };
         }
 
@@ -245,10 +226,7 @@ export async function agent(
 
             return {
                 status: "completed",
-                state: {
-                    messages,
-                    activeRequest: null,
-                },
+                messages
             };
         }
 
@@ -289,13 +267,7 @@ export async function agent(
                  */
                 return {
                     status: "awaiting_tool_approval",
-                    state: {
-                        messages,
-                        activeRequest: {
-                            ...activeRequest,
-                            turnsUsed,
-                        },
-                    },
+                    messages
                 };
             }
 
@@ -332,6 +304,39 @@ export async function agent(
             }
         }
     }
+}
+
+function countAgentTurns(
+    messages: ResponseInputItem[],
+): number {
+    let turns = 0;
+    let previousWasToolCall = false;
+
+    for (const item of messages) {
+        if (
+            item.type === "message" &&
+            item.role === "assistant"
+        ) {
+            turns++;
+            previousWasToolCall = false;
+            continue;
+        }
+
+        if (item.type === "function_call") {
+            // Несколько function_call подряд принадлежат
+            // одному model turn.
+            if (!previousWasToolCall) {
+                turns++;
+            }
+
+            previousWasToolCall = true;
+            continue;
+        }
+
+        previousWasToolCall = false;
+    }
+
+    return turns;
 }
 
 function throwIfAborted(

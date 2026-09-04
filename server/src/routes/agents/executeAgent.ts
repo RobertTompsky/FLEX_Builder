@@ -1,42 +1,67 @@
 import Elysia from "elysia";
 import path from "path";
 import fs from "fs-extra";
-import type { ResponseInputItem, } from "openai/resources/responses/responses.js";
-import type { RunStore, } from "../../agents/store/runs";
-import type { AgentStore, } from "../../agents/store/store";
+import { randomUUID } from "crypto";
+
+import type {
+    ResponseInputItem,
+} from "openai/resources/responses/responses.js";
+
+import type {
+    RunStore,
+} from "../../agents/store/runs";
+
+import {
+    createSSEWriter,
+    streamSSE,
+} from "../../sse";
+
+import {
+    agent,
+    type AgentRunConfig,
+} from "../../agents/harness/agent";
+
+import {
+    createHooks,
+} from "../../agents/harness/hooks/createHooks";
+
+import {
+    getAgentWorkspacePaths,
+    getPendingToolCalls,
+} from "../../agents/shared";
+
 import {
     AGENTS_STORE_DIR,
     Model,
     UPLOADS_DIR,
 } from "../../shared/data";
+
 import {
-    createSSEWriter,
-    streamSSE,
-} from "../../sse";
-import {
-    agent,
-    type AgentRunConfig
-} from "../../agents/harness/agent";
-import { createHooks } from "../../agents/harness/hooks/createHooks";
-import { createCheckpointer } from "../../agents/store/checkpointer";
-import { getAgentWorkspacePaths } from "../../agents/shared";
-import { randomUUID } from "crypto";
-import {
-    AgentParamsSchema,
     AgentSSEMessage,
     ExecuteAgentBodySchema,
+    ExecuteAgentParamsSchema,
 } from "@flex-builder/shared/agent";
 
+import {
+    AgentRepository,
+} from "../../db/agents/repository";
+
+import {
+    CapabilityRepository,
+} from "../../db/capabilities";
+import { RouteDeps } from "../types";
+
+type ExecuteAgentRouteDeps = Pick<RouteDeps, 'agentRepository' | 'capabilityRepository' | 'chatRepository' | 'runStore'>
 export function executeAgentRoute(
-    agentStore: AgentStore,
-    runStore: RunStore,
+    deps: ExecuteAgentRouteDeps,
 ) {
     return new Elysia().post(
-        "/:agentId/runs",
+        "/:agentId/conversations/:conversationId",
         async ({
             body,
             params: {
                 agentId,
+                chatId,
             },
             request,
             set,
@@ -44,12 +69,12 @@ export function executeAgentRoute(
             const {
                 query,
                 files,
-                ...checkpointConfig
+                ...requestConfig
             } = body;
 
-            const snapshot = await agentStore.get(agentId);
+            const agentRecord = await deps.agentRepository.get(agentId);
 
-            if (!snapshot) {
+            if (!agentRecord) {
                 set.status = 404;
 
                 return {
@@ -58,99 +83,18 @@ export function executeAgentRoute(
                 };
             }
 
-            const {
-                state: checkpointState
-            } = snapshot.checkpoint.data;
+            const chat = await deps.chatRepository.get(chatId);
 
-            const isResumeRequest = query === null;
-            const hasActiveRequest = checkpointState.activeRequest !== null;
-
-            if (
-                isResumeRequest &&
-                !hasActiveRequest
-            ) {
-                set.status = 409;
+            if (!chat) {
+                set.status = 404;
 
                 return {
                     ok: false,
-                    error: "No active request to resume",
+                    error: "Conversation not found",
                 };
             }
 
-            if (
-                !isResumeRequest &&
-                hasActiveRequest
-            ) {
-                set.status = 409;
-
-                return {
-                    ok: false,
-                    error: "Agent already has an active request",
-                };
-            }
-
-            const workspace = getAgentWorkspacePaths(
-                AGENTS_STORE_DIR,
-                agentId,
-            );
-
-            const checkpointer = createCheckpointer(workspace.root);
-
-            const runId = `run_${randomUUID()}`;
-            const controller = new AbortController();
-
-            const hooks = createHooks(checkpointConfig.policies);
-
-            const history = snapshot.checkpoint.data.state.messages
-                .filter(
-                    (message) =>
-                        !(
-                            "role" in message &&
-                            message.role === "system"
-                        ),
-                );
-
-            const filesContext = await buildFilesContext(files);
-
-            const messages = buildRunMessages({
-                history,
-                query,
-                prompt: checkpointConfig.prompt,
-                filesContext,
-                isResume: hasActiveRequest && isResumeRequest,
-            });
-
-            const activeRequest =
-                hasActiveRequest
-                    ? checkpointState.activeRequest
-                    : {
-                        id: `request_${randomUUID()}`,
-                        turnsUsed: 0,
-                    };
-
-            const runConfig: AgentRunConfig = {
-                model: checkpointConfig.model as Model,
-                state: {
-                    messages,
-                    activeRequest,
-                },
-                capabilities: checkpointConfig.capabilities,
-                runtime: {
-                    runId,
-                    workspaceRoot: workspace.root
-                },
-                hooks,
-                opts: {
-                    maxTurns: checkpointConfig.maxTurns,
-                    signal: controller.signal,
-                },
-            };
-
-            /*
-            * Между проверкой и регистрацией не должно
-            * быть await.
-            */
-            if (runStore.has(agentId)) {
+            if (deps.runStore.has(agentId)) {
                 set.status = 409;
 
                 return {
@@ -159,7 +103,67 @@ export function executeAgentRoute(
                 };
             }
 
-            runStore.set(
+            const history = await deps.chatRepository.getItems(chatId);
+
+            const pendingToolCalls = getPendingToolCalls(history);
+
+            const isResume = query === null;
+
+            if (isResume && pendingToolCalls.length === 0) {
+                set.status = 400;
+
+                return {
+                    ok: false,
+                    error: "Nothing to resume",
+                };
+            }
+
+            const capabilities = await deps.capabilityRepository
+                .getByAgentId(agentId);
+
+            const workspace = getAgentWorkspacePaths(
+                AGENTS_STORE_DIR,
+                agentId,
+            );
+
+            const filesContext = await buildFilesContext(files);
+
+            const messages =
+                buildRunMessages({
+                    history,
+                    query,
+                    prompt: agentRecord.config.prompt,
+                    filesContext,
+                });
+
+            const runId = `run_${randomUUID()}`;
+
+            const controller = new AbortController();
+
+            const hooks = createHooks(requestConfig.policies);
+
+            const runConfig: AgentRunConfig = {
+                model: agentRecord.config.model as Model,
+
+                messages,
+
+                capabilities,
+
+                runtime: {
+                    runId,
+                    agentId,
+                    workspaceRoot: workspace.root,
+                },
+
+                hooks,
+
+                opts: {
+                    maxTurns: agentRecord.config.maxTurns,
+                    signal: controller.signal,
+                },
+            };
+
+            deps.runStore.set(
                 agentId,
                 runId,
                 controller,
@@ -183,28 +187,21 @@ export function executeAgentRoute(
                 try {
                     const result = await agent(
                         runConfig,
-                        snapshot.identity,
+                        agentRecord.identity,
                         writeAgentSSE,
                     );
 
                     if (!controller.signal.aborted) {
-                        const activeRequest =
-                            result.status ===
-                                "awaiting_tool_approval"
-                                ? result
-                                    .state
-                                    .activeRequest
-                                : null;
-
-                        await checkpointer.save({
-                            config:
-                                checkpointConfig,
-
-                            state: {
-                                ...result.state,
-                                activeRequest,
-                            },
-                        });
+                        await deps.chatRepository.appendItems(
+                            chatId,
+                            result.messages.filter(
+                                (item) =>
+                                    !(
+                                        "role" in item &&
+                                        item.role === "system"
+                                    ),
+                            )
+                        );
                     }
                 } finally {
                     request.signal.removeEventListener(
@@ -212,7 +209,7 @@ export function executeAgentRoute(
                         abortFromRequest,
                     );
 
-                    runStore.delete(
+                    deps.runStore.delete(
                         agentId,
                         runId,
                     );
@@ -220,63 +217,55 @@ export function executeAgentRoute(
             });
         },
         {
-            params: AgentParamsSchema,
+            params: ExecuteAgentParamsSchema,
             body: ExecuteAgentBodySchema,
         },
     );
 }
 
 function buildRunMessages({
-  history,
-  query,
-  prompt,
-  filesContext,
-  isResume,
-}: {
-  history: ResponseInputItem[];
-  query: string | null;
-  prompt: string;
-  filesContext: string;
-  isResume: boolean;
-}): ResponseInputItem[] {
-  const systemContent = [
+    history,
+    query,
     prompt,
-    filesContext
-      ? [
-          "Attached files:",
-          filesContext,
-        ].join("\n")
-      : "",
-  ]
-    .filter(Boolean)
-    .join("\n\n");
-
-  const systemMessage:
-    ResponseInputItem = {
-      role: "system",
-      content: systemContent,
-      status: "completed",
+    filesContext,
+}: {
+    history: ResponseInputItem[];
+    query: string | null;
+    prompt: string;
+    filesContext: string;
+}): ResponseInputItem[] {
+    const systemMessage: ResponseInputItem = {
+        role: "system",
+        content: [
+            prompt,
+            filesContext
+                ? [
+                    "Attached files:",
+                    filesContext,
+                ].join("\n")
+                : "",
+        ]
+            .filter(Boolean)
+            .join("\n\n"),
+        status: "completed",
     };
 
-  if (isResume) {
+    if (query === null) {
+        return [
+            systemMessage,
+            ...history,
+        ];
+    }
+
     return [
-      systemMessage,
-      ...history,
+        systemMessage,
+        ...history,
+        {
+            role: "user",
+            content: query,
+            status: "completed",
+        },
     ];
-  }
-
-  const userMessage:
-    ResponseInputItem = {
-      role: "user",
-      content: query ?? "",
-      status: "completed",
-    };
-
-  return [
-    systemMessage,
-    ...history,
-    userMessage,
-  ];
 }
 
 async function buildFilesContext(
