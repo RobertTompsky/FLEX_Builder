@@ -4,15 +4,15 @@ import {
   ChatParamsSchema,
 } from "@flex-builder/shared/chat";
 import { RouteDeps } from "../types";
-import { toUIMessages } from "../../agents/shared";
+import { toUIMessages } from "../../services/agent/messages";
 
-type GetConversationItemsRouteDeps = Pick<RouteDeps, 'chatRepository'>
+type GetChatItemsRouteDeps = Pick<RouteDeps, 'chatRepository'>
 
-export function getConversationItemsRoute(
-  deps: GetConversationItemsRouteDeps,
+export function getChatItemsRoute(
+  deps: GetChatItemsRouteDeps,
 ) {
   return new Elysia().get(
-    "/:conversationId/items",
+    "/:chatId/items",
     async ({
       params: { chatId },
       set,
@@ -21,9 +21,9 @@ export function getConversationItemsRoute(
         chatRepository,
       } = deps;
 
-      const conversation = await chatRepository.get(chatId);
+      const chat = await chatRepository.get(chatId);
 
-      if (!conversation) {
+      if (!chat) {
         set.status = 404;
 
         return {

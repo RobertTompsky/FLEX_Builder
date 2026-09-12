@@ -60,6 +60,4 @@ export function createRunStore() {
     };
 }
 
-export type RunStore = ReturnType<
-    typeof createRunStore
->;
+export type RunStore = ReturnType<typeof createRunStore>;

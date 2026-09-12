@@ -5,7 +5,7 @@ import { RouteDeps } from "../types";
 
 export type CreateAgentRouteDeps = Pick<
   RouteDeps,
-  "workspaceStore" | "agentRepository"
+  "agentRepository"
 >;
 
 export function createAgentRoute(
@@ -15,7 +15,6 @@ export function createAgentRoute(
     "/",
     async ({ set }) => {
       const {
-        workspaceStore,
         agentRepository,
       } = deps;
 
@@ -38,19 +37,15 @@ export function createAgentRoute(
         updatedAt: now,
       };
 
-      agentRepository.create(agent);
+      await agentRepository.create(agent);
 
-      try {
-        await workspaceStore.create(
-          agent.identity.id,
-        );
-      } catch (error) {
-        agentRepository.delete(
-          agent.identity.id,
-        );
+      // try {
+      //   await workspaceStore.create(agent.identity.id);
+      // } catch (error) {
+      //   agentRepository.delete(agent.identity.id);
 
-        throw error;
-      }
+      //   throw error;
+      // }
 
       set.status = 201;
 

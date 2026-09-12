@@ -5,18 +5,18 @@ import fs from 'fs-extra'
 import {
   ALLOWED_FILE_EXTENSIONS,
   UPLOADS_DIR,
-  AGENTS_STORE_DIR,
 } from "./shared/data";
 import path from 'path'
 import { cors } from '@elysia/cors'
-import { createWorkspaceStore } from "./agents/store/store";
+import { createWorkspaceStore } from "./services/workspace/store";
 import { agentsRoutes, chatRoutes, metadataRoutes } from "./routes";
 import { createRunStore } from "./agents/store/runs";
-import { conversationRepository } from "./db/chats";
+import { chatRepository } from "./db/chats";
 import { agentRepository } from "./db/agents"
 import { capabilityRepository } from "./db/capabilities";
+import { AGENT_WORKSPACES_DIR } from "./services/workspace";
 
-const workspaceStore = createWorkspaceStore(AGENTS_STORE_DIR);
+const workspaceStore = createWorkspaceStore(AGENT_WORKSPACES_DIR);
 
 const runStore = createRunStore();
 
@@ -37,11 +37,11 @@ const app = new Elysia()
     runStore,
     agentRepository,
     capabilityRepository,
-    conversationRepository
+    chatRepository
   }))
 
   .use(chatRoutes({
-    conversationRepository
+    chatRepository
   }))
 
   .use(metadataRoutes())

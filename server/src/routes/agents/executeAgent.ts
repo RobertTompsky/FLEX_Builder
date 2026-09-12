@@ -7,56 +7,41 @@ import type {
     ResponseInputItem,
 } from "openai/resources/responses/responses.js";
 
-import type {
-    RunStore,
-} from "../../agents/store/runs";
-
 import {
     createSSEWriter,
     streamSSE,
 } from "../../sse";
 
 import {
-    agent,
-    type AgentRunConfig,
-} from "../../agents/harness/agent";
-
-import {
-    createHooks,
-} from "../../agents/harness/hooks/createHooks";
-
-import {
-    getAgentWorkspacePaths,
-    getPendingToolCalls,
-} from "../../agents/shared";
-
-import {
-    AGENTS_STORE_DIR,
-    Model,
     UPLOADS_DIR,
 } from "../../shared/data";
 
 import {
+    AgentEvent,
     AgentSSEMessage,
     ExecuteAgentBodySchema,
     ExecuteAgentParamsSchema,
+    toAgentSSEMessage,
 } from "@flex-builder/shared/agent";
 
-import {
-    AgentRepository,
-} from "../../db/agents/repository";
-
-import {
-    CapabilityRepository,
-} from "../../db/capabilities";
 import { RouteDeps } from "../types";
+import { AGENT_WORKSPACES_DIR, ensureWorkspace, getWorkspace } from "../../services/workspace";
+import { ToolRegistry } from "../../services/tools/types";
+import { createRunTsTool } from "../../tools/runTsTool/createRunTsTool";
+import { SandboxEvent } from "../../tools/runTsTool/types";
+import { resolvePromptCapabilities, resolveRunCapabilities } from "../../tools/runTsTool/resolveRunCapabilties";
+import { buildRunTsDescription } from "../../tools/runTsTool/buildDescription";
+import { AgentCapabilityConfig } from "@flex-builder/shared/capabilities";
+import { CreateSubagentTools } from "../../capabilities/subagent/actions/runSubagent";
+import { agent } from "../../services/agent/agent";
+import { createHooks } from "../../services/agent/hooks/createHooks";
+import { getPendingToolCalls } from "../../services/agent/messages";
 
-type ExecuteAgentRouteDeps = Pick<RouteDeps, 'agentRepository' | 'capabilityRepository' | 'chatRepository' | 'runStore'>
 export function executeAgentRoute(
-    deps: ExecuteAgentRouteDeps,
+    deps: RouteDeps,
 ) {
     return new Elysia().post(
-        "/:agentId/conversations/:conversationId",
+        "/:agentId/chats/:chatId",
         async ({
             body,
             params: {
@@ -69,7 +54,11 @@ export function executeAgentRoute(
             const {
                 query,
                 files,
-                ...requestConfig
+                model,
+                prompt,
+                maxTurns,
+                capabilities,
+                policies,
             } = body;
 
             const agentRecord = await deps.agentRepository.get(agentId);
@@ -103,6 +92,19 @@ export function executeAgentRoute(
                 };
             }
 
+            if (query !== null) {
+                await deps.chatRepository.appendItems(
+                    chatId,
+                    [
+                        {
+                            role: "user",
+                            content: query,
+                            status: "completed",
+                        },
+                    ],
+                );
+            }
+
             const history = await deps.chatRepository.getItems(chatId);
 
             const pendingToolCalls = getPendingToolCalls(history);
@@ -118,21 +120,16 @@ export function executeAgentRoute(
                 };
             }
 
-            const capabilities = await deps.capabilityRepository
-                .getByAgentId(agentId);
+            const workspace = getWorkspace(AGENT_WORKSPACES_DIR, agentId);
 
-            const workspace = getAgentWorkspacePaths(
-                AGENTS_STORE_DIR,
-                agentId,
-            );
+            await ensureWorkspace(workspace);
 
             const filesContext = await buildFilesContext(files);
 
             const messages =
                 buildRunMessages({
                     history,
-                    query,
-                    prompt: agentRecord.config.prompt,
+                    prompt,
                     filesContext,
                 });
 
@@ -140,28 +137,7 @@ export function executeAgentRoute(
 
             const controller = new AbortController();
 
-            const hooks = createHooks(requestConfig.policies);
-
-            const runConfig: AgentRunConfig = {
-                model: agentRecord.config.model as Model,
-
-                messages,
-
-                capabilities,
-
-                runtime: {
-                    runId,
-                    agentId,
-                    workspaceRoot: workspace.root,
-                },
-
-                hooks,
-
-                opts: {
-                    maxTurns: agentRecord.config.maxTurns,
-                    signal: controller.signal,
-                },
-            };
+            const hooks = createHooks(policies);
 
             deps.runStore.set(
                 agentId,
@@ -182,25 +158,113 @@ export function executeAgentRoute(
             );
 
             return streamSSE(async (stream) => {
-                const writeAgentSSE = createSSEWriter<AgentSSEMessage>(stream);
+                const writeSSE = createSSEWriter<AgentSSEMessage>(stream);
+
+                const emitAgentEvent = async (event: AgentEvent) => {
+                    await writeSSE(toAgentSSEMessage(
+                        agentRecord.identity,
+                        event
+                    ));
+                };
+
+                const emitSandboxEvent = async (event: SandboxEvent) => {
+                    await writeSSE(
+                        toAgentSSEMessage(
+                            agentRecord.identity,
+                            event,
+                        ),
+                    );
+                };
+
+                const createSubagentTools: CreateSubagentTools =
+                    (
+                        capabilityIds,
+                        subagentWorkspace,
+                        subagentRunId,
+                    ) => {
+                        const configs: AgentCapabilityConfig[] =
+                            capabilityIds.map(
+                                (id) => ({
+                                    id,
+                                    access: "execute",
+                                }),
+                            );
+
+                        const description = buildRunTsDescription(
+                            resolvePromptCapabilities(
+                                configs
+                            )
+                        );
+
+                        return [
+                            createRunTsTool({
+                                runId: subagentRunId,
+                                workspace: subagentWorkspace,
+                                description,
+                                resolveCapabilities: (source) =>
+                                    resolveRunCapabilities({
+                                        configs,
+                                        workspace: subagentWorkspace,
+                                        source,
+                                        createSubagentTools,
+                                        onEvent: emitSandboxEvent
+                                    }),
+
+                                onEvent: emitSandboxEvent,
+                            }),
+                        ];
+                    };
 
                 try {
+                    const description =
+                        buildRunTsDescription(
+                            resolvePromptCapabilities(
+                                capabilities
+                            ),
+                        );
+
+                    const tools: ToolRegistry = [
+                        createRunTsTool({
+                            runId,
+                            workspace,
+                            description,
+
+                            resolveCapabilities: (source) =>
+                                resolveRunCapabilities({
+                                    configs: capabilities,
+                                    workspace,
+                                    source,
+                                    createSubagentTools,
+                                    onEvent: emitSandboxEvent,
+                                }),
+
+                            onEvent: emitSandboxEvent,
+                        }),
+                    ];
+
                     const result = await agent(
-                        runConfig,
-                        agentRecord.identity,
-                        writeAgentSSE,
+                        {
+                            model,
+                            messages,
+                            tools,
+                            hooks,
+
+                            opts: {
+                                maxTurns,
+                                signal: controller.signal,
+                            },
+                        },
+
+                        emitAgentEvent,
                     );
 
-                    if (!controller.signal.aborted) {
+                    if (
+                        !controller.signal.aborted &&
+                        result.output.length > 0
+                    ) {
                         await deps.chatRepository.appendItems(
                             chatId,
-                            result.messages.filter(
-                                (item) =>
-                                    !(
-                                        "role" in item &&
-                                        item.role === "system"
-                                    ),
-                            )
+                            result.output
                         );
                     }
                 } finally {
@@ -225,12 +289,10 @@ export function executeAgentRoute(
 
 function buildRunMessages({
     history,
-    query,
     prompt,
     filesContext,
 }: {
     history: ResponseInputItem[];
-    query: string | null;
     prompt: string;
     filesContext: string;
 }): ResponseInputItem[] {
@@ -250,21 +312,9 @@ function buildRunMessages({
         status: "completed",
     };
 
-    if (query === null) {
-        return [
-            systemMessage,
-            ...history,
-        ];
-    }
-
     return [
         systemMessage,
         ...history,
-        {
-            role: "user",
-            content: query,
-            status: "completed",
-        },
     ];
 }
 
@@ -277,17 +327,12 @@ async function buildFilesContext(
 
     const fileContents = await Promise.all(
         files.map(async (filename) => {
-            const safeFilename =
-                path.basename(filename);
+            const safeFilename = path.basename(filename);
 
-            const filePath = path.join(
-                UPLOADS_DIR,
-                safeFilename,
-            );
+            const filePath = path.join(UPLOADS_DIR, safeFilename);
 
             return {
                 filename: safeFilename,
-
                 content: await fs.readFile(
                     filePath,
                     "utf8",

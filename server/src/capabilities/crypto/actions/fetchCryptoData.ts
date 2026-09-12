@@ -1,5 +1,5 @@
 import z from "zod";
-import { action } from "../../../runtime/execute";
+import { action } from "../../../services/capabilities";
 
 export const cryptoInputSchema = z.object({
     ticker: z

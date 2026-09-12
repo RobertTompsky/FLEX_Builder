@@ -1,22 +1,12 @@
 import path from "node:path";
 import fs from "fs-extra";
 
-import type {
-    RuntimeContext,
-} from "../../runtime/types";
-
 export function getArtifactsDir(
-    context: RuntimeContext,
+    workspaceRoot: string
 ): string {
-    const artifactsDir =
-        path.join(
-            context.workspaceRoot,
-            "artifacts",
-        );
+    const artifactsDir = path.join(workspaceRoot, "artifacts");
 
-    fs.ensureDirSync(
-        artifactsDir,
-    );
+    fs.ensureDirSync(artifactsDir);
 
     return artifactsDir;
 }

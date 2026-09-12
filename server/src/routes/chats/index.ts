@@ -1,6 +1,6 @@
 import Elysia from "elysia";
 import { approveToolCallsRoute } from "./approveToolcalls";
-import { getConversationItemsRoute } from "./getChatItems";
+import { getChatItemsRoute } from "./getChatItems";
 import { RouteDeps } from "../types";
 
 type ChatRouteDeps = Pick<RouteDeps, 'chatRepository'>
@@ -16,5 +16,5 @@ export function chatRoutes(
         prefix: "/chats",
     })
         .use(approveToolCallsRoute({ chatRepository }))
-        .use(getConversationItemsRoute({ chatRepository }))
+        .use(getChatItemsRoute({ chatRepository }))
 }

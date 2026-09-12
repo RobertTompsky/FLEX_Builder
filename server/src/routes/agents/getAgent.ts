@@ -28,7 +28,7 @@ export function getAgentRoute(
       } = deps;
 
       const agent = await agentRepository.get(agentId);
-      console.log(agent)
+
       if (!agent) {
         set.status = 404;
 

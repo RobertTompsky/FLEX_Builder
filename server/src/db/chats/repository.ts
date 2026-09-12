@@ -39,7 +39,7 @@ export interface ChatRepository {
   listChatsByAgentId(agentId: string): Promise<Chat[]>
 
   delete(
-    conversationId: string,
+    chatId: string,
   ): Promise<boolean>;
 
   attachToAgent(agentId: string, chatId: string): Promise<void>
@@ -47,9 +47,7 @@ export interface ChatRepository {
 
 export const chatRepository = {
   create() {
-    return createChat(
-      `conversation_${randomUUID()}`,
-    );
+    return createChat(`chat_${randomUUID()}`);
   },
 
   listChatsByAgentId,

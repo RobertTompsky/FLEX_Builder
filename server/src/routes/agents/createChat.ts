@@ -8,7 +8,7 @@ export function createChatRoute(
     deps: CreateChatRouteDeps,
 ) {
     return new Elysia().post(
-        "/agents/:agentId/conversations",
+        "/:agentId/chats",
         async ({
             params: { agentId },
             set,

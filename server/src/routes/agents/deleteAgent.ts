@@ -24,8 +24,7 @@ export function deleteAgentRoute(
         workspaceStore,
       } = deps;
 
-      const agent =
-        await agentRepository.get(agentId);
+      const agent = await agentRepository.get(agentId);
 
       if (!agent) {
         set.status = 404;

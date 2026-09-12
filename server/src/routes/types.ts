@@ -1,5 +1,5 @@
 import { RunStore } from "../agents/store/runs";
-import { WorkspaceStore } from "../agents/store/store";
+import { WorkspaceStore } from "../services/workspace/store";
 import { AgentRepository } from "../db/agents";
 import { CapabilityRepository } from "../db/capabilities";
 import { ChatRepository } from "../db/chats";

@@ -1,15 +1,15 @@
 import { z } from "zod";
 import { SafeFilePathSchema } from "../schemas";
-import { RuntimeContext } from "../../../runtime/types";
 import { getArtifactsDir } from "../runtime";
 import { resolveArtifactPath } from "../utils/resolveArtifactPath";
 import { artifactRegistry } from "../utils/registry";
 import { artifactHistoryLog } from "../utils/history";
 import path from "path";
 import fs from "fs-extra";
-import { createRuntimeEmitter } from "../../../runtime/events";
-import { action } from "../../../runtime/execute";
 import { ArtifactEvent } from "@flex-builder/shared/capabilities";
+import { ArtifactContext } from "./types";
+import { action } from "../../../services/capabilities";
+import { createStdoutEmitter } from "../../../services/code/events";
 
 export const CreateArtifactInputSchema =
     z.object({
@@ -48,11 +48,11 @@ export const CreateArtifactOutputSchema =
                 ),
     });
 
-export function createArtifact(
+export async function createArtifact(
     input: z.infer<typeof CreateArtifactInputSchema>,
-    context: RuntimeContext,
-): z.infer<typeof CreateArtifactOutputSchema> {
-    const artifactsDir = getArtifactsDir(context,);
+    context: ArtifactContext,
+): Promise<z.infer<typeof CreateArtifactOutputSchema>> {
+    const artifactsDir = getArtifactsDir(context.workspace.root);
 
     const fullPath = resolveArtifactPath(artifactsDir, input.filePath,);
 
@@ -90,16 +90,21 @@ export function createArtifact(
         report: input.report,
     });
 
-    const emitArtifactEvent = createRuntimeEmitter<ArtifactEvent>()
+    await context.onEvent?.({
+        event:
+            "artifact_created",
 
-    emitArtifactEvent({
-        event: "artifact_created",
         data: {
-            runId: context.runId,
-            toolCallId: context.toolCallId,
-            filePath: input.filePath,
-            report: input.report,
-            description: input.description,
+            ...context.source,
+
+            filePath:
+                input.filePath,
+
+            report:
+                input.report,
+
+            description:
+                input.description,
         },
     });
 

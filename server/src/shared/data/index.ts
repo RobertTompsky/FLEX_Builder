@@ -16,11 +16,6 @@ export const SERVER_DIR = path.resolve(
   "..",
 );
 
-export const AGENTS_STORE_DIR = path.join(
-  SERVER_DIR,
-  "data",
-  "agents",
-)
 export const UPLOADS_DIR = path.join(
   SERVER_DIR,
   // "data",

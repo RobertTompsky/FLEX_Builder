@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { chromium } from "playwright";
 import TurndownService from "turndown";
-import { action } from "../../runtime/execute";
+import { action } from "../../services/capabilities";
 
 const BrowserOpenInputSchema =
     z.object({

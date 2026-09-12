@@ -1,13 +1,13 @@
 import { z } from "zod";
 import { SafeFilePathSchema } from "../schemas";
-import { RuntimeContext } from "../../../runtime/types";
 import { getArtifactsDir } from "../runtime";
 import { resolveArtifactPath } from "../utils/resolveArtifactPath";
 import { artifactHistoryLog } from "../utils/history";
 import fs from "fs-extra";
-import { createRuntimeEmitter } from "../../../runtime/events";
-import { action } from "../../../runtime/execute";
 import { ArtifactEvent } from "@flex-builder/shared/capabilities";
+import { ArtifactContext } from "./types";
+import { action } from "../../../services/capabilities";
+import { createStdoutEmitter } from "../../../services/code/events";
 
 export const ReadArtifactInputSchema =
     z.object({
@@ -39,11 +39,11 @@ export const ReadArtifactOutputSchema =
                 ),
     });
 
-export function readArtifact(
+export async function readArtifact(
     input: z.infer<typeof ReadArtifactInputSchema>,
-    context: RuntimeContext,
-): z.infer<typeof ReadArtifactOutputSchema> {
-    const artifactsDir = getArtifactsDir(context,);
+    context: ArtifactContext,
+): Promise<z.infer<typeof ReadArtifactOutputSchema>> {
+    const artifactsDir = getArtifactsDir(context.workspace.root);
 
     const fullPath = resolveArtifactPath(artifactsDir, input.filePath,);
 
@@ -74,13 +74,11 @@ export function readArtifact(
         report: input.report,
     });
 
-    const emitArtifactEvent = createRuntimeEmitter<ArtifactEvent>()
-
-    emitArtifactEvent({
+    await context.onEvent?.({
         event: "artifact_read",
         data: {
-            runId: context.runId,
-            toolCallId: context.toolCallId,
+            runId: context.source.runId,
+            toolCallId: context.source.toolCallId,
             filePath: input.filePath,
             report: input.report,
         },

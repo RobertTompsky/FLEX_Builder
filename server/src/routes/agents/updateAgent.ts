@@ -2,7 +2,6 @@ import { Elysia } from "elysia";
 
 import {
     AgentParamsSchema,
-    GetAgentResponse,
     UpdateAgentBodySchema,
     UpdateAgentResponse,
 } from "@flex-builder/shared/agent";

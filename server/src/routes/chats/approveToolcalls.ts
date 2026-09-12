@@ -5,17 +5,12 @@ import type {
 } from "openai/resources/responses/responses.js";
 
 import {
-  getPendingToolCalls,
-} from "../../agents/shared";
-
-import {
-  ExecuteAgentParamsSchema,
   ToolCallsBodySchema,
 } from "@flex-builder/shared/agent";
 
-
 import { ChatParamsSchema } from "@flex-builder/shared/chat";
 import { RouteDeps } from "../types";
+import { getPendingToolCalls } from "../../services/agent/messages";
 
 type ApproveToolCallsRouteDeps = Pick<RouteDeps, 'chatRepository'>
 
@@ -23,7 +18,7 @@ export function approveToolCallsRoute(
   deps: ApproveToolCallsRouteDeps,
 ) {
   return new Elysia().post(
-    "/chats/:chatId/tool-calls/approve",
+    "/:chatId/tool-calls/approve",
     async ({
       params: {
         chatId,
@@ -57,9 +52,11 @@ export function approveToolCallsRoute(
         };
       }
 
-      const messages = applyToolCallApproval(history, approvedToolCallIds,);
+      const messages = applyToolCallApproval(history, approvedToolCallIds);
 
-      await deps.chatRepository.appendItems(chatId, messages.slice(history.length)
+      await deps.chatRepository.appendItems(
+        chatId,
+        messages.slice(history.length)
       );
 
       return {
@@ -81,59 +78,40 @@ function applyToolCallApproval(
   const pending =
     getPendingToolCalls(history);
 
-  const pendingIds =
-    new Set(
-      pending.map(
-        (call) => call.call_id,
-      ),
-    );
+  const pendingIds = new Set(
+    pending.map(
+      (call) => call.call_id,
+    ),
+  );
 
-  for (
-    const callId of
-    approvedToolCallIds
-  ) {
-    if (
-      !pendingIds.has(callId)
-    ) {
+  for (const callId of approvedToolCallIds) {
+    if (!pendingIds.has(callId)) {
       throw new Error(
         `Unknown or already resolved tool call: ${callId}`,
       );
     }
   }
 
-  const approved =
-    new Set(
-      approvedToolCallIds,
-    );
+  const approved = new Set(approvedToolCallIds);
 
-  const rejectedOutputs =
-    pending
-      .filter(
-        (call) =>
-          !approved.has(
-            call.call_id,
-          ),
-      )
-      .map(
-        (
-          call,
-        ): ResponseInputItem.FunctionCallOutput => ({
-          type:
-            "function_call_output",
-
-          call_id:
-            call.call_id,
-
-          output:
-            JSON.stringify({
-              ok: false,
-              error:
-                "tool_use_denied",
-              reason:
-                "User rejected tool call.",
-            }),
+  const rejectedOutputs = pending
+    .filter(
+      (call) =>
+        !approved.has(
+          call.call_id,
+        ),
+    )
+    .map((call): ResponseInputItem.FunctionCallOutput => ({
+      type: "function_call_output",
+      call_id: call.call_id,
+      output:
+        JSON.stringify({
+          ok: false,
+          error: "tool_use_denied",
+          reason: "User rejected tool call.",
         }),
-      );
+    }),
+    );
 
   return [
     ...history,

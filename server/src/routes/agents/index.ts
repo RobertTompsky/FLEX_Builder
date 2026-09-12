@@ -26,7 +26,6 @@ export function agentsRoutes(
   })
     .use(
       createAgentRoute({
-        workspaceStore,
         agentRepository
       }),
     )
@@ -62,6 +61,7 @@ export function agentsRoutes(
     )
     .use(
       executeAgentRoute({
+        workspaceStore,
         runStore,
         capabilityRepository,
         chatRepository,

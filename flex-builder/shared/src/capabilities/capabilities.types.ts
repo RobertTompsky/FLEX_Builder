@@ -5,3 +5,7 @@ export type CodeGenInput = z.infer<typeof CodeGenSchema>
 
 export type CapabilityAccess = z.infer<typeof CapabilityAccessSchema>
 export type AgentCapabilityConfig = z.infer<typeof AgentCapabilityConfigSchema>
+
+export type CapabilityContext = {
+    signal?: AbortSignal;
+};

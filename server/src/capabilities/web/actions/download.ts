@@ -1,10 +1,10 @@
 import { z } from 'zod'
-import { action } from '../../../runtime/execute';
 import path from 'path'
 import {
     extractText,
     getDocumentProxy,
 } from "unpdf";
+import { action } from '../../../services/capabilities';
 
 const WebDownloadInputSchema =
     z.object({

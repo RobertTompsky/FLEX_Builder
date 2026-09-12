@@ -1,5 +1,5 @@
 import z from "zod"
-import { action } from "../../../runtime/execute";
+import { action } from "../../../services/capabilities";
 
 export const newsInputSchema = z.object({
     query: z

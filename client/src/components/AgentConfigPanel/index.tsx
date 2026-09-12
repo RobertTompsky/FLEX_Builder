@@ -250,17 +250,11 @@ export const AgentConfigPanel =
               </div>
 
               <div
-                className={
-                  styles.row
-                }
+                className={styles.row}
               >
                 <label
-                  className={
-                    styles.label
-                  }
-                  htmlFor={
-                    "agent-max-turns"
-                  }
+                  className={styles.label}
+                  htmlFor={"agent-max-turns"}
                 >
                   Max Turns
                 </label>
@@ -279,22 +273,17 @@ export const AgentConfigPanel =
                   onChange={(
                     event,
                   ) => {
-                    const value =
-                      event
-                        .currentTarget
-                        .valueAsNumber;
+                    const value = event
+                      .currentTarget
+                      .valueAsNumber;
 
                     if (
-                      Number.isNaN(
-                        value,
-                      )
+                      Number.isNaN(value)
                     ) {
                       return;
                     }
 
-                    maxTurns.change(
-                      value,
-                    );
+                    maxTurns.change(value);
                   }}
                 />
               </div>
