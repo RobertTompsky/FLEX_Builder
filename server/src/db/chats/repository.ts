@@ -15,6 +15,7 @@ import {
   attachToAgent,
   createChat,
   deleteChat,
+  getAgentIdsByChatId,
   getChat,
   getChatItems,
   listChatsByAgentId,
@@ -43,6 +44,10 @@ export interface ChatRepository {
   ): Promise<boolean>;
 
   attachToAgent(agentId: string, chatId: string): Promise<void>
+
+  getAgentIdsByChatId(
+    chatId: string,
+  ): Promise<string[]>;
 }
 
 export const chatRepository = {
@@ -60,5 +65,7 @@ export const chatRepository = {
 
   delete: deleteChat,
 
-  attachToAgent
+  attachToAgent,
+
+  getAgentIdsByChatId
 } satisfies ChatRepository

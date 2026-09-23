@@ -23,18 +23,3 @@ export type CodeExecutionEvent =
             exitCode: number | null;
         };
     };
-
-// export function createStdoutEmitter<
-//     TEvent extends {
-//         event: string;
-//         data: unknown;
-//     },
-// >() {
-//     return (
-//         event: TEvent,
-//     ): void => {
-//         process.stdout.write(
-//             `${SANDBOX_EVENT_PREFIX}${JSON.stringify(event)}\n`,
-//         );
-//     };
-// }

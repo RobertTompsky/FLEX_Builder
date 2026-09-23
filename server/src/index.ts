@@ -15,6 +15,11 @@ import { chatRepository } from "./db/chats";
 import { agentRepository } from "./db/agents"
 import { capabilityRepository } from "./db/capabilities";
 import { AGENT_WORKSPACES_DIR } from "./services/workspace";
+import { closeExecuteAgentResources } from "./routes/agents/executeAgent";
+import { SandboxService } from "./services/sandbox/service";
+
+const sandboxService = new SandboxService();
+console.log('[sandbox]: service started')
 
 const workspaceStore = createWorkspaceStore(AGENT_WORKSPACES_DIR);
 
@@ -29,15 +34,14 @@ const fileSchema = z.file().refine((file: File) => {
 
 const app = new Elysia()
   .use(cors())
-
   .get("/", () => "Марс вечен")
-
   .use(agentsRoutes({
     workspaceStore,
     runStore,
     agentRepository,
     capabilityRepository,
-    chatRepository
+    chatRepository,
+    sandboxService
   }))
 
   .use(chatRoutes({
@@ -76,7 +80,9 @@ const app = new Elysia()
 
         return {
           ok: false,
-          message: error instanceof Error ? error.message : String(error),
+          message: error instanceof Error
+            ? error.message
+            : String(error),
         }
       }
     },
@@ -128,3 +134,32 @@ console.log(
   `Elysia is running at ${app.server?.hostname}:${app.server?.port}`
 );
 
+let shuttingDown = false;
+
+async function shutdown(exitCode = 0) {
+  if (shuttingDown) {
+    return;
+  }
+
+  shuttingDown = true;
+
+  await sandboxService.close()
+
+  await closeExecuteAgentResources();
+
+  process.exit(exitCode);
+}
+
+process.once(
+  "SIGINT",
+  () => {
+    void shutdown(130);
+  },
+);
+
+process.once(
+  "SIGTERM",
+  () => {
+    void shutdown(143);
+  },
+);

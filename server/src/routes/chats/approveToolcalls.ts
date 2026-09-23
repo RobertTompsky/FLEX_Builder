@@ -75,8 +75,7 @@ function applyToolCallApproval(
   history: ResponseInputItem[],
   approvedToolCallIds: string[],
 ): ResponseInputItem[] {
-  const pending =
-    getPendingToolCalls(history);
+  const pending =    getPendingToolCalls(history);
 
   const pendingIds = new Set(
     pending.map(

@@ -3,16 +3,15 @@ import { MetadataResponse } from "@flex-builder/shared/agent";
 import { CapabilityAccessSchema } from "@flex-builder/shared/capabilities";
 import { MODELS } from "@flex-builder/shared/data";
 import { HookPoliciesInfo } from "@flex-builder/shared/hooks";
-import { listPreToolUsePolicies } from "../../agents/harness/hooks/preToolUse/policy";
-import { listCapabilities } from "../../runtime/execute/resolveCapabilities";
 import { CAPABILITIES_DIR, UPLOADS_DIR } from "../../shared/data";
 import fs from 'fs-extra'
+import { listPreToolUsePolicies } from "../../services/agent/hooks/preToolUse/policy";
 
 export function metadataRoutes() {
   return new Elysia({
     prefix: "/metadata",
   }).get("/", async () => {
-    const definitions = await listCapabilities(
+    const definitions = listCapabilities(
       CAPABILITIES_DIR,
     );
 

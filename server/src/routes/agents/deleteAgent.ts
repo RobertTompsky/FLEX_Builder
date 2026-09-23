@@ -35,7 +35,7 @@ export function deleteAgentRoute(
         };
       }
 
-      await workspaceStore.delete(agentId);
+      await workspaceStore.agent.delete(agentId);
 
       await agentRepository.delete(agentId);
 

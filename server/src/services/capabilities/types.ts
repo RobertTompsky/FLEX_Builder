@@ -1,78 +1,45 @@
-import z from "zod";
+import z from 'zod'
+import { CapabilityEvent } from "@flex-builder/shared/capabilities";
 
-import {
-    executeInputSchema,
-    executeOutputSchema,
-} from "./schemas";
-import { CapabilityAccess, CapabilityContext } from "@flex-builder/shared/capabilities";
-export type CapabilityExecution = {
-    signal?: AbortSignal;
+export type ExecutionOptions = {
+    signal?:
+        AbortSignal;
+
+    emit?(
+        event: CapabilityEvent,
+    ):
+        | void
+        | Promise<void>;
 };
-export type ExecutableAction = (
-    args: unknown,
-    execution: CapabilityExecution,
-) => Promise<unknown>;
 
-export type RuntimeAction<
-    TContext extends CapabilityContext = CapabilityContext,
+export type ActionInput<
+    TArgs = unknown,
 > = {
+    args: TArgs;
+    options: ExecutionOptions;
+};
+
+export type Action = {
     description: string;
-    inputSchema: z.ZodType;
-    outputSchema: z.ZodType;
+
+    inputSchema:
+        z.ZodType;
+
+    outputSchema:
+        z.ZodType;
 
     execute(
-        args: unknown,
-        context: TContext,
+        input: ActionInput,
     ): Promise<unknown>;
 };
 
-export type CapabilityActions = Record<string, RuntimeAction>;
-
-export type CapabilityDefinition<
-    TContext extends object = Record<string, never>,
-> = {
+export type Capability = {
     id: string;
     description: string;
     instructions?: string;
 
     actions: Record<
         string,
-        RuntimeAction<TContext>
+        Action
     >;
 };
-
-export type CapabilityExecutionContext = {
-    signal?: AbortSignal;
-};
-
-export type EmptyContext =
-    CapabilityExecutionContext;
-
-export type CapabilityPlugin<
-    TContext extends CapabilityExecutionContext =
-        EmptyContext,
-> = {
-    definition:
-        CapabilityDefinition<TContext>;
-
-    createContext: () =>
-        | TContext
-        | Promise<TContext>;
-};
-
-export type ResolvedCapability = {
-    plugin: CapabilityPlugin<any>;
-    access: CapabilityAccess;
-};
-
-export type ExecuteInput = z.infer<typeof executeInputSchema>;
-
-export type ExecuteOutput = z.infer<typeof executeOutputSchema>;
-
-export type RuntimeExecute = (
-    input: ExecuteInput,
-    options?: {
-        signal?: AbortSignal;
-    },
-) => Promise<ExecuteOutput>;
-

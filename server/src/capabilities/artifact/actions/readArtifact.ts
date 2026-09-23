@@ -1,13 +1,11 @@
 import { z } from "zod";
 import { SafeFilePathSchema } from "../schemas";
-import { getArtifactsDir } from "../runtime";
+import { getArtifactsDir } from "../utils/getArtifactsDIr";
 import { resolveArtifactPath } from "../utils/resolveArtifactPath";
 import { artifactHistoryLog } from "../utils/history";
 import fs from "fs-extra";
-import { ArtifactEvent } from "@flex-builder/shared/capabilities";
 import { ArtifactContext } from "./types";
 import { action } from "../../../services/capabilities";
-import { createStdoutEmitter } from "../../../services/code/events";
 
 export const ReadArtifactInputSchema =
     z.object({
@@ -39,61 +37,103 @@ export const ReadArtifactOutputSchema =
                 ),
     });
 
-export async function readArtifact(
-    input: z.infer<typeof ReadArtifactInputSchema>,
-    context: ArtifactContext,
-): Promise<z.infer<typeof ReadArtifactOutputSchema>> {
-    const artifactsDir = getArtifactsDir(context.workspace.root);
 
-    const fullPath = resolveArtifactPath(artifactsDir, input.filePath,);
 
-    const timestamp = new Date().toISOString();
 
-    const log = artifactHistoryLog(artifactsDir);
+export function createReadArtifactAction({
+    workspace,
+}: ArtifactContext) {
+    return action({
+        description:
+            "Reads a file from the artifacts directory.",
 
-    if (!fs.existsSync(fullPath)) {
-        throw new Error(
-            `Artifact not found: ${input.filePath}`,
-        );
-    }
+        inputSchema:
+            ReadArtifactInputSchema,
 
-    const stats = fs.statSync(fullPath);
+        outputSchema:
+            ReadArtifactOutputSchema,
 
-    if (!stats.isFile()) {
-        throw new Error(
-            `Artifact is not a file: ${input.filePath}`,
-        );
-    }
+        async execute({
+            args,
+            options,
+        }) {
+            const artifactsDir =
+                getArtifactsDir(
+                    workspace.root,
+                );
 
-    const content = fs.readFileSync(fullPath, "utf8",);
+            const fullPath =
+                resolveArtifactPath(
+                    artifactsDir,
+                    args.filePath,
+                );
 
-    log.append({
-        timestamp,
-        type: "read",
-        filePath: input.filePath,
-        report: input.report,
-    });
+            const timestamp =
+                new Date()
+                    .toISOString();
 
-    await context.onEvent?.({
-        event: "artifact_read",
-        data: {
-            runId: context.source.runId,
-            toolCallId: context.source.toolCallId,
-            filePath: input.filePath,
-            report: input.report,
+            const log =
+                artifactHistoryLog(
+                    artifactsDir,
+                );
+
+            if (
+                !fs.existsSync(
+                    fullPath,
+                )
+            ) {
+                throw new Error(
+                    `Artifact not found: ${args.filePath}`,
+                );
+            }
+
+            const stats =
+                fs.statSync(
+                    fullPath,
+                );
+
+            if (
+                !stats.isFile()
+            ) {
+                throw new Error(
+                    `Artifact is not a file: ${args.filePath}`,
+                );
+            }
+
+            const content =
+                fs.readFileSync(
+                    fullPath,
+                    "utf8",
+                );
+
+            log.append({
+                timestamp,
+                type: "read",
+                filePath:
+                    args.filePath,
+                report:
+                    args.report,
+            });
+
+            await options.emit?.({
+                event:
+                    "artifact_read",
+
+                data: {
+                    filePath:
+                        args.filePath,
+
+                    report:
+                        args.report,
+                },
+            });
+
+            return {
+                filePath:
+                    args.filePath,
+
+                content,
+            };
         },
     });
-
-    return ReadArtifactOutputSchema.parse({
-        type: "read",
-        filePath: input.filePath,
-        content,
-    });
 }
-
-export const readArtifactAction = action({
-    description: "Reads a file from the artifacts directory.",
-    inputSchema: ReadArtifactInputSchema,
-    outputSchema: ReadArtifactOutputSchema,
-    handler: readArtifact
-})

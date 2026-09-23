@@ -26,8 +26,11 @@ export const downloadAction = action({
     description: "Download a supported document from a URL and return its extracted text content.",
     inputSchema: WebDownloadInputSchema,
     outputSchema: WebDownloadOutputSchema,
-    async handler({
-        url,
+    async execute({
+        args: {
+            url,
+        },
+        options
     }) {
         const resolvedUrl = resolveDownloadUrl(url);
 
@@ -84,20 +87,15 @@ export const downloadAction = action({
 function resolveDownloadUrl(
     url: string,
 ): string {
-    const parsed =
-        new URL(url);
+    const parsed = new URL(url);
 
-    if (
-        parsed.hostname !==
-        "github.com"
-    ) {
+    if (parsed.hostname !== "github.com") {
         return url;
     }
 
-    const match =
-        parsed.pathname.match(
-            /^\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)$/,
-        );
+    const match = parsed.pathname.match(
+        /^\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)$/,
+    );
 
     if (!match) {
         return url;

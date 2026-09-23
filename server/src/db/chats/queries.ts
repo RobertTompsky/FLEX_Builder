@@ -135,3 +135,21 @@ export async function attachToAgent(
         })
         .execute();
 }
+
+export async function getAgentIdsByChatId(
+    chatId: string,
+): Promise<string[]> {
+    const rows = await db
+        .selectFrom("agent_chats")
+        .select("agent_id")
+        .where(
+            "chat_id",
+            "=",
+            chatId,
+        )
+        .execute();
+
+    return rows.map(
+        ({ agent_id }) => agent_id,
+    );
+}

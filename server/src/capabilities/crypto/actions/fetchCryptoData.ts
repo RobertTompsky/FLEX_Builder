@@ -1,5 +1,6 @@
 import z from "zod";
 import { action } from "../../../services/capabilities";
+import { ActionInput } from "../../../services/capabilities/types";
 
 export const cryptoInputSchema = z.object({
     ticker: z
@@ -134,9 +135,13 @@ interface CoinPaprikaResponse {
     };
 }
 
-export const fetchCrypto = async (
-    { ticker, name, quantity }: CryptoInput
-): Promise<CryptoOutput> => {
+export const fetchCrypto = async ({
+    args: {
+        ticker,
+        name,
+        quantity,
+    },
+}: ActionInput<CryptoInput>): Promise<CryptoOutput> => {
 
     const id = `${ticker.toLowerCase()}-${name.toLowerCase()}`;
     const url = `https://api.coinpaprika.com/v1/tickers/${id}`
@@ -185,5 +190,5 @@ export const fetchCryptoAction = action({
     description: "Fetches market data for a cryptocurrency.",
     inputSchema: cryptoInputSchema,
     outputSchema: cryptoOutputSchema,
-    handler: fetchCrypto,
+    execute: fetchCrypto,
 });

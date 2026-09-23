@@ -8,7 +8,9 @@
     "./capabilities": "./src/capabilities/index.ts",
     "./chat": "./src/chat/index.ts",
     "./hooks": "./src/hooks/index.ts",
-    "./data": "./src/data/index.ts"
+    "./data": "./src/data/index.ts",
+    "./run": "./src/run/index.ts",
+    "./sandbox": "./src/sandbox/index.ts"
   },
   "dependencies": {
     "zod": "^4.5.4"

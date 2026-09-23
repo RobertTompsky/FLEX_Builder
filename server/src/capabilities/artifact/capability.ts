@@ -1,6 +1,14 @@
-import { capability } from "../../services/capabilities";
-import { createArtifactAction } from "./actions/createArtifact";
-import { readArtifactAction } from "./actions/readArtifact";
+import {
+    capability,
+} from "../../services/capabilities";
+
+import {
+    createArtifactAction,
+} from "./actions/createArtifact";
+
+import {
+    createReadArtifactAction,
+} from "./actions/readArtifact";
 import { ArtifactContext } from "./actions/types";
 
 const instructions =
@@ -11,21 +19,23 @@ const instructions =
         ),
     ).text();
 
-export const artifactDefinition = {
-    id: "artifact",
-    description: "Provides controlled access to durable files in the agent workspace.",
-    instructions,
-    actions: {
-        create: createArtifactAction,
-        read: readArtifactAction,
-    },
-}
-
 export function createArtifactCapability(
     context: ArtifactContext,
 ) {
     return capability({
-        definition: artifactDefinition,
-        createContext: () => context,
+        id: "artifact",
+
+        description:
+            "Provides controlled access to durable files in the agent workspace.",
+
+        instructions,
+
+        actions: {
+            create:
+                createArtifactAction(context),
+
+            read:
+                createReadArtifactAction(context),
+        },
     });
 }

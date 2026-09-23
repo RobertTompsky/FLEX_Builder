@@ -62,3 +62,30 @@ CREATE TABLE IF NOT EXISTS agent_chats (
         REFERENCES chats(id)
         ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS runs (
+    id TEXT PRIMARY KEY,
+    chat_id TEXT NOT NULL,
+
+    status TEXT NOT NULL
+        CHECK (
+            status IN (
+                'running',
+                'completed',
+                'stopped',
+                'failed'
+            )
+        ),
+
+    started_at INTEGER NOT NULL
+        DEFAULT (unixepoch() * 1000),
+
+    finished_at INTEGER,
+
+    FOREIGN KEY (chat_id)
+        REFERENCES chats(id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS runs_chat_id_idx
+ON runs (chat_id, started_at DESC);

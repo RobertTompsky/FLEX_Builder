@@ -1,3 +1,4 @@
+import { RunStatus } from "@flex-builder/shared/run";
 import { Generated } from "kysely";
 
 export interface Agents {
@@ -36,10 +37,19 @@ export interface AgentChats {
     chat_id: string;
 }
 
+export interface Runs {
+  id: string;
+  chat_id: string;
+  status: RunStatus;
+  started_at: Generated<number>;
+  finished_at: number | null;
+}
+
 export interface DB {
-    agents: Agents;
-    agent_capabilities: AgentCapabilities;
-    chats: Chats;
-    chat_items: ChatItems;
-    agent_chats: AgentChats;
+  agents: Agents;
+  agent_capabilities: AgentCapabilities;
+  chats: Chats;
+  chat_items: ChatItems;
+  agent_chats: AgentChats;
+  runs: Runs;
 }

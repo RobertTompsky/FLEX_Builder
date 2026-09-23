@@ -22,14 +22,6 @@ export type AgentRunParams = z.infer<
     typeof AgentRunParamsSchema
 >;
 
-export const ToolCallsParamsSchema = AgentParamsSchema.extend({
-    requestId: z.string().min(1),
-});
-
-export type ToolCallsParams = z.infer<
-    typeof ToolCallsParamsSchema
->;
-
 export const ToolCallsBodySchema = z.object({
     approvedToolCallIds: z.array(z.string()),
 })
@@ -37,6 +29,8 @@ export const ToolCallsBodySchema = z.object({
 export type ToolCallsBody = z.infer<typeof ToolCallsBodySchema>
 
 export const ExecuteAgentParamsSchema = AgentParamsSchema.extend(ChatParamsSchema.shape)
+
+export const StopAgentParamsSchema = ExecuteAgentParamsSchema.extend(AgentRunParamsSchema.shape)
 
 export const ExecuteAgentBodySchema =
     AgentConfigSchema.extend({

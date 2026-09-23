@@ -1,8 +1,5 @@
 import { Elysia } from "elysia";
 
-import {
-    AgentParamsSchema,
-} from "@flex-builder/shared/agent";
 import { RouteDeps } from "../types";
 import { ChatParamsSchema } from "@flex-builder/shared/chat";
 
@@ -12,7 +9,7 @@ type DeleteChatRouteDeps = Pick<
     'workspaceStore'
 >
 
-export function deleteAgentRoute(
+export function deleteChatRoute(
     deps: DeleteChatRouteDeps,
 ) {
     return new Elysia().delete(
@@ -33,11 +30,20 @@ export function deleteAgentRoute(
 
                 return {
                     ok: false,
-                    error: "Agent not found",
+                    error: "Chat not found",
                 };
             }
 
-            await workspaceStore.delete(agentId);
+            const agentIds = await chatRepository.getAgentIdsByChatId(chatId);
+
+            await chatRepository.delete(chatId);
+
+            for (const agentId of agentIds) {
+                await workspaceStore.chat.delete(
+                    agentId,
+                    chatId,
+                );
+            }
 
             return {
                 ok: true,

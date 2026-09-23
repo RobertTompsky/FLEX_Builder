@@ -27,26 +27,26 @@ export const subagentPromptDefinition = {
     },
 };
 
-export function createSubagentCapability({
-    context,
-    createTools,
-}: {
-    context: SubagentContext;
-    createTools: CreateSubagentTools;
-}) {
-    return capability({
-        definition: {
-            ...subagentMetadata,
+// export function createSubagentCapability({
+//     context,
+//     createTools,
+// }: {
+//     context: SubagentContext;
+//     createTools: CreateSubagentTools;
+// }) {
+//     return capability({
+//         definition: {
+//             ...subagentMetadata,
 
-            actions: {
-                run:
-                    createRunSubagentAction(
-                        createTools,
-                    ),
-            },
-        },
+//             actions: {
+//                 run:
+//                     createRunSubagentAction(
+//                         createTools,
+//                     ),
+//             },
+//         },
 
-        createContext: () =>
-            context,
-    });
-}
+//         createContext: () =>
+//             context,
+//     });
+// }

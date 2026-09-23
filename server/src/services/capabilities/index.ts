@@ -1,13 +1,9 @@
 export {
     defineAction as action,
-} from "./defineAction";
+} from "./action";
 
 export {
     defineCapability as capability,
-} from "./defineCapability";
+} from "./capability";
 
-export type {
-    CapabilityPlugin,
-    CapabilityDefinition,
-    RuntimeAction,
-} from "./types";
+export * from '../execute/types'

@@ -1,5 +1,8 @@
 import { UIMessage } from "@flex-builder/shared/agent";
-import type { ResponseFunctionToolCallItem, ResponseInputItem } from "openai/resources/responses/responses.js"
+import type { 
+  ResponseFunctionToolCallItem, 
+  ResponseInputItem 
+} from "openai/resources/responses/responses.js"
 
 export function getPendingToolCalls(
   messages: ResponseInputItem[],

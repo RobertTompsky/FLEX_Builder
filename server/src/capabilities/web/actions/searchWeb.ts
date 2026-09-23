@@ -1,5 +1,5 @@
 import z from "zod"
-import { action } from "../../../services/capabilities";
+import { action, ActionInput } from "../../../services/capabilities";
 
 export const newsInputSchema = z.object({
     query: z
@@ -38,8 +38,11 @@ interface TavilyResponse {
 }
 
 export const searchWeb = async ({
-    query,
-}: NewsInput): Promise<NewsOutput> => {
+    args: {
+        query,
+    },
+    options,
+}: ActionInput<NewsInput>): Promise<NewsOutput> => {
     const apiKey = process.env.TAVILY_API_KEY;
 
     if (!apiKey) {
@@ -105,5 +108,5 @@ export const searchWebAction = action({
     description: "Searches the internet for news, articles, and other up-to-date web information.",
     inputSchema: newsInputSchema,
     outputSchema: newsOutputSchema,
-    handler: searchWeb
+    execute: searchWeb
 });

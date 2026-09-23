@@ -1,5 +1,3 @@
-import z from "zod";
-
 import {
     CapabilityAccess,
 } from "@flex-builder/shared/capabilities";
@@ -7,26 +5,12 @@ import {
 import {
     buildActionsPrompt,
 } from "./actionsPrompt";
+import { Capability } from "../types";
 
-export type CapabilityPromptInput = {
-    id: string;
-
-    description: string;
-
-    instructions?: string;
-
-    access:
-        CapabilityAccess;
-
-    actions: Record<
-        string,
-        {
-            description: string;
-            inputSchema: z.ZodType;
-            outputSchema: z.ZodType;
-        }
-    >;
-};
+export type CapabilityPromptInput =
+    Capability & {
+        access: CapabilityAccess;
+    };
 
 function canExecute(
     access: CapabilityAccess,
@@ -62,13 +46,9 @@ function buildAccessPrompt(
 }
 
 export function buildCapabilityPrompt(
-    capability:
-        CapabilityPromptInput,
+    capability: CapabilityPromptInput,
 ): string {
-    const executable =
-        canExecute(
-            capability.access,
-        );
+    const executable = canExecute(capability.access);
 
     const sections: string[] = [
         `## Capability: ${capability.id}`,
@@ -88,8 +68,7 @@ export function buildCapabilityPrompt(
 
     if (
         executable &&
-        capability.instructions
-            ?.trim()
+        capability.instructions?.trim()
     ) {
         sections.push(
             [
@@ -101,11 +80,7 @@ export function buildCapabilityPrompt(
     }
 
     if (executable) {
-        const actionsPrompt =
-            buildActionsPrompt(
-                capability.id,
-                capability.actions,
-            );
+        const actionsPrompt = buildActionsPrompt(capability.actions);
 
         if (actionsPrompt) {
             sections.push(
@@ -117,18 +92,13 @@ export function buildCapabilityPrompt(
         }
     }
 
-    return sections.join(
-        "\n\n",
-    );
+    return sections.join("\n\n");
 }
 
 export function buildCapabilitiesPrompt(
-    capabilities:
-        CapabilityPromptInput[],
+    capabilities: CapabilityPromptInput[],
 ): string {
-    if (
-        capabilities.length === 0
-    ) {
+    if (capabilities.length === 0) {
         return "";
     }
 
@@ -136,9 +106,7 @@ export function buildCapabilitiesPrompt(
         "# Capabilities",
 
         capabilities
-            .map(
-                buildCapabilityPrompt,
-            )
+            .map(buildCapabilityPrompt)
             .join("\n\n"),
     ].join("\n\n");
 }

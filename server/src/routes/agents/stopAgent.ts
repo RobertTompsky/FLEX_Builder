@@ -1,9 +1,9 @@
 import Elysia from "elysia";
 
 import {
-  AgentRunParamsSchema,
   type AgentSSEMessage,
   type AgentIdentity,
+  StopAgentParamsSchema,
 } from "@flex-builder/shared/agent";
 
 import {
@@ -18,10 +18,11 @@ export function stopAgentRoute(
   deps: StopAgentRouteDeps,
 ) {
   return new Elysia().post(
-    "/:agentId/runs/:runId/stop",
+    "/:agentId/chats/:chatId/runs/:runId/stop",
     async ({
       params: {
         agentId,
+        chatId,
         runId,
       },
       set,
@@ -37,7 +38,7 @@ export function stopAgentRoute(
         };
       }
 
-      const controller = deps.runStore.get(agentId, runId);
+      const controller = deps.runStore.get(agentId, chatId, runId);
 
       if (!controller) {
         set.status = 409;
@@ -56,7 +57,7 @@ export function stopAgentRoute(
       });
     },
     {
-      params: AgentRunParamsSchema,
+      params: StopAgentParamsSchema,
     },
   );
 }

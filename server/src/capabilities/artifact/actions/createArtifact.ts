@@ -1,15 +1,13 @@
 import { z } from "zod";
 import { SafeFilePathSchema } from "../schemas";
-import { getArtifactsDir } from "../runtime";
+import { getArtifactsDir } from "../utils/getArtifactsDIr";
 import { resolveArtifactPath } from "../utils/resolveArtifactPath";
 import { artifactRegistry } from "../utils/registry";
 import { artifactHistoryLog } from "../utils/history";
 import path from "path";
 import fs from "fs-extra";
-import { ArtifactEvent } from "@flex-builder/shared/capabilities";
-import { ArtifactContext } from "./types";
 import { action } from "../../../services/capabilities";
-import { createStdoutEmitter } from "../../../services/code/events";
+import { ArtifactContext } from "./types";
 
 export const CreateArtifactInputSchema =
     z.object({
@@ -48,76 +46,116 @@ export const CreateArtifactOutputSchema =
                 ),
     });
 
-export async function createArtifact(
-    input: z.infer<typeof CreateArtifactInputSchema>,
-    context: ArtifactContext,
-): Promise<z.infer<typeof CreateArtifactOutputSchema>> {
-    const artifactsDir = getArtifactsDir(context.workspace.root);
+export function createArtifactAction({
+    workspace,
+}: ArtifactContext) {
+    return action({
+        description:
+            "Creates a file in the artifacts directory.",
 
-    const fullPath = resolveArtifactPath(artifactsDir, input.filePath,);
+        inputSchema:
+            CreateArtifactInputSchema,
 
-    const timestamp = new Date().toISOString();
+        outputSchema:
+            CreateArtifactOutputSchema,
 
-    const reg = artifactRegistry(artifactsDir);
+        async execute({
+            args,
+            options,
+        }) {
+            const artifactsDir =
+                getArtifactsDir(
+                    workspace.root,
+                );
 
-    const log = artifactHistoryLog(artifactsDir);
+            const fullPath =
+                resolveArtifactPath(
+                    artifactsDir,
+                    args.filePath,
+                );
 
-    if (fs.existsSync(fullPath)) {
-        throw new Error(
-            `Artifact already exists: ${input.filePath}`,
-        );
-    }
+            const timestamp =
+                new Date()
+                    .toISOString();
 
-    fs.ensureDirSync(path.dirname(fullPath));
+            const reg =
+                artifactRegistry(
+                    artifactsDir,
+                );
 
-    fs.writeFileSync(
-        fullPath,
-        input.content,
-        "utf8",
-    );
+            const log =
+                artifactHistoryLog(
+                    artifactsDir,
+                );
 
-    reg.add({
-        filePath: input.filePath,
-        description: input.description,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-    });
+            if (
+                fs.existsSync(
+                    fullPath,
+                )
+            ) {
+                throw new Error(
+                    `Artifact already exists: ${args.filePath}`,
+                );
+            }
 
-    log.append({
-        timestamp,
-        type: "create",
-        filePath: input.filePath,
-        report: input.report,
-    });
+            fs.ensureDirSync(
+                path.dirname(
+                    fullPath,
+                ),
+            );
 
-    await context.onEvent?.({
-        event:
-            "artifact_created",
+            fs.writeFileSync(
+                fullPath,
+                args.content,
+                "utf8",
+            );
 
-        data: {
-            ...context.source,
+            reg.add({
+                filePath:
+                    args.filePath,
 
-            filePath:
-                input.filePath,
+                description:
+                    args.description,
 
-            report:
-                input.report,
+                createdAt:
+                    timestamp,
 
-            description:
-                input.description,
+                updatedAt:
+                    timestamp,
+            });
+
+            log.append({
+                timestamp,
+                type:
+                    "create",
+
+                filePath:
+                    args.filePath,
+
+                report:
+                    args.report,
+            });
+
+            await options.emit?.({
+                event:
+                    "artifact_created",
+
+                data: {
+                    filePath:
+                        args.filePath,
+
+                    report:
+                        args.report,
+
+                    description:
+                        args.description,
+                },
+            });
+
+            return {
+                filePath:
+                    args.filePath,
+            };
         },
     });
-
-    return CreateArtifactOutputSchema.parse({
-        type: "create",
-        filePath: input.filePath,
-    });
 }
-
-export const createArtifactAction = action({
-    description: "Creates a file in the artifacts directory.",
-    inputSchema: CreateArtifactInputSchema,
-    outputSchema: CreateArtifactOutputSchema,
-    handler: createArtifact
-})
-

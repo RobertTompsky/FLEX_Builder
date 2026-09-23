@@ -7,7 +7,7 @@ import { RouteDeps } from "../types";
 
 type GetChatRouteDeps = Pick<RouteDeps, 'chatRepository'>
 
-export function getChatItemsRoute(
+export function getChatRoute(
   deps: GetChatRouteDeps,
 ) {
   return new Elysia().get(

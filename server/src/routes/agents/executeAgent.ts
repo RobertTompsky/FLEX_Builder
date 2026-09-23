@@ -25,266 +25,277 @@ import {
 } from "@flex-builder/shared/agent";
 
 import { RouteDeps } from "../types";
-import { AGENT_WORKSPACES_DIR, ensureWorkspace, getWorkspace } from "../../services/workspace";
 import { ToolRegistry } from "../../services/tools/types";
 import { createRunTsTool } from "../../tools/runTsTool/createRunTsTool";
-import { SandboxEvent } from "../../tools/runTsTool/types";
-import { resolvePromptCapabilities, resolveRunCapabilities } from "../../tools/runTsTool/resolveRunCapabilties";
 import { buildRunTsDescription } from "../../tools/runTsTool/buildDescription";
-import { AgentCapabilityConfig } from "@flex-builder/shared/capabilities";
-import { CreateSubagentTools } from "../../capabilities/subagent/actions/runSubagent";
 import { agent } from "../../services/agent/agent";
 import { createHooks } from "../../services/agent/hooks/createHooks";
 import { getPendingToolCalls } from "../../services/agent/messages";
+import { SandboxEvent } from "@flex-builder/shared/sandbox";
+import { createCapabilities } from "../../capabilities";
+import {
+    resolveExecutableCapabilities,
+    resolvePromptCapabilities
+} from "../../tools/runTsTool/resolveRunCapabilties";
+import { chromium } from "playwright";
+
+const env = {
+    coinMarketCapApiKey: process.env.COIN_MARKET_CAP_API_KEY ?? ""
+}
+
+let browserPromise:
+    ReturnType<typeof chromium.launch>
+    | undefined;
+
+function getBrowser() {
+    browserPromise ??= chromium.launch({
+        headless: true,
+    });
+
+    return browserPromise;
+}
+
+export async function closeExecuteAgentResources() {
+    if (!browserPromise) {
+        return;
+    }
+
+    const browser = await browserPromise;
+
+    await browser.close();
+
+    browserPromise = undefined;
+}
 
 export function executeAgentRoute(
     deps: RouteDeps,
 ) {
-    return new Elysia().post(
-        "/:agentId/chats/:chatId",
-        async ({
-            body,
-            params: {
-                agentId,
-                chatId,
-            },
-            request,
-            set,
-        }) => {
-            const {
-                query,
-                files,
-                model,
-                prompt,
-                maxTurns,
-                capabilities,
-                policies,
-            } = body;
+    return new Elysia()
+        .post(
+            "/:agentId/chats/:chatId",
 
-            const agentRecord = await deps.agentRepository.get(agentId);
+            async ({
+                body,
 
-            if (!agentRecord) {
-                set.status = 404;
-
-                return {
-                    ok: false,
-                    error: "Agent not found",
-                };
-            }
-
-            const chat = await deps.chatRepository.get(chatId);
-
-            if (!chat) {
-                set.status = 404;
-
-                return {
-                    ok: false,
-                    error: "Conversation not found",
-                };
-            }
-
-            if (deps.runStore.has(agentId)) {
-                set.status = 409;
-
-                return {
-                    ok: false,
-                    error: "Agent already has an active run",
-                };
-            }
-
-            if (query !== null) {
-                await deps.chatRepository.appendItems(
+                params: {
+                    agentId,
                     chatId,
-                    [
-                        {
-                            role: "user",
-                            content: query,
-                            status: "completed",
-                        },
-                    ],
-                );
-            }
+                },
 
-            const history = await deps.chatRepository.getItems(chatId);
+                request,
+                set,
+            }) => {
+                const {
+                    query,
+                    files,
+                    model,
+                    prompt,
+                    maxTurns,
+                    capabilities: capabilityConfigs,
+                    policies,
+                } = body;
 
-            const pendingToolCalls = getPendingToolCalls(history);
+                const agentRecord = await deps.agentRepository
+                    .get(agentId);
 
-            const isResume = query === null;
+                if (!agentRecord) {
+                    set.status = 404;
 
-            if (isResume && pendingToolCalls.length === 0) {
-                set.status = 400;
+                    return {
+                        ok: false,
+                        error: "Agent not found",
+                    };
+                }
 
-                return {
-                    ok: false,
-                    error: "Nothing to resume",
-                };
-            }
+                const chat = await deps.chatRepository.get(chatId);
 
-            const workspace = getWorkspace(AGENT_WORKSPACES_DIR, agentId);
+                if (!chat) {
+                    set.status = 404;
 
-            await ensureWorkspace(workspace);
+                    return {
+                        ok: false,
+                        error: "Conversation not found",
+                    };
+                }
 
-            const filesContext = await buildFilesContext(files);
+                if (deps.runStore.has(agentId, chatId)) {
+                    set.status = 409;
 
-            const messages =
-                buildRunMessages({
+                    return {
+                        ok: false,
+                        error: "Agent already has an active run",
+                    };
+                }
+
+                if (query !== null) {
+                    await deps.chatRepository
+                        .appendItems(
+                            chatId,
+                            [
+                                {
+                                    role: "user",
+                                    content: query,
+                                    status: "completed",
+                                },
+                            ],
+                        );
+                }
+
+                const history = await deps.chatRepository.getItems(chatId);
+
+                const pendingToolCalls = getPendingToolCalls(history);
+
+                const isResume = query === null;
+
+                if (
+                    isResume &&
+                    pendingToolCalls.length === 0
+                ) {
+                    set.status = 400;
+
+                    return {
+                        ok: false,
+                        error: "Nothing to resume",
+                    };
+                }
+
+                const workspace = deps.workspaceStore
+                    .chat
+                    .get(agentId, chatId);
+
+                const filesContext = await buildFilesContext(files);
+
+                const messages = buildRunMessages({
                     history,
                     prompt,
                     filesContext,
                 });
 
-            const runId = `run_${randomUUID()}`;
+                const runId = `run_${randomUUID()}`;
 
-            const controller = new AbortController();
+                const controller = new AbortController();
 
-            const hooks = createHooks(policies);
+                const hooks = createHooks(policies);
 
-            deps.runStore.set(
-                agentId,
-                runId,
-                controller,
-            );
+                deps.runStore.set(
+                    agentId,
+                    chatId,
+                    runId,
+                    controller,
+                );
 
-            const abortFromRequest = () => {
-                controller.abort();
-            };
-
-            request.signal.addEventListener(
-                "abort",
-                abortFromRequest,
-                {
-                    once: true,
-                },
-            );
-
-            return streamSSE(async (stream) => {
-                const writeSSE = createSSEWriter<AgentSSEMessage>(stream);
-
-                const emitAgentEvent = async (event: AgentEvent) => {
-                    await writeSSE(toAgentSSEMessage(
-                        agentRecord.identity,
-                        event
-                    ));
+                const abortFromRequest = () => {
+                    controller.abort();
                 };
 
-                const emitSandboxEvent = async (event: SandboxEvent) => {
-                    await writeSSE(
-                        toAgentSSEMessage(
-                            agentRecord.identity,
-                            event,
-                        ),
-                    );
-                };
+                request.signal.addEventListener(
+                    "abort",
+                    abortFromRequest,
+                    {
+                        once:
+                            true,
+                    },
+                );
 
-                const createSubagentTools: CreateSubagentTools =
-                    (
-                        capabilityIds,
-                        subagentWorkspace,
-                        subagentRunId,
-                    ) => {
-                        const configs: AgentCapabilityConfig[] =
-                            capabilityIds.map(
-                                (id) => ({
-                                    id,
-                                    access: "execute",
-                                }),
-                            );
+                return streamSSE(async (stream) => {
+                    const writeSSE = createSSEWriter<AgentSSEMessage>(stream);
 
-                        const description = buildRunTsDescription(
-                            resolvePromptCapabilities(
-                                configs
-                            )
-                        );
+                    const emitAgentEvent = async (event: AgentEvent) => {
+                        await writeSSE(
+                            toAgentSSEMessage(
+                                agentRecord
+                                    .identity,
 
-                        return [
-                            createRunTsTool({
-                                runId: subagentRunId,
-                                workspace: subagentWorkspace,
-                                description,
-                                resolveCapabilities: (source) =>
-                                    resolveRunCapabilities({
-                                        configs,
-                                        workspace: subagentWorkspace,
-                                        source,
-                                        createSubagentTools,
-                                        onEvent: emitSandboxEvent
-                                    }),
-
-                                onEvent: emitSandboxEvent,
-                            }),
-                        ];
-                    };
-
-                try {
-                    const description =
-                        buildRunTsDescription(
-                            resolvePromptCapabilities(
-                                capabilities
+                                event,
                             ),
                         );
+                    };
 
-                    const tools: ToolRegistry = [
-                        createRunTsTool({
-                            runId,
+                    const emitSandboxEvent = async (event: SandboxEvent) => {
+                        await writeSSE(toAgentSSEMessage(
+                            agentRecord.identity,
+                            event,
+                        ));
+                    };
+
+                    try {
+                        const browser = await getBrowser();
+
+                        const availableCapabilities = createCapabilities({
                             workspace,
-                            description,
+                            browser,
+                            env,
+                        });
 
-                            resolveCapabilities: (source) =>
-                                resolveRunCapabilities({
-                                    configs: capabilities,
-                                    workspace,
-                                    source,
-                                    createSubagentTools,
-                                    onEvent: emitSandboxEvent,
-                                }),
+                        const executableCapabilities = resolveExecutableCapabilities(
+                            capabilityConfigs,
+                            availableCapabilities,
+                        );
 
-                            onEvent: emitSandboxEvent,
-                        }),
-                    ];
+                        const promptCapabilities = resolvePromptCapabilities(
+                            capabilityConfigs,
+                            availableCapabilities,
+                        );
 
-                    const result = await agent(
-                        {
-                            model,
-                            messages,
-                            tools,
-                            hooks,
+                        const description = buildRunTsDescription(promptCapabilities);
 
-                            opts: {
-                                maxTurns,
-                                signal: controller.signal,
+                        const tools: ToolRegistry = [
+                            createRunTsTool({
+                                runId,
+                                workspace,
+                                description,
+                                capabilities: executableCapabilities,
+                                runtime: deps.sandboxService.runtime,
+                                onEvent: emitSandboxEvent,
+                            })
+                        ];
+
+                        const result = await agent(
+                            {
+                                model,
+                                messages,
+                                tools,
+                                hooks,
+                                opts: {
+                                    maxTurns,
+                                    signal: controller.signal,
+                                },
                             },
-                        },
 
-                        emitAgentEvent,
-                    );
+                            emitAgentEvent,
+                        );
 
-                    if (
-                        !controller.signal.aborted &&
-                        result.output.length > 0
-                    ) {
-                        await deps.chatRepository.appendItems(
+                        if (
+                            !controller.signal.aborted &&
+                            result.output.length > 0
+                        ) {
+                            await deps.chatRepository
+                                .appendItems(
+                                    chatId,
+                                    result.output,
+                                );
+                        }
+                    } finally {
+                        request.signal.removeEventListener(
+                            "abort",
+                            abortFromRequest,
+                        );
+
+                        deps.runStore.delete(
+                            agentId,
                             chatId,
-                            result.output
+                            runId,
                         );
                     }
-                } finally {
-                    request.signal.removeEventListener(
-                        "abort",
-                        abortFromRequest,
-                    );
+                },
+                );
+            },
 
-                    deps.runStore.delete(
-                        agentId,
-                        runId,
-                    );
-                }
-            });
-        },
-        {
-            params: ExecuteAgentParamsSchema,
-            body: ExecuteAgentBodySchema,
-        },
-    );
+            {
+                params: ExecuteAgentParamsSchema,
+                body: ExecuteAgentBodySchema,
+            },
+        );
 }
 
 function buildRunMessages({
@@ -333,10 +344,7 @@ async function buildFilesContext(
 
             return {
                 filename: safeFilename,
-                content: await fs.readFile(
-                    filePath,
-                    "utf8",
-                ),
+                content: await fs.readFile(filePath, "utf8"),
             };
         }),
     );

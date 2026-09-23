@@ -1,21 +1,16 @@
 import type { AgentEvent } from "../agent/agent.events";
 
-export type ExecutionSource = {
-    runId: string;
-    toolCallId: string;
-};
-
 export type ArtifactEvent =
     | {
         event: "artifact_read";
-        data: ExecutionSource & {
+        data: {
             filePath: string;
             report: string;
         };
     }
     | {
         event: "artifact_created";
-        data: ExecutionSource & {
+        data: {
             filePath: string;
             report: string;
             description: string;
@@ -25,8 +20,7 @@ export type ArtifactEvent =
 export type SubagentEvent = {
     event: "subagent_event";
     data: {
-        parent: ExecutionSource;
-        subagent: Pick<ExecutionSource, "runId">;
+        subagentRunId: string;
         event: AgentEvent;
     };
 };

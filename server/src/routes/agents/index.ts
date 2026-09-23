@@ -18,7 +18,8 @@ export function agentsRoutes(
     runStore,
     agentRepository,
     capabilityRepository,
-    chatRepository
+    chatRepository,
+    sandboxService
   } = deps;
 
   return new Elysia({
@@ -32,7 +33,8 @@ export function agentsRoutes(
     .use(
       createChatRoute({
         agentRepository,
-        chatRepository
+        chatRepository,
+        workspaceStore
       })
     )
     .use(
@@ -65,7 +67,8 @@ export function agentsRoutes(
         runStore,
         capabilityRepository,
         chatRepository,
-        agentRepository
+        agentRepository,
+        sandboxService
       }),
     )
     // .use(

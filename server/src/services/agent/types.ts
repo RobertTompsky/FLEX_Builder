@@ -1,5 +1,4 @@
 import type {
-    FunctionTool,
     ResponseInputItem,
 } from "openai/resources/responses/responses.js";
 
