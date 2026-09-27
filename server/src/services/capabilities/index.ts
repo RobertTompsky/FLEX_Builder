@@ -1,9 +1,7 @@
 export {
-    defineAction as action,
+    action,
 } from "./action";
 
 export {
-    defineCapability as capability,
+    capability,
 } from "./capability";
-
-export * from '../execute/types'

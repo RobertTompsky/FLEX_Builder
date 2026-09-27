@@ -1,9 +1,9 @@
 import z from "zod";
-import { executeInputSchema, executeOutputSchema } from "../../execute/schemas";
+import { executeInputSchema, executeOutputSchema } from "../schemas";
 import {
     buildCapabilitiesPrompt,
     CapabilityPromptInput
-} from "./capabilityPrompt";
+} from "../../capabilities/prompt/capabilityPrompt";
 
 function section(title: string, content: string[]): string {
     return [

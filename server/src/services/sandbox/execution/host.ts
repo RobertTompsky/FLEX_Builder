@@ -10,6 +10,7 @@ import type {
 import type {
     MessageHandler,
     RpcTransport,
+    TransportDisconnectHandler,
 } from "../../rpc/transport";
 
 import {
@@ -20,17 +21,17 @@ import {
     EXECUTION_RPC_PREFIX,
 } from "./protocol";
 
+import {
+    debugRpc,
+} from "../../rpc/debug";
+
+
 type ExecutionHostTransportInput = {
-    stdout:
-    ReadableStream<Uint8Array>;
-
-    writeLine(
-        line: string,
-    ): Promise<void>;
-
-    onStdout?(
-        line: string,
-    ): void | Promise<void>;
+    stdout: ReadableStream<Uint8Array>;
+    writeLine(line: string): Promise<void>;
+    onStdout?(line: string):
+        | void
+        | Promise<void>;
 };
 
 export class ExecutionHostTransport
@@ -38,67 +39,144 @@ export class ExecutionHostTransport
 
     private connected = false;
 
-    private readonly handlers =
+    private readTask?: Promise<void>;
+
+    private readonly messageHandlers =
         new Set<
             MessageHandler
         >();
+
+    private readonly disconnectHandlers =
+        new Set<
+            TransportDisconnectHandler
+        >();
+
 
     constructor(
         private readonly input:
             ExecutionHostTransportInput,
     ) { }
 
+
     async connect():
         Promise<void> {
+
         if (this.connected) {
             return;
         }
 
         this.connected = true;
 
-        void this.readLoop();
+        this.readTask = this.watch();
     }
 
-    subscribe(
+    onMessage(
         handler: MessageHandler,
     ): () => void {
-        this.handlers.add(handler);
+
+        this.messageHandlers.add(handler);
 
         return () => {
-            this.handlers.delete(handler);
+            this.messageHandlers.delete(handler);
         };
     }
+
+
+    onDisconnect(
+        handler: TransportDisconnectHandler,
+    ): () => void {
+
+        this.disconnectHandlers.add(handler);
+
+        return () => {
+            this.disconnectHandlers.delete(handler);
+        };
+    }
+
 
     async send(
         message: JsonRpcMessage,
     ): Promise<void> {
+
         if (!this.connected) {
             throw new Error(
                 "Execution transport is not connected",
             );
         }
 
-        await this.input.writeLine(
-            serializeMessage(message),
-        );
+
+        debugRpc("send", message);
+
+
+        try {
+            await this.input.writeLine(serializeMessage(message));
+        } catch (error) {
+
+            const cause = toError(error);
+
+            this.disconnect(cause);
+
+            throw cause;
+        }
     }
+
 
     async close():
         Promise<void> {
+
+        if (!this.connected) {
+            return;
+        }
+
         this.connected = false;
 
-        this.handlers.clear();
+
+        await Promise.allSettled([
+            this.readTask,
+        ]);
+
+        this.readTask = undefined;
+
+        this.messageHandlers.clear();
+        this.disconnectHandlers.clear();
     }
 
-    private async readLoop():
-        Promise<void> {
-        for await (const line of readLines(this.input.stdout)) {
+
+    private async watch(): Promise<void> {
+
+        try {
+            await this.readLoop();
+
+            if (this.connected) {
+                this.disconnect(
+                    new Error(
+                        "Execution process stdout closed",
+                    ),
+                );
+            }
+
+        } catch (error) {
+            this.disconnect(toError(error));
+        }
+    }
+
+
+    private async readLoop(): Promise<void> {
+
+        for await (
+            const line
+            of readLines(
+                this.input.stdout,
+            )
+        ) {
             if (!this.connected) {
                 return;
             }
 
-            if (!line.startsWith(EXECUTION_RPC_PREFIX)) {
-                await this.input.onStdout?.(line);
+            if (!line.startsWith(EXECUTION_RPC_PREFIX)
+            ) {
+                await this.input
+                    .onStdout?.(line);
 
                 continue;
             }
@@ -107,9 +185,42 @@ export class ExecutionHostTransport
 
             const message = parseMessage(raw);
 
-            for (const handler of this.handlers) {
+            debugRpc("receive", message);
+
+            for (const handler of this.messageHandlers) {
                 await handler(message);
             }
         }
     }
+
+
+    private disconnect(error: Error): void {
+
+        if (!this.connected) {
+            return;
+        }
+
+        this.connected = false;
+
+        const handlers = [
+            ...this.disconnectHandlers,
+        ];
+
+        this.messageHandlers.clear();
+        this.disconnectHandlers.clear();
+
+        for (const handler of handlers) {
+            handler(error);
+        }
+    }
+}
+
+
+function toError(
+    error: unknown,
+): Error {
+
+    return error instanceof Error
+        ? error
+        : new Error(String(error));
 }

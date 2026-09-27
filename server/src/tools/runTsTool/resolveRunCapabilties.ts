@@ -5,8 +5,8 @@ import type {
 import type {
     Capability,
 } from "../../services/capabilities/types";
-import { 
-    CapabilityPromptInput 
+import {
+    CapabilityPromptInput
 } from "../../services/capabilities/prompt/capabilityPrompt";
 
 export function resolvePromptCapabilities(
@@ -53,12 +53,11 @@ export function resolveExecutableCapabilities(
         )
         .map(
             config => {
-                const capability =
-                    capabilities.find(
-                        capability =>
-                            capability.id ===
-                            config.id,
-                    );
+                const capability = capabilities.find(
+                    capability =>
+                        capability.id ===
+                        config.id,
+                );
 
                 if (!capability) {
                     throw new Error(

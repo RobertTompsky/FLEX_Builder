@@ -12,7 +12,10 @@ import {
 } from "../../sse";
 import { RouteDeps } from "../types";
 
-type StopAgentRouteDeps = Pick<RouteDeps, 'runStore' | "agentRepository">
+type StopAgentRouteDeps = Pick<
+  RouteDeps,
+  'runRegistry' | "agentRepository"
+>
 
 export function stopAgentRoute(
   deps: StopAgentRouteDeps,
@@ -38,7 +41,7 @@ export function stopAgentRoute(
         };
       }
 
-      const controller = deps.runStore.get(agentId, chatId, runId);
+      const controller = deps.runRegistry.get(agentId, chatId, runId);
 
       if (!controller) {
         set.status = 409;

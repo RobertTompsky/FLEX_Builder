@@ -39,21 +39,14 @@ export interface RunRepository {
 }
 
 export const runRepository = {
-    create(
-        chatId: string,
-    ) {
+    create(chatId: string) {
         return createRun(
             `run_${randomUUID()}`,
             chatId,
         );
     },
-
     get: getRun,
-
     listRunsByChatId,
-
-    updateStatus:
-        updateRunStatus,
-
+    updateStatus: updateRunStatus,
     delete: deleteRun,
 } satisfies RunRepository;

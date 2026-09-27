@@ -16,15 +16,14 @@ export function createExecutor(
     input: CreateExecutorInput
 ): ExecuteCall {
     const { capabilities, emit } = input
-    const registry =
-        new Map(
-            capabilities.map(
-                capability => [
-                    capability.id,
-                    capability,
-                ],
-            ),
-        );
+    const registry = new Map(
+        capabilities.map(
+            capability => [
+                capability.id,
+                capability,
+            ],
+        ),
+    );
 
     return async (
         {
@@ -38,10 +37,7 @@ export function createExecutor(
     ) => {
         signal?.throwIfAborted();
 
-        const definition =
-            registry.get(
-                capability,
-            );
+        const definition = registry.get(capability);
 
         if (!definition) {
             throw new Error(
@@ -49,10 +45,7 @@ export function createExecutor(
             );
         }
 
-        const target =
-            definition.actions[
-            action
-            ];
+        const target = definition.actions[action];
 
         if (!target) {
             throw new Error(

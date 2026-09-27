@@ -28,7 +28,7 @@ type DefineActionInput<
         >;
 };
 
-export function defineAction<
+export function action<
     TInputSchema extends z.ZodType,
     TOutputSchema extends z.ZodType,
 >({

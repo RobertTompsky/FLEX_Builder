@@ -1,3 +1,4 @@
+import { ExecutionEventInput } from "@flex-builder/shared/sandbox";
 import {
     RpcClient,
 } from "../../rpc/client";
@@ -31,4 +32,13 @@ export class ExecuteRpcClient
                 },
             );
         };
+
+    async emitEvent(
+        input: ExecutionEventInput,
+    ): Promise<void> {
+        await this.notify(
+            ExecuteRpcMethod.executionEvent,
+            input,
+        );
+    }
 }

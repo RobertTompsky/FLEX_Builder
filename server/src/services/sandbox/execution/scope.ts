@@ -7,5 +7,5 @@ export type SandboxGlobal = {
 };
 
 export const sandboxGlobal =
-    globalThis as typeof globalThis &
-        SandboxGlobal;
+    globalThis as typeof globalThis
+    & SandboxGlobal;

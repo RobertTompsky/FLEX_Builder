@@ -5,6 +5,7 @@ import { HookPoliciesInfo } from '../hooks/hooks.types';
 import { Agent, AgentSnapshot, UIAgentSnapshot, UIMessage } from './agent.types';
 import { AgentCapabilityConfigSchema } from '../capabilities/cababilities.schemas';
 import { Chat, ChatParamsSchema } from '../chat';
+import { MODELS } from '../data';
 
 export const AgentParamsSchema = z.object({
     agentId: z.string().min(1),
@@ -85,10 +86,7 @@ export type UpdateAgentBody =
 export type MetadataResponse = {
     uploads: string[];
 
-    models: {
-        readonly luna: "gpt-5.6-luna";
-        readonly terra: "gpt-5.6-terra";
-    };
+    models: typeof MODELS;
 
     capabilities: {
         items: Array<{

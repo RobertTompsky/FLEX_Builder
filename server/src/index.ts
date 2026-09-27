@@ -9,21 +9,36 @@ import {
 import path from 'path'
 import { cors } from '@elysia/cors'
 import { createWorkspaceStore } from "./services/workspace/store";
-import { agentsRoutes, chatRoutes, metadataRoutes } from "./routes";
-import { createRunStore } from "./agents/store/runs";
+import {
+  agentsRoutes,
+  chatRoutes,
+  metadataRoutes
+} from "./routes";
+import { createRunRegistry } from "./services/runs/runs";
 import { chatRepository } from "./db/chats";
 import { agentRepository } from "./db/agents"
 import { capabilityRepository } from "./db/capabilities";
 import { AGENT_WORKSPACES_DIR } from "./services/workspace";
-import { closeExecuteAgentResources } from "./routes/agents/executeAgent";
 import { SandboxService } from "./services/sandbox/service";
+import { createSandboxTransport } from "./services/sandbox/transport";
+import { ExecutionService } from "./services/execute";
+import { runRepository } from "./db/runs";
+
+const transport = createSandboxTransport();
 
 const sandboxService = new SandboxService();
-console.log('[sandbox]: service started')
+
+const executionService = new ExecutionService();
+
+await Promise.all([
+  sandboxService.connect(transport),
+  executionService.connect(transport),
+]);
+console.log('[capabilities]: service started')
 
 const workspaceStore = createWorkspaceStore(AGENT_WORKSPACES_DIR);
 
-const runStore = createRunStore();
+const runRegistry = createRunRegistry();
 
 const fileSchema = z.file().refine((file: File) => {
   const ext = path.extname(file.name).toLowerCase()
@@ -37,15 +52,18 @@ const app = new Elysia()
   .get("/", () => "Марс вечен")
   .use(agentsRoutes({
     workspaceStore,
-    runStore,
+    runRegistry,
+    runRepository,
     agentRepository,
     capabilityRepository,
     chatRepository,
-    sandboxService
+    sandboxService,
+    executionService
   }))
 
   .use(chatRoutes({
-    chatRepository
+    chatRepository,
+    runRepository
   }))
 
   .use(metadataRoutes())
@@ -143,9 +161,12 @@ async function shutdown(exitCode = 0) {
 
   shuttingDown = true;
 
-  await sandboxService.close()
+  await Promise.allSettled([
+    executionService.close(),
+    sandboxService.close(),
+  ]);
 
-  await closeExecuteAgentResources();
+  await transport.close();
 
   process.exit(exitCode);
 }

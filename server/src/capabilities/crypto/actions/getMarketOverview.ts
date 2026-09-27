@@ -1,6 +1,5 @@
 import z from "zod";
 import { action } from "../../../services/capabilities";
-import { CryptoContext } from "./types";
 
 export const marketOverviewInputSchema = z.object({});
 
@@ -214,11 +213,8 @@ interface CoinMarketCapGlobalResponse {
 interface AlternativeMeFngResponse {
     data: Array<{
         value: string;
-
         value_classification: string;
-
         timestamp: string;
-
         time_until_update?: string;
     }>;
 
@@ -227,267 +223,197 @@ interface AlternativeMeFngResponse {
     };
 }
 
-export function createGetMarketOverviewAction({
-    coinMarketCapApiKey,
-}: CryptoContext) {
-    return action({
-        description:
-            "Fetches a global cryptocurrency market snapshot including market capitalization, trading activity, Bitcoin and Ethereum dominance, altcoin metrics, market turnover, and Fear & Greed sentiment.",
+export const getMarketOverviewAction = action({
+    description: "Fetches a global cryptocurrency market snapshot including market capitalization, trading activity, Bitcoin and Ethereum dominance, altcoin metrics, market turnover, and Fear & Greed sentiment.",
+    inputSchema: marketOverviewInputSchema,
+    outputSchema: marketOverviewOutputSchema,
 
-        inputSchema:
-            marketOverviewInputSchema,
+    async execute({
+        options,
+    }) {
+        const coinMarketCapApiKey = process.env.COIN_MARKET_CAP_API_KEY
+        const { signal } = options;
 
-        outputSchema:
-            marketOverviewOutputSchema,
+        if (!coinMarketCapApiKey) {
+            throw Error('CoinMarketCap key is missing')
+        }
 
-        async execute({
-            options,
-        }) {
-            const { signal } =
-                options;
+        signal?.throwIfAborted();
 
-            signal?.throwIfAborted();
-
-            const [
-                marketResponse,
-                fngResponse,
-            ] = await Promise.all([
-                fetch(
-                    "https://pro-api.coinmarketcap.com/v1/global-metrics/quotes/latest",
-                    {
-                        headers: {
-                            "X-CMC_PRO_API_KEY":
-                                coinMarketCapApiKey,
-
-                            Accept:
-                                "application/json",
-                        },
-
-                        signal,
+        const [
+            marketResponse,
+            fngResponse,
+        ] = await Promise.all([
+            fetch(
+                "https://pro-api.coinmarketcap.com/v1/global-metrics/quotes/latest",
+                {
+                    headers: {
+                        "X-CMC_PRO_API_KEY": coinMarketCapApiKey,
+                        Accept: "application/json",
                     },
-                ),
 
-                fetch(
-                    "https://api.alternative.me/fng/",
-                    {
-                        signal,
-                    },
-                ),
-            ]);
-
-            if (!marketResponse.ok) {
-                const body =
-                    await marketResponse.text();
-
-                throw new Error(
-                    `Failed to retrieve CoinMarketCap global metrics: ${marketResponse.status} ${marketResponse.statusText}. ${body}`,
-                );
-            }
-
-            if (!fngResponse.ok) {
-                const body =
-                    await fngResponse.text();
-
-                throw new Error(
-                    `Failed to retrieve Fear & Greed Index: ${fngResponse.status} ${fngResponse.statusText}. ${body}`,
-                );
-            }
-
-            const market =
-                (await marketResponse.json()) as
-                    CoinMarketCapGlobalResponse;
-
-            const fng =
-                (await fngResponse.json()) as
-                    AlternativeMeFngResponse;
-
-            if (
-                market.status.error_code !== 0
-            ) {
-                throw new Error(
-                    `CoinMarketCap returned an error: ${
-                        market.status.error_message ??
-                        market.status.error_code
-                    }`,
-                );
-            }
-
-            if (fng.metadata?.error) {
-                throw new Error(
-                    `Fear & Greed API returned an error: ${String(
-                        fng.metadata.error,
-                    )}`,
-                );
-            }
-
-            const usd =
-                market.data.quote?.USD;
-
-            if (!usd) {
-                throw new Error(
-                    "CoinMarketCap returned no USD global quote.",
-                );
-            }
-
-            const currentFng =
-                fng.data?.[0];
-
-            if (!currentFng) {
-                throw new Error(
-                    "Fear & Greed API returned no index data.",
-                );
-            }
-
-            const fngValue =
-                Number(
-                    currentFng.value,
-                );
-
-            const fngTimestamp =
-                Number(
-                    currentFng.timestamp,
-                );
-
-            if (
-                !Number.isFinite(
-                    fngValue,
-                ) ||
-                !Number.isFinite(
-                    fngTimestamp,
-                )
-            ) {
-                throw new Error(
-                    "Fear & Greed API returned invalid numeric data.",
-                );
-            }
-
-            const {
-                total_market_cap:
-                    totalMarketCapUsd,
-
-                total_volume_24h:
-                    totalVolume24hUsd,
-
-                total_volume_24h_reported:
-                    totalVolume24hReportedUsd,
-
-                altcoin_market_cap:
-                    altcoinMarketCapUsd,
-
-                altcoin_volume_24h:
-                    altcoinVolume24hUsd,
-
-                altcoin_volume_24h_reported:
-                    altcoinVolume24hReportedUsd,
-            } = usd;
-
-            const btcMarketCapUsd =
-                totalMarketCapUsd -
-                altcoinMarketCapUsd;
-
-            const altcoinDominancePercent =
-                100 -
-                market.data.btc_dominance;
-
-            const marketTurnoverPercent =
-                totalMarketCapUsd > 0
-                    ? (
-                        totalVolume24hUsd /
-                        totalMarketCapUsd
-                    ) * 100
-                    : 0;
-
-            const altcoinShareOfVolumePercent =
-                totalVolume24hUsd > 0
-                    ? (
-                        altcoinVolume24hUsd /
-                        totalVolume24hUsd
-                    ) * 100
-                    : 0;
-
-            return {
-                market: {
-                    totalMarketCapUsd,
-                    totalVolume24hUsd,
-                    totalVolume24hReportedUsd,
-                    marketTurnoverPercent,
+                    signal,
                 },
+            ),
 
-                dominance: {
-                    btcPercent:
-                        market.data
-                            .btc_dominance,
-
-                    ethPercent:
-                        market.data
-                            .eth_dominance,
-
-                    altcoinPercent:
-                        altcoinDominancePercent,
+            fetch(
+                "https://api.alternative.me/fng/",
+                {
+                    signal,
                 },
+            ),
+        ]);
 
-                bitcoin: {
-                    marketCapUsd:
-                        btcMarketCapUsd,
+        if (!marketResponse.ok) {
+            const body =
+                await marketResponse.text();
+
+            throw new Error(
+                `Failed to retrieve CoinMarketCap global metrics: ${marketResponse.status} ${marketResponse.statusText}. ${body}`,
+            );
+        }
+
+        if (!fngResponse.ok) {
+            const body =
+                await fngResponse.text();
+
+            throw new Error(
+                `Failed to retrieve Fear & Greed Index: ${fngResponse.status} ${fngResponse.statusText}. ${body}`,
+            );
+        }
+
+        const market = (await marketResponse.json()) as
+            CoinMarketCapGlobalResponse;
+
+        const fng = (await fngResponse.json()) as
+            AlternativeMeFngResponse;
+
+        if (market.status.error_code !== 0) {
+            throw new Error(
+                `CoinMarketCap returned an error: ${market.status.error_message ??
+                market.status.error_code
+                }`,
+            );
+        }
+
+        if (fng.metadata?.error) {
+            throw new Error(
+                `Fear & Greed API returned an error: ${String(
+                    fng.metadata.error,
+                )}`,
+            );
+        }
+
+        const usd = market.data.quote?.USD;
+
+        if (!usd) {
+            throw new Error(
+                "CoinMarketCap returned no USD global quote.",
+            );
+        }
+
+        const currentFng = fng.data?.[0];
+
+        if (!currentFng) {
+            throw new Error(
+                "Fear & Greed API returned no index data.",
+            );
+        }
+
+        const fngValue = Number(currentFng.value);
+
+        const fngTimestamp = Number(currentFng.timestamp);
+
+        if (
+            !Number.isFinite(
+                fngValue,
+            ) ||
+            !Number.isFinite(
+                fngTimestamp,
+            )
+        ) {
+            throw new Error(
+                "Fear & Greed API returned invalid numeric data.",
+            );
+        }
+
+        const {
+            total_market_cap: totalMarketCapUsd,
+
+            total_volume_24h: totalVolume24hUsd,
+
+            total_volume_24h_reported: totalVolume24hReportedUsd,
+
+            altcoin_market_cap: altcoinMarketCapUsd,
+
+            altcoin_volume_24h: altcoinVolume24hUsd,
+
+            altcoin_volume_24h_reported: altcoinVolume24hReportedUsd,
+        } = usd;
+
+        const btcMarketCapUsd = totalMarketCapUsd - altcoinMarketCapUsd;
+
+        const altcoinDominancePercent = 100 - market.data.btc_dominance;
+
+        const marketTurnoverPercent = totalMarketCapUsd > 0
+            ? (
+                totalVolume24hUsd /
+                totalMarketCapUsd
+            ) * 100
+            : 0;
+
+        const altcoinShareOfVolumePercent = totalVolume24hUsd > 0
+            ? (
+                altcoinVolume24hUsd /
+                totalVolume24hUsd
+            ) * 100
+            : 0;
+
+        return {
+            market: {
+                totalMarketCapUsd,
+                totalVolume24hUsd,
+                totalVolume24hReportedUsd,
+                marketTurnoverPercent,
+            },
+
+            dominance: {
+                btcPercent: market.data.btc_dominance,
+                ethPercent: market.data.eth_dominance,
+                altcoinPercent: altcoinDominancePercent,
+            },
+
+            bitcoin: {
+                marketCapUsd: btcMarketCapUsd,
+            },
+
+            altcoins: {
+                marketCapUsd: altcoinMarketCapUsd,
+                volume24hUsd: altcoinVolume24hUsd,
+                volume24hReportedUsd: altcoinVolume24hReportedUsd,
+                volumeSharePercent: altcoinShareOfVolumePercent,
+            },
+
+            sentiment: {
+                fearAndGreed: {
+                    value: fngValue,
+                    classification: currentFng.value_classification,
+                    timestamp: new Date(
+                        fngTimestamp *
+                        1000,
+                    ).toISOString(),
                 },
+            },
 
-                altcoins: {
-                    marketCapUsd:
-                        altcoinMarketCapUsd,
+            activity: {
+                activeCryptocurrencies: market.data.active_cryptocurrencies,
+                totalCryptocurrencies: market.data.total_cryptocurrencies,
+                activeMarketPairs: market.data.active_market_pairs,
+                activeExchanges: market.data.active_exchanges,
+                totalExchanges: market.data.total_exchanges,
+            },
 
-                    volume24hUsd:
-                        altcoinVolume24hUsd,
-
-                    volume24hReportedUsd:
-                        altcoinVolume24hReportedUsd,
-
-                    volumeSharePercent:
-                        altcoinShareOfVolumePercent,
-                },
-
-                sentiment: {
-                    fearAndGreed: {
-                        value:
-                            fngValue,
-
-                        classification:
-                            currentFng
-                                .value_classification,
-
-                        timestamp:
-                            new Date(
-                                fngTimestamp *
-                                1000,
-                            ).toISOString(),
-                    },
-                },
-
-                activity: {
-                    activeCryptocurrencies:
-                        market.data
-                            .active_cryptocurrencies,
-
-                    totalCryptocurrencies:
-                        market.data
-                            .total_cryptocurrencies,
-
-                    activeMarketPairs:
-                        market.data
-                            .active_market_pairs,
-
-                    activeExchanges:
-                        market.data
-                            .active_exchanges,
-
-                    totalExchanges:
-                        market.data
-                            .total_exchanges,
-                },
-
-                lastUpdated:
-                    market.data
-                        .last_updated,
-            };
-        },
-    });
-}
+            lastUpdated: market.data.last_updated,
+        };
+    },
+});

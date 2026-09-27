@@ -1,15 +1,14 @@
 import { capability } from "../../services/capabilities";
-import { createBrowserOpenAction } from "./actions/open";
-import { BrowserContext } from "./actions/types";
+import { openPageAction } from "./actions/open";
 
-export function createBrowserCapability(
-    context: BrowserContext,
-) {
-    return capability({
-        id: "browser",
-        description: "Provides browser access to rendered web pages.",
-        actions: {
-            open: createBrowserOpenAction(context),
-        },
-    });
+export const BROWSER_CAPABILITY_DEFINITION = {
+    id: "browser",
+    description: "Provides browser access to rendered web pages.",
 }
+
+export const browserCapabilitiy = capability({
+    ...BROWSER_CAPABILITY_DEFINITION,
+    actions: {
+        open: openPageAction,
+    },
+});

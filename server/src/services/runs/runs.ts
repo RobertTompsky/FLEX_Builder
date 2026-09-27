@@ -1,4 +1,4 @@
-export function createRunStore() {
+export function createRunRegistry() {
     const runs = new Map<
         string,
         Map<
@@ -112,7 +112,7 @@ export function createRunStore() {
     };
 }
 
-export type RunStore =
+export type RunRegistry =
     ReturnType<
-        typeof createRunStore
+        typeof createRunRegistry
     >;

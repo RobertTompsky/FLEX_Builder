@@ -22,8 +22,8 @@ function mapRun(row: {
       row.finished_at === null
         ? null
         : new Date(
-            row.finished_at,
-          ).toISOString(),
+          row.finished_at,
+        ).toISOString(),
   };
 }
 
@@ -96,27 +96,35 @@ export async function listRunsByChatId(
   );
 }
 
+type FinishedRunStatus =
+  Exclude<
+    RunStatus,
+    "running"
+  >;
+
 export async function updateRunStatus(
   runId: string,
-  status: RunStatus,
+  status: FinishedRunStatus,
 ): Promise<boolean> {
-  const result = await db
-    .updateTable("runs")
-    .set({
-      status,
-      finished_at:
-        status === "running"
-          ? null
-          : Date.now(),
-    })
-    .where(
-      "id",
-      "=",
-      runId,
-    )
-    .executeTakeFirst();
+  const result =
+    await db
+      .updateTable("runs")
+      .set({
+        status,
+        finished_at:
+          Date.now(),
+      })
+      .where(
+        "id",
+        "=",
+        runId,
+      )
+      .executeTakeFirst();
 
-  return result.numUpdatedRows > 0n;
+  return (
+    result.numUpdatedRows >
+    0n
+  );
 }
 
 export async function deleteRun(

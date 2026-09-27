@@ -1,4 +1,4 @@
-import { buildExecutePrompt } from "../../services/capabilities/prompt/buildExecutePrompt";
+import { buildExecutePrompt } from "../../services/execute/prompt/buildExecutePrompt";
 import { CapabilityPromptInput } from "../../services/capabilities/prompt/capabilityPrompt";
 
 const RUN_TS_INTRO = `

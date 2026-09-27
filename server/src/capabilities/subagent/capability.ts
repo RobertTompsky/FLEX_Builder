@@ -1,5 +1,9 @@
 import { capability } from "../../services/capabilities";
-import { createRunSubagentAction, CreateSubagentTools, runSubagentActionMetadata, SubagentContext } from "./actions/runSubagent";
+import {
+    createRunSubagentAction,
+    CreateSubagentTools,
+    runSubagentActionMetadata
+} from "./actions/runSubagent";
 
 const instructions =
     await Bun.file(
@@ -9,44 +13,31 @@ const instructions =
         ),
     ).text();
 
-export const subagentMetadata = {
+export const SUBAGENT_CAPABILITY_DEFINITION = {
     id: "subagent",
-
-    description:
-        "Delegates focused tasks to temporary subagents.",
-
-    instructions,
+    description: "Delegates focused tasks to temporary subagents.",
 };
 
-export const subagentPromptDefinition = {
-    ...subagentMetadata,
+// export const subagentPromptDefinition = {
+//     ...SUBAGENT_CAPABILITY_DEFINITION,
+//     instructions,
+//     actions: {
+//         run:
+//             runSubagentActionMetadata,
+//     },
+// };
 
-    actions: {
-        run:
-            runSubagentActionMetadata,
-    },
-};
+export function createSubagentCapability({
+    createTools,
+}: {
 
-// export function createSubagentCapability({
-//     context,
-//     createTools,
-// }: {
-//     context: SubagentContext;
-//     createTools: CreateSubagentTools;
-// }) {
-//     return capability({
-//         definition: {
-//             ...subagentMetadata,
-
-//             actions: {
-//                 run:
-//                     createRunSubagentAction(
-//                         createTools,
-//                     ),
-//             },
-//         },
-
-//         createContext: () =>
-//             context,
-//     });
-// }
+    createTools: CreateSubagentTools;
+}) {
+    return capability({
+        ...SUBAGENT_CAPABILITY_DEFINITION,
+        instructions,
+        actions: {
+            run: createRunSubagentAction({ createTools })
+        }
+    })
+}

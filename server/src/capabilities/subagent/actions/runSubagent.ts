@@ -5,8 +5,6 @@ import type {
 } from "openai/resources/responses/responses.js";
 
 import { randomUUID } from "crypto";
-import path from "path";
-import fs from "fs-extra";
 
 import {
     MODELS,
@@ -23,8 +21,6 @@ import {
 import type {
     ToolRegistry,
 } from "../../../services/tools/types";
-import { ArtifactContext } from "../../artifact/actions/types";
-import { Workspace } from "../../../services/workspace/types";
 
 export const SUBAGENT_CAPABILITY_IDS = [
     "web",
@@ -91,12 +87,11 @@ export const SubagentOutputSchema =
             ),
     });
 
-export type SubagentContext = ArtifactContext
-
 export type CreateSubagentTools = (
-    capabilityIds: SubagentCapabilityId[],
-    workspace: Workspace,
-    runId: string,
+    input: {
+        capabilityIds: SubagentCapabilityId[];
+        runId: string;
+    },
 ) =>
     | ToolRegistry
     | Promise<ToolRegistry>;
@@ -107,85 +102,59 @@ export const runSubagentActionMetadata = {
     outputSchema: SubagentOutputSchema,
 };
 
-async function runSubagent(
-    input: z.infer<typeof SubagentInputSchema>,
-    context: SubagentContext,
-    createTools: CreateSubagentTools,
-): Promise<z.infer<typeof SubagentOutputSchema>> {
-    const subagentId = `subagent_${randomUUID()}`;
-
-    const subagentRunId = `run_${randomUUID()}`;
-
-    const workspaceRoot = path.join(
-        context.workspace.root,
-        "subagents",
-        subagentId,
-    );
-
-    await fs.ensureDir(workspaceRoot);
-
-    const tools = await createTools(
-        input.capabilities,
-        context.workspace,
-        subagentRunId,
-    );
-
-    const messages: ResponseInputItem[] = [
-        {
-            role: "user",
-            content: input.query,
-        },
-    ];
-
-    const result = await agent(
-        {
-            model: MODELS.terra,
-            messages,
-            tools,
-            opts: {
-                maxTurns: 2,
-                signal: context.signal
-            },
-        },
-
-        async (event) => {
-            await context.onEvent?.({
-                event: "subagent_event",
-                data: {
-                    parent: context.source,
-                    subagent: {
-                        runId: subagentRunId,
-                    },
-                    event,
-                },
-            });
-        },
-    );
-
-    const output = getLastAssistantText(result.output);
-
-    return {
-        output,
-    };
-}
-
-export function createRunSubagentAction(
-    createTools: CreateSubagentTools,
-) {
+export function createRunSubagentAction({
+    createTools
+}: {
+    createTools: CreateSubagentTools;
+}) {
     return action({
-        description: "Runs a temporary subagent with a focused task and selected capabilities.",
+        description: runSubagentActionMetadata.description,
         inputSchema: SubagentInputSchema,
         outputSchema: SubagentOutputSchema,
+        async execute({
+            args,
+            options,
+        }) {
+            const subagentRunId = `run_${randomUUID()}`;
 
-        handler: (
-            input,
-            context: SubagentContext,
-        ) =>
-            runSubagent(
-                input,
-                context,
-                createTools,
-            ),
+            const tools = await createTools({
+                capabilityIds: args.capabilities,
+                runId: subagentRunId,
+            });
+
+            const messages: ResponseInputItem[] = [
+                {
+                    role: "user",
+                    content: args.query,
+                },
+            ];
+
+            const result = await agent(
+                {
+                    model: MODELS.terra,
+                    messages,
+                    tools,
+                    opts: {
+                        maxTurns: 2,
+                        signal: options.signal,
+                    },
+                },
+
+                async event => {
+                    await options.emit?.({
+                        event: "subagent_event",
+                        data: {
+                            subagentRunId,
+                            event,
+                        },
+                    });
+                },
+            );
+
+            return {
+                output: getLastAssistantText(result.output),
+            };
+        },
     });
 }
 

@@ -1,3 +1,4 @@
+import { ExecutionEventInput } from "@flex-builder/shared/sandbox";
 import {
     RpcServer,
 } from "../../rpc/server";
@@ -14,6 +15,14 @@ export class ExecuteRpcServer
     constructor(
         execute:
             ExecuteRpcCall,
+
+        onEvent?:
+            (
+                input:
+                    ExecutionEventInput,
+            ) =>
+                | void
+                | Promise<void>,
     ) {
         super();
 
@@ -34,5 +43,20 @@ export class ExecuteRpcServer
                     },
                 ),
         );
+
+        if (onEvent) {
+            this.register<
+                ExecutionEventInput,
+                void
+            >(
+                ExecuteRpcMethod.executionEvent,
+
+                async input => {
+                    await onEvent(
+                        input,
+                    );
+                },
+            );
+        }
     }
 }

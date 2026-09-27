@@ -1,61 +1,76 @@
 import { CapabilityEvent } from '../capabilities/capabilities.events';
+import { ExecutionEvent, ExecutionSource } from '../sandbox';
 import type { AgentEvent } from './agent.events'
 import { AgentIdentity } from './agent.types';
-export type CodeExecutionEvent =
-    | {
-        event: "started";
-        data: {
-            pid: number;
-        };
-    }
-    | {
-        event: "timeout";
-        data: {
-            timeoutMs: number;
-        };
-    }
-    | {
-        event: "output_exceeded";
-        data: {
-            maxOutputBytes: number;
-        };
-    }
-    | {
-        event: "exit";
-        data: {
-            exitCode: number | null;
-        };
-    };
-    
+
+type WithExecutionSource = {
+  source: ExecutionSource;
+};
+
 export type AgentSourceEvent =
   | AgentEvent
-  | CapabilityEvent
-  | CodeExecutionEvent;
+  | (
+    (
+      | CapabilityEvent
+      | ExecutionEvent
+    ) & WithExecutionSource
+  );
 
 export type ToAgentSSEMessage<
   T extends AgentSourceEvent,
 > =
   T extends unknown
   ? {
-    event: T["event"];
+    event:
+    T["event"];
+
     data: {
-      agent: AgentIdentity;
-      data: T["data"];
-    };
+      agent:
+      AgentIdentity;
+
+      data:
+      T["data"];
+    } & (
+      T extends {
+        source:
+        infer TSource;
+      }
+      ? {
+        source:
+        TSource;
+      }
+      : {}
+    );
   }
   : never;
 
 export function toAgentSSEMessage<
   T extends AgentSourceEvent,
 >(
-  agent: AgentIdentity,
-  event: T,
+  agent:
+    AgentIdentity,
+
+  event:
+    T,
 ): ToAgentSSEMessage<T> {
   return {
-    event: event.event,
+    event:
+      event.event,
+
     data: {
       agent,
-      data: event.data,
+
+      data:
+        event.data,
+
+      ...(
+        "source" in event
+          ? {
+            source:
+              event.source,
+          }
+          : {}
+      ),
     },
   } as ToAgentSSEMessage<T>;
 }

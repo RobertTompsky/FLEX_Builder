@@ -15,11 +15,13 @@ export function agentsRoutes(
 ) {
   const {
     workspaceStore,
-    runStore,
+    runRegistry,
     agentRepository,
     capabilityRepository,
     chatRepository,
-    sandboxService
+    sandboxService,
+    executionService,
+    runRepository
   } = deps;
 
   return new Elysia({
@@ -64,11 +66,13 @@ export function agentsRoutes(
     .use(
       executeAgentRoute({
         workspaceStore,
-        runStore,
+        runRegistry,
         capabilityRepository,
         chatRepository,
         agentRepository,
-        sandboxService
+        sandboxService,
+        executionService,
+        runRepository
       }),
     )
     // .use(
@@ -79,7 +83,7 @@ export function agentsRoutes(
     .use(
       stopAgentRoute({
         agentRepository,
-        runStore,
+        runRegistry,
       }),
     );
 }

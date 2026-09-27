@@ -21,8 +21,8 @@ export type RpcHandler<
     params: TParams,
     signal: AbortSignal,
 ) =>
-    | TResult
-    | Promise<TResult>;
+        | TResult
+        | Promise<TResult>;
 
 type AnyRpcHandler =
     RpcHandler<
@@ -34,8 +34,58 @@ export class RpcServer {
     private transport?:
         RpcTransport;
 
-    private unsubscribe?:
+    private unsubscribeMessage?:
         () => void;
+
+    private unsubscribeDisconnect?:
+        () => void;
+
+    private handleDisconnect(
+        error:
+            Error,
+    ): void {
+
+        this.unsubscribe();
+
+        this.transport =
+            undefined;
+
+        this.abortActive(
+            error,
+        );
+    }
+
+
+    private abortActive(
+        reason:
+            Error,
+    ): void {
+
+        for (
+            const controller
+            of this.active.values()
+        ) {
+            controller.abort(
+                reason,
+            );
+        }
+
+        this.active.clear();
+    }
+
+
+    private unsubscribe():
+        void {
+
+        this.unsubscribeMessage?.();
+        this.unsubscribeDisconnect?.();
+
+        this.unsubscribeMessage =
+            undefined;
+
+        this.unsubscribeDisconnect =
+            undefined;
+    }
 
     private readonly handlers =
         new Map<
@@ -79,20 +129,25 @@ export class RpcServer {
     }
 
     async connect(
-        transport: RpcTransport,
+        transport:
+            RpcTransport,
     ): Promise<void> {
+
         if (this.transport) {
             throw new Error(
                 "RPC server is already connected",
             );
         }
 
+
         this.transport =
             transport;
 
-        this.unsubscribe =
-            transport.subscribe(
-                (message) => {
+
+        this.unsubscribeMessage =
+            transport.onMessage(
+                message => {
+
                     if (
                         isJsonRpcRequest(
                             message,
@@ -104,6 +159,7 @@ export class RpcServer {
 
                         return;
                     }
+
 
                     if (
                         isJsonRpcNotification(
@@ -117,13 +173,23 @@ export class RpcServer {
                 },
             );
 
+
+        this.unsubscribeDisconnect =
+            transport.onDisconnect(
+                error => {
+                    this.handleDisconnect(
+                        error,
+                    );
+                },
+            );
+
+
         try {
             await transport.connect();
-        } catch (error) {
-            this.unsubscribe?.();
 
-            this.unsubscribe =
-                undefined;
+        } catch (error) {
+
+            this.unsubscribe();
 
             this.transport =
                 undefined;
@@ -134,38 +200,25 @@ export class RpcServer {
 
     async close():
         Promise<void> {
-        this.unsubscribe?.();
 
-        this.unsubscribe =
-            undefined;
+        this.unsubscribe();
 
         this.transport =
             undefined;
 
-        for (
-            const controller
-            of this.active.values()
-        ) {
-            controller.abort(
-                new Error(
-                    "RPC server closed",
-                ),
-            );
-        }
-
-        this.active.clear();
+        this.abortActive(
+            new Error(
+                "RPC server closed",
+            ),
+        );
     }
 
     private async handleRequest(
         request: JsonRpcRequest,
     ): Promise<void> {
-        const transport =
-            this.getTransport();
+        const transport = this.getTransport();
 
-        const handler =
-            this.handlers.get(
-                request.method,
-            );
+        const handler = this.handlers.get(request.method);
 
         if (!handler) {
             await this.sendError(
@@ -178,40 +231,29 @@ export class RpcServer {
             return;
         }
 
-        const controller =
-            new AbortController();
+        const controller = new AbortController();
 
-        this.active.set(
-            request.id,
-            controller,
-        );
+        this.active.set(request.id, controller);
 
         try {
-            const result =
-                await handler(
-                    request.params,
-                    controller.signal,
-                );
+            const result = await handler(
+                request.params,
+                controller.signal,
+            );
 
-            if (
-                controller.signal
-                    .aborted
-            ) {
+            if (controller.signal.aborted) {
                 return;
             }
 
-            await transport.send({
-                jsonrpc:
-                    "2.0",
-                id:
-                    request.id,
+            const response = {
+                jsonrpc: "2.0" as const,
+                id: request.id,
                 result,
-            });
+            };
+
+            await transport.send(response);
         } catch (error) {
-            if (
-                controller.signal
-                    .aborted
-            ) {
+            if (controller.signal.aborted) {
                 return;
             }
 
@@ -226,15 +268,12 @@ export class RpcServer {
                     ),
             );
         } finally {
-            this.active.delete(
-                request.id,
-            );
+            this.active.delete(request.id);
         }
     }
 
     private handleNotification(
-        notification:
-            JsonRpcNotification,
+        notification: JsonRpcNotification,
     ): void {
         if (
             notification.method ===
@@ -242,10 +281,10 @@ export class RpcServer {
         ) {
             const params =
                 notification.params as
-                    | {
-                        id?: JsonRpcId;
-                    }
-                    | undefined;
+                | {
+                    id?: JsonRpcId;
+                }
+                | undefined;
 
             if (
                 params?.id !==
@@ -261,26 +300,20 @@ export class RpcServer {
             return;
         }
 
-        const handler =
-            this.handlers.get(
-                notification.method,
-            );
+        const handler = this.handlers.get(notification.method);
 
         if (!handler) {
             return;
         }
 
-        const controller =
-            new AbortController();
+        const controller = new AbortController();
 
         void Promise.resolve(
             handler(
                 notification.params,
                 controller.signal,
             ),
-        ).catch(
-            () => {},
-        );
+        ).catch(() => { });
     }
 
     private async sendError(
@@ -289,19 +322,19 @@ export class RpcServer {
         message: string,
         data?: unknown,
     ): Promise<void> {
-        const transport =
-            this.getTransport();
+        const transport = this.getTransport();
 
-        await transport.send({
-            jsonrpc:
-                "2.0",
+        const response = {
+            jsonrpc: "2.0" as const,
             id,
             error: {
                 code,
                 message,
                 data,
             },
-        });
+        };
+
+        await transport.send(response);
     }
 
     private getTransport():

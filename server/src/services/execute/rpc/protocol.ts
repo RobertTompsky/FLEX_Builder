@@ -2,6 +2,7 @@ import { ExecuteInput, ExecuteOptions } from "../types";
 
 export const ExecuteRpcMethod = {
     execute: "execute",
+    executionEvent: "execution/event",
 } as const;
 
 export type ExecuteRpcInput = {

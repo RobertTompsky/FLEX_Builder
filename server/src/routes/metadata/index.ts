@@ -3,18 +3,15 @@ import { MetadataResponse } from "@flex-builder/shared/agent";
 import { CapabilityAccessSchema } from "@flex-builder/shared/capabilities";
 import { MODELS } from "@flex-builder/shared/data";
 import { HookPoliciesInfo } from "@flex-builder/shared/hooks";
-import { CAPABILITIES_DIR, UPLOADS_DIR } from "../../shared/data";
+import { UPLOADS_DIR } from "../../shared/data";
 import fs from 'fs-extra'
 import { listPreToolUsePolicies } from "../../services/agent/hooks/preToolUse/policy";
+import { CAPABILITY_DEFINITIONS } from "../../capabilities";
 
 export function metadataRoutes() {
   return new Elysia({
     prefix: "/metadata",
   }).get("/", async () => {
-    const definitions = listCapabilities(
-      CAPABILITIES_DIR,
-    );
-
     const uploads = fs
       .readdirSync(
         UPLOADS_DIR,
@@ -22,24 +19,19 @@ export function metadataRoutes() {
           withFileTypes: true,
         },
       )
-      .filter((entry) =>
-        entry.isFile(),
-      )
+      .filter((entry) => entry.isFile())
       .map((entry) => entry.name)
-      .sort((a, b) =>
-        a.localeCompare(b),
-      );
+      .sort((a, b) => a.localeCompare(b));
 
     const policies: HookPoliciesInfo = {
-      preToolUse:
-        listPreToolUsePolicies(),
+      preToolUse: listPreToolUsePolicies(),
     };
 
     return {
       uploads,
       models: MODELS,
       capabilities: {
-        items: definitions.map(
+        items: CAPABILITY_DEFINITIONS.map(
           ({
             id,
             description,
@@ -48,8 +40,7 @@ export function metadataRoutes() {
             description,
           }),
         ),
-        accessOptions:
-          CapabilityAccessSchema.options,
+        accessOptions: CapabilityAccessSchema.options,
       },
       policies,
     } satisfies MetadataResponse;

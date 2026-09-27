@@ -1,18 +1,24 @@
-import {
-    randomUUID,
-} from "crypto";
-
 import type {
     ExecuteCall,
 } from "./types";
-import { ExecuteRpcCall } from "./rpc/protocol";
+
+import type {
+    ExecuteRpcCall,
+} from "./rpc/protocol";
+
+import type {
+    ExecutionEvent,
+} from "@flex-builder/shared/sandbox";
+
+type ExecutionEntry = {
+    execute: ExecuteCall;
+    onEvent?: (event: ExecutionEvent) =>
+        | void
+        | Promise<void>;
+};
 
 export function createExecutionRegistry() {
-    const executions =
-        new Map<
-            string,
-            ExecuteCall
-        >();
+    const executions = new Map<string, ExecutionEntry>();
 
     const execute: ExecuteRpcCall = async (
         {
@@ -21,15 +27,16 @@ export function createExecutionRegistry() {
         },
         options,
     ) => {
-        const target = executions.get(executionId);
 
-        if (!target) {
+        const execution = executions.get(executionId);
+
+        if (!execution) {
             throw new Error(
                 `Unknown execution "${executionId}"`,
             );
         }
 
-        return target(
+        return execution.execute(
             input,
             options,
         );
@@ -37,18 +44,31 @@ export function createExecutionRegistry() {
 
     return {
         register(
-            target: ExecuteCall,
-        ): string {
-            const executionId = `exec_${randomUUID()}`;
+            executionId: string,
+            execute: ExecuteCall,
+            onEvent?: ExecutionEntry["onEvent"],
+        ): void {
 
-            executions.set(executionId, target);
-
-            return executionId;
+            executions.set(
+                executionId,
+                {
+                    execute,
+                    onEvent,
+                },
+            );
         },
 
-        delete(
+        async emit(
             executionId: string,
-        ): void {
+            event: ExecutionEvent,
+        ): Promise<void> {
+
+            await executions
+                .get(executionId)
+                ?.onEvent?.(event);
+        },
+
+        delete(executionId: string): void {
             executions.delete(executionId);
         },
 

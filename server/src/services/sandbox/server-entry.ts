@@ -19,21 +19,18 @@ const transport = new StdioTransport();
 
 const executeClient = new ExecuteRpcClient();
 
-await executeClient.connect(transport);
-
 const runtime = new SandboxRuntime(executeClient);
 
 const sandboxServer = new SandboxRpcServer(runtime);
 
-await sandboxServer.connect(transport);
+await Promise.all([
+    sandboxServer.connect(transport),
+    executeClient.connect(transport),
+]);
 
-console.error(
-    "[sandbox] service started",
-);
+console.error("[sandbox] service started");
 
-console.error(
-    "[sandbox] server started",
-);
+console.error("[sandbox] server started");
 
 let shuttingDown = false;
 

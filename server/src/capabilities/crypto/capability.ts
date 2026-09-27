@@ -1,21 +1,17 @@
 import { capability } from "../../services/capabilities";
 import { fetchCryptoAction } from "./actions/fetchCryptoData";
-import { createGetMarketOverviewAction } from "./actions/getMarketOverview";
-import { CryptoContext } from "./actions/types";
+import { getMarketOverviewAction } from "./actions/getMarketOverview";
 
-export function createCryptoCapability(
-    context: CryptoContext,
-) {
-    return capability({
-        id: "crypto",
-        description: "Provides cryptocurrency market data and analysis.",
-
-        actions: {
-            fetch_crypto: fetchCryptoAction,
-            get_market_overview:
-                createGetMarketOverviewAction(
-                    context,
-                ),
-        },
-    });
+export const CRYPTO_CAPABILITY_DEFINITION = {
+    id: "crypto",
+    description: "Provides cryptocurrency market data and analysis."
 }
+
+export const cryptoCapability = capability({
+    ...CRYPTO_CAPABILITY_DEFINITION,
+
+    actions: {
+        fetch_crypto: fetchCryptoAction,
+        get_market_overview: getMarketOverviewAction
+    },
+});

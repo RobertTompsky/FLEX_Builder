@@ -1,7 +1,6 @@
 import Elysia from "elysia";
 import path from "path";
 import fs from "fs-extra";
-import { randomUUID } from "crypto";
 
 import type {
     ResponseInputItem,
@@ -25,47 +24,12 @@ import {
 } from "@flex-builder/shared/agent";
 
 import { RouteDeps } from "../types";
-import { ToolRegistry } from "../../services/tools/types";
-import { createRunTsTool } from "../../tools/runTsTool/createRunTsTool";
-import { buildRunTsDescription } from "../../tools/runTsTool/buildDescription";
 import { agent } from "../../services/agent/agent";
 import { createHooks } from "../../services/agent/hooks/createHooks";
 import { getPendingToolCalls } from "../../services/agent/messages";
 import { SandboxEvent } from "@flex-builder/shared/sandbox";
-import { createCapabilities } from "../../capabilities";
-import {
-    resolveExecutableCapabilities,
-    resolvePromptCapabilities
-} from "../../tools/runTsTool/resolveRunCapabilties";
-import { chromium } from "playwright";
-
-const env = {
-    coinMarketCapApiKey: process.env.COIN_MARKET_CAP_API_KEY ?? ""
-}
-
-let browserPromise:
-    ReturnType<typeof chromium.launch>
-    | undefined;
-
-function getBrowser() {
-    browserPromise ??= chromium.launch({
-        headless: true,
-    });
-
-    return browserPromise;
-}
-
-export async function closeExecuteAgentResources() {
-    if (!browserPromise) {
-        return;
-    }
-
-    const browser = await browserPromise;
-
-    await browser.close();
-
-    browserPromise = undefined;
-}
+import { createAgentTools } from "../../services/agent/tools/createTools";
+import { RunTsRuntime } from "../../tools/runTsTool/types";
 
 export function executeAgentRoute(
     deps: RouteDeps,
@@ -118,7 +82,7 @@ export function executeAgentRoute(
                     };
                 }
 
-                if (deps.runStore.has(agentId, chatId)) {
+                if (deps.runRegistry.has(agentId, chatId)) {
                     set.status = 409;
 
                     return {
@@ -171,16 +135,16 @@ export function executeAgentRoute(
                     filesContext,
                 });
 
-                const runId = `run_${randomUUID()}`;
+                const run = await deps.runRepository.create(chatId);
 
                 const controller = new AbortController();
 
                 const hooks = createHooks(policies);
 
-                deps.runStore.set(
+                deps.runRegistry.set(
                     agentId,
                     chatId,
-                    runId,
+                    run.id,
                     controller,
                 );
 
@@ -192,8 +156,7 @@ export function executeAgentRoute(
                     "abort",
                     abortFromRequest,
                     {
-                        once:
-                            true,
+                        once: true,
                     },
                 );
 
@@ -219,36 +182,18 @@ export function executeAgentRoute(
                     };
 
                     try {
-                        const browser = await getBrowser();
+                        const runtime: RunTsRuntime = {
+                            sandbox: deps.sandboxService.client,
+                            executions: deps.executionService.executions,
+                        };
 
-                        const availableCapabilities = createCapabilities({
+                        const tools = createAgentTools({
+                            runId: run.id,
                             workspace,
-                            browser,
-                            env,
+                            capabilities: capabilityConfigs,
+                            runtime,
+                            onEvent: emitSandboxEvent,
                         });
-
-                        const executableCapabilities = resolveExecutableCapabilities(
-                            capabilityConfigs,
-                            availableCapabilities,
-                        );
-
-                        const promptCapabilities = resolvePromptCapabilities(
-                            capabilityConfigs,
-                            availableCapabilities,
-                        );
-
-                        const description = buildRunTsDescription(promptCapabilities);
-
-                        const tools: ToolRegistry = [
-                            createRunTsTool({
-                                runId,
-                                workspace,
-                                description,
-                                capabilities: executableCapabilities,
-                                runtime: deps.sandboxService.runtime,
-                                onEvent: emitSandboxEvent,
-                            })
-                        ];
 
                         const result = await agent(
                             {
@@ -275,16 +220,32 @@ export function executeAgentRoute(
                                     result.output,
                                 );
                         }
+
+                        await deps.runRepository.updateStatus(
+                            run.id,
+                            "completed",
+                        );
+                    } catch (error) {
+                        await deps.runRepository
+                            .updateStatus(
+                                run.id,
+                                controller.signal.aborted
+                                    ? "stopped"
+                                    : "failed",
+                            );
+
+                        throw error;
+
                     } finally {
                         request.signal.removeEventListener(
                             "abort",
                             abortFromRequest,
                         );
 
-                        deps.runStore.delete(
+                        deps.runRegistry.delete(
                             agentId,
                             chatId,
-                            runId,
+                            run.id,
                         );
                     }
                 },

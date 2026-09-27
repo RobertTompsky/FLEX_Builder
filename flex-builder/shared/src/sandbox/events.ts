@@ -27,10 +27,53 @@ export type CodeExecutionEvent =
         };
     };
 
+export type RpcTraceNode =
+    | "server"
+    | "sandbox"
+    | "execution";
+
+export type RpcTraceCall =
+    | {
+        method: "sandbox/run";
+        client: "server";
+        server: "sandbox";
+    }
+    | {
+        method: "execute";
+        client: "execution";
+        server: "sandbox";
+    }
+    | {
+        method: "execute";
+        client: "sandbox";
+        server: "server";
+    };
+
+export type RpcTraceEvent = {
+    event: "rpc_trace";
+
+    data: {
+        // executionId: string;
+
+        phase:
+        | "request"
+        | "response";
+    } & RpcTraceCall;
+};
+
+export type ExecutionEvent =
+    | CodeExecutionEvent
+    | RpcTraceEvent;
+
+export type ExecutionEventInput = {
+    executionId: string;
+    event: ExecutionEvent;
+};
 
 export type SandboxEvent =
     (
         | CodeExecutionEvent
+        | RpcTraceEvent
         | CapabilityEvent
     ) & {
         source: ExecutionSource;

@@ -1,7 +1,17 @@
 import {
+    randomUUID,
+} from "crypto";
+
+import {
     CapabilityEvent,
     CodeGenSchema,
 } from "@flex-builder/shared/capabilities";
+
+import type {
+    ExecutionEvent,
+    ExecutionSource,
+    SandboxEvent,
+} from "@flex-builder/shared/sandbox";
 
 import type {
     Tool,
@@ -11,15 +21,25 @@ import type {
     Workspace,
 } from "../../services/workspace/types";
 
-import { z } from "zod";
+import type {
+    Capability,
+} from "../../services/capabilities/types";
+
+import type {
+    SandboxRunResult,
+} from "../../services/sandbox/types";
 
 import {
-    validateCode,
-} from "../../services/code/validateCode";
-import { SandboxExecutionRuntime, SandboxRunResult } from "../../services/sandbox/types";
-import { ExecutionSource, SandboxEvent } from "@flex-builder/shared/sandbox";
-import { createExecutor } from "../../services/execute/executor";
-import { Capability } from "../../services/capabilities/types";
+    createExecutor,
+} from "../../services/execute/executor";
+
+import type {
+    RunTsRuntime,
+} from "./types";
+
+import {
+    z,
+} from "zod";
 
 type SandboxEventHandler = (
     event: SandboxEvent,
@@ -32,7 +52,7 @@ type CreateRunTsToolInput = {
     workspace: Workspace;
     description: string;
     capabilities: Capability[];
-    runtime: SandboxExecutionRuntime;
+    runtime: RunTsRuntime;
     onEvent?: SandboxEventHandler;
 };
 
@@ -43,7 +63,12 @@ export function createRunTsTool({
     workspace,
     description,
     capabilities,
-runtime: { client, executions },
+
+    runtime: {
+        sandbox,
+        executions,
+    },
+
     onEvent,
 }: CreateRunTsToolInput): Tool<
     z.infer<typeof CodeGenSchema>
@@ -57,17 +82,19 @@ runtime: { client, executions },
             input,
             context,
         ) {
-            const validationError = validateCode(input.code);
-
-            if (validationError) {
-                return {
-                    stdout: `[BLOCKED] ${validationError}`,
-                };
-            }
+            const executionId = `exec_${randomUUID()}`;
 
             const source: ExecutionSource = {
                 runId,
                 toolCallId: context.callId,
+                executionId,
+            };
+
+            const emitExecutionEvent = async (event: ExecutionEvent) => {
+                await onEvent?.({
+                    ...event,
+                    source,
+                });
             };
 
             const emitCapabilityEvent = async (event: CapabilityEvent) => {
@@ -82,25 +109,42 @@ runtime: { client, executions },
                 emit: emitCapabilityEvent,
             });
 
-            const executionId = executions.register(execute);
+            executions.register(
+                executionId,
+                execute,
+                emitExecutionEvent,
+            );
 
             try {
-                const result = await client.run(
-                    {
-                        executionId,
-                        code: input.code,
-                        cwd: workspace.root,
-                        timeoutMs: DEFAULT_TIMEOUT_MS,
-                    },
+                await emitExecutionEvent({
+                    event: "rpc_trace",
 
-                    {
-                        signal: context.signal,
+                    data: {
+                        phase: "request",
+                        method: "sandbox/run",
+                        client: "server",
+                        server: "sandbox",
                     },
-                );
+                });
+
+                const result =
+                    await sandbox.run(
+                        {
+                            executionId,
+                            code: input.code,
+                            cwd: workspace.root,
+                            timeoutMs: DEFAULT_TIMEOUT_MS,
+                        },
+
+                        {
+                            signal: context.signal,
+                        },
+                    );
 
                 return {
                     stdout: formatSandboxResult(result),
                 };
+
             } finally {
                 executions.delete(executionId);
             }
