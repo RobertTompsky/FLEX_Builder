@@ -28,13 +28,5 @@ export function getAgentModel(
 export function deleteAgentModel(
     agentId: string,
 ): boolean {
-    const model = agentModels.get(agentId);
-
-    if (!model) {
-        return false;
-    }
-
-    //   model.dispose?.();
-
     return agentModels.delete(agentId);
 }

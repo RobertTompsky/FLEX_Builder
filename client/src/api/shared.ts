@@ -5,6 +5,17 @@ export type APIErrorResponse = {
   error: string;
 };
 
+export type RequestOptions = {
+  signal?: AbortSignal;
+};
+
+export type SSEOptions<TEvent> =
+  RequestOptions & {
+    onEvent: (
+      event: TEvent,
+    ) => void;
+  };
+
 export async function parseResponse<T>(
   response: Response,
 ): Promise<T> {
@@ -14,8 +25,7 @@ export async function parseResponse<T>(
 
   const data = await response
     .json()
-    .catch(() => null) as
-    APIErrorResponse | null;
+    .catch(() => null) as APIErrorResponse | null;
 
   throw new Error(
     data?.error ??

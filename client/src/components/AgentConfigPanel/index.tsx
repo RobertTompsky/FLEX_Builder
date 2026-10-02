@@ -5,7 +5,7 @@ import {
 
 import type {
   AgentModel,
-} from "../../model/agents/model";
+} from "../../model/agent/model";
 
 import {
   metadata,

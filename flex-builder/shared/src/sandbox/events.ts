@@ -1,5 +1,5 @@
-import { CapabilityEvent } from '../capabilities'
-import { ExecutionSource } from './types'
+import type { CapabilityEvent } from "../capabilities";
+import type { ExecutionSource } from "./types";
 
 export type CodeExecutionEvent =
     | {

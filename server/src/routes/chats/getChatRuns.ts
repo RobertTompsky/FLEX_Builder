@@ -11,7 +11,7 @@ export function getChatRunsRoute(
   deps: GetChatRunsRouteDeps,
 ) {
   return new Elysia().get(
-    "/:chatId/items",
+    "/:chatId/runs",
     async ({
       params: { chatId },
       set,

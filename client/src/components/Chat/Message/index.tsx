@@ -8,7 +8,7 @@ import {
     // dracula,
 } from "react-syntax-highlighter/dist/esm/styles/prism";
 import styles from "./styles.module.scss";
-import type { UIMessage } from "../../../shared/types/agent";
+import type { UIMessage } from "@flex-builder/shared/chat";
 
 export function Message({
     role,

@@ -22,7 +22,7 @@ import {
 } from "./queries";
 
 export interface ChatRepository {
-  create(): Promise<Chat>;
+  create(name: string): Promise<Chat>;
 
   get(
     chatId: string,
@@ -51,9 +51,7 @@ export interface ChatRepository {
 }
 
 export const chatRepository = {
-  create() {
-    return createChat(`chat_${randomUUID()}`);
-  },
+  create: (name: string) => createChat(randomUUID(), name),
 
   listChatsByAgentId,
 

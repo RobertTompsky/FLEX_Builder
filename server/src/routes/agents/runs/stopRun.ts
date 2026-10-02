@@ -2,22 +2,21 @@ import Elysia from "elysia";
 
 import {
   type AgentSSEMessage,
-  type AgentIdentity,
-  StopAgentParamsSchema,
 } from "@flex-builder/shared/agent";
 
 import {
   streamSSE,
   createSSEWriter,
-} from "../../sse";
-import { RouteDeps } from "../types";
+} from "../../../sse";
+import { RouteDeps } from "../../types";
+import { StopRunParamsSchema } from "@flex-builder/shared/run";
 
 type StopAgentRouteDeps = Pick<
   RouteDeps,
   'runRegistry' | "agentRepository"
 >
 
-export function stopAgentRoute(
+export function stopRunRoute(
   deps: StopAgentRouteDeps,
 ) {
   return new Elysia().post(
@@ -54,35 +53,24 @@ export function stopAgentRoute(
 
       controller.abort();
 
-      return sendStopEvent({
-        identity: agent.identity,
-        reason: "live_abort",
+      return streamSSE(async (sse) => {
+        const writeAgentSSE = createSSEWriter<AgentSSEMessage>(sse);
+
+        await writeAgentSSE({
+          event: "status",
+          data: {
+            agent: agent.identity,
+            data: {
+              runId,
+              status: 'stopped',
+              reason: "user_requested",
+            },
+          },
+        });
       });
     },
     {
-      params: StopAgentParamsSchema,
+      params: StopRunParamsSchema,
     },
   );
-}
-
-function sendStopEvent({
-  identity,
-  reason,
-}: {
-  identity: AgentIdentity;
-  reason: "live_abort";
-}) {
-  return streamSSE(async (sse) => {
-    const writeAgentSSE = createSSEWriter<AgentSSEMessage>(sse);
-
-    await writeAgentSSE({
-      event: "stop",
-      data: {
-        agent: identity,
-        data: {
-          reason,
-        },
-      },
-    });
-  });
 }

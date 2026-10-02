@@ -10,7 +10,8 @@
     "./hooks": "./src/hooks/index.ts",
     "./data": "./src/data/index.ts",
     "./run": "./src/run/index.ts",
-    "./sandbox": "./src/sandbox/index.ts"
+    "./sandbox": "./src/sandbox/index.ts",
+    "./metadata": "./src/metadata/index.ts"
   },
   "dependencies": {
     "zod": "^4.5.4"

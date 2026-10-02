@@ -1,6 +1,7 @@
 import { Elysia } from "elysia";
 import { AgentParamsSchema } from "@flex-builder/shared/agent";
 import { RouteDeps } from "../types";
+import { CreateChatBodySchema } from "@flex-builder/shared/chat";
 
 type CreateChatRouteDeps = Pick<
     RouteDeps, 'agentRepository' | 'chatRepository' | "workspaceStore"
@@ -13,6 +14,7 @@ export function createChatRoute(
         "/:agentId/chats",
         async ({
             params: { agentId },
+            body: { name },
             set,
         }) => {
             const {
@@ -32,7 +34,7 @@ export function createChatRoute(
                 };
             }
 
-            const chat = await chatRepository.create();
+            const chat = await chatRepository.create(name);
 
             await chatRepository.attachToAgent(agentId, chat.id);
 
@@ -43,6 +45,7 @@ export function createChatRoute(
             return chat;
         },
         {
+            body: CreateChatBodySchema,
             params: AgentParamsSchema,
         },
     );

@@ -23,6 +23,8 @@ export function deleteChatRoute(
                 workspaceStore
             } = deps;
 
+            const agentIds = await chatRepository.getAgentIdsByChatId(chatId);
+
             const isDeleted = await chatRepository.delete(chatId);
 
             if (!isDeleted) {
@@ -33,10 +35,6 @@ export function deleteChatRoute(
                     error: "Chat not found",
                 };
             }
-
-            const agentIds = await chatRepository.getAgentIdsByChatId(chatId);
-
-            await chatRepository.delete(chatId);
 
             for (const agentId of agentIds) {
                 await workspaceStore.chat.delete(

@@ -15,7 +15,7 @@ import {
 } from "../../components/AgentsSidebar";
 
 import styles from "./styles.module.scss";
-import { agents } from "../../model/agents";
+import { agents } from "../../model/agent";
 import { metadata } from "../../model/metadata";
 
 export const WorkspaceLayout = reatomComponent(() => {

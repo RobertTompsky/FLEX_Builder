@@ -11,7 +11,7 @@ import styles from "./styles.module.scss";
 
 import {
   agents,
-} from "../../model/agents";
+} from "../../model/agent";
 import { useState } from "react";
 import type { AgentListItem } from "@flex-builder/shared/agent";
 

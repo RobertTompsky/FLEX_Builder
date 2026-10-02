@@ -26,7 +26,7 @@ import type {
 import { getPendingToolCalls } from "./messages";
 import { buildModelTools } from "../tools/buildModelTools";
 
-export type AgentEventHandler = (
+type AgentEventHandler = (
     event: AgentEvent,
 ) => void | Promise<void>;
 
@@ -51,12 +51,7 @@ export async function agent(
 
     const initialMessagesCount = messages.length;
 
-    // let turnsUsed =
-    // pendingToolCalls.length > 0
-    //     ? countCurrentRunTurns(
-    //         messages,
-    //     )
-    //     : 0;
+    throwIfAborted(signal);
 
     let turnsUsed = 0;
 
@@ -65,8 +60,6 @@ export async function agent(
     const modelTools = buildModelTools(tools);
 
     const executeTools = createToolExecutor(tools);
-
-    throwIfAborted(signal);
 
     while (true) {
         throwIfAborted(signal);
@@ -116,13 +109,6 @@ export async function agent(
 
             messages.push(...finalStep.output);
 
-            await onEvent?.({
-                event: "end",
-                data: {
-                    message: "Agent completed after reaching the turn limit",
-                },
-            });
-
             return createAgentResult(
                 'turn_limit',
                 messages,
@@ -132,29 +118,21 @@ export async function agent(
 
         turnsUsed++;
 
-        const step =
-            await model({
-                model: modelName,
-                messages,
-                tools: modelTools,
-                signal,
-                reasoning: {
-                    effort: "none",
-                },
+        const step = await model({
+            model: modelName,
+            messages,
+            tools: modelTools,
+            signal,
+            reasoning: {
+                effort: "none",
+            },
 
-                onEvent,
-            });
+            onEvent,
+        });
 
         messages.push(...step.output);
 
         if (step.status === "completed") {
-            await onEvent?.({
-                event: "end",
-                data: {
-                    message: "Agent completed",
-                },
-            });
-
             return createAgentResult(
                 "completed",
                 messages,
@@ -185,13 +163,6 @@ export async function agent(
 
         switch (preToolUseResult.decision) {
             case "ask": {
-                await onEvent?.({
-                    event: "pause",
-                    data: {
-                        reason: "tool_approval_required",
-                    },
-                });
-
                 return createAgentResult(
                     'awaiting_tool_approval',
                     messages,
@@ -205,12 +176,9 @@ export async function agent(
                         toolCall,
                     ): ResponseInputItem.FunctionCallOutput => ({
                         type: "function_call_output",
-
                         call_id: toolCall.call_id,
-
                         output: JSON.stringify({
                             error: "tool_use_denied",
-
                             reason: preToolUseResult.reason,
                         }),
                     }),

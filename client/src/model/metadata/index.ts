@@ -6,7 +6,7 @@ import {
 import {
     metadataApi
 } from "../../api/metadata";
-import type { MetadataResponse } from "@flex-builder/shared/agent";
+import type { MetadataResponse } from "@flex-builder/shared/metadata";
 
 const load = action(
     async (

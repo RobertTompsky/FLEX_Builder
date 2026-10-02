@@ -3,25 +3,24 @@ import { createAgentRoute } from "./createAgent";
 import { listAgentsRoute } from "./listAgents";
 import { getAgentRoute } from "./getAgent";
 import { deleteAgentRoute } from "./deleteAgent";
-import { executeAgentRoute } from "./executeAgent";
-import { stopAgentRoute } from "./stopAgent";
 import { updateAgentRoute } from "./updateAgent";
-// import { approveToolCallsRoute } from "./approveToolcalls";
 import { createChatRoute } from "./createChat";
 import { RouteDeps } from "../types";
+import { stopRunRoute } from "./runs/stopRun";
+import { startRunRoute } from "./runs/startRun";
 
 export function agentsRoutes(
   deps: RouteDeps,
 ) {
   const {
-    workspaceStore,
+    chatRepository,
+    runRepository,
     runRegistry,
     agentRepository,
-    capabilityRepository,
-    chatRepository,
-    sandboxService,
     executionService,
-    runRepository
+    sandboxService,
+    capabilityRepository,
+    workspaceStore
   } = deps;
 
   return new Elysia({
@@ -63,27 +62,18 @@ export function agentsRoutes(
         agentRepository,
       }),
     )
-    .use(
-      executeAgentRoute({
-        workspaceStore,
-        runRegistry,
-        capabilityRepository,
-        chatRepository,
-        agentRepository,
-        sandboxService,
-        executionService,
-        runRepository
-      }),
-    )
-    // .use(
-    //   approveToolCallsRoute({
-    //     conversationRepository
-    //   }),
-    // )
-    .use(
-      stopAgentRoute({
-        agentRepository,
-        runRegistry,
-      }),
-    );
+    .use(startRunRoute({
+      capabilityRepository,
+      chatRepository,
+      runRegistry,
+      runRepository,
+      agentRepository,
+      executionService,
+      sandboxService,
+      workspaceStore
+    }))
+    .use(stopRunRoute({
+      runRegistry,
+      agentRepository
+    }))
 }

@@ -8,7 +8,7 @@ import {
 
 import {
   agents,
-} from "../../model/agents";
+} from "../../model/agent";
 
 export const HomePage = reatomComponent(() => {
   const navigate =

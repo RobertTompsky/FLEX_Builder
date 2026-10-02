@@ -2,7 +2,8 @@ export type RunStatus =
   | "running"
   | "completed"
   | "stopped"
-  | "failed";
+  | "failed"
+  | "paused"
 
 export type Run = {
   id: string;

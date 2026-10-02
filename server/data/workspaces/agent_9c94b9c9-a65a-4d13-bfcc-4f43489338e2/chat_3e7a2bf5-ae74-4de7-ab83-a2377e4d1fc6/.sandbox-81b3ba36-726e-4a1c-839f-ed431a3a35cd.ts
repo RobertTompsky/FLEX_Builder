@@ -1,1 +1,0 @@
-const r = await execute({capability:"crypto", action:"fetch_crypto", args:{ticker:"BTC", name:"bitcoin", quantity:1}}); console.log(r);

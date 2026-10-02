@@ -19,11 +19,13 @@ function mapChat(row: {
 
 export async function createChat(
     id: string,
+    name: string,
 ): Promise<Chat> {
     await db
         .insertInto("chats")
         .values({
             id,
+            title: name,
         })
         .execute();
 

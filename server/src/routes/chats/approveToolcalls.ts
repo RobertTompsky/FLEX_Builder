@@ -4,13 +4,10 @@ import type {
   ResponseInputItem,
 } from "openai/resources/responses/responses.js";
 
-import {
-  ToolCallsBodySchema,
-} from "@flex-builder/shared/agent";
-
 import { ChatParamsSchema } from "@flex-builder/shared/chat";
 import { RouteDeps } from "../types";
 import { getPendingToolCalls } from "../../services/agent/messages";
+import { ApproveToolCallsBodySchema } from "@flex-builder/shared/run";
 
 type ApproveToolCallsRouteDeps = Pick<RouteDeps, 'chatRepository'>
 
@@ -65,7 +62,7 @@ export function approveToolCallsRoute(
       };
     },
     {
-      body: ToolCallsBodySchema,
+      body: ApproveToolCallsBodySchema,
       params: ChatParamsSchema,
     },
   );
@@ -75,7 +72,7 @@ function applyToolCallApproval(
   history: ResponseInputItem[],
   approvedToolCallIds: string[],
 ): ResponseInputItem[] {
-  const pending =    getPendingToolCalls(history);
+  const pending = getPendingToolCalls(history);
 
   const pendingIds = new Set(
     pending.map(

@@ -39,14 +39,6 @@ export function createAgentRoute(
 
       await agentRepository.create(agent);
 
-      // try {
-      //   await workspaceStore.create(agent.identity.id);
-      // } catch (error) {
-      //   agentRepository.delete(agent.identity.id);
-
-      //   throw error;
-      // }
-
       set.status = 201;
 
       const listItem: AgentListItem = {

@@ -1,250 +1,462 @@
 import {
-  useEffect,
+    useEffect,
+    useState,
 } from "react";
 
 import {
-  reatomComponent,
+    reatomComponent,
 } from "@reatom/react";
 
 import {
-  useNavigate,
-  useParams,
+    Outlet,
+    useNavigate,
+    useParams,
 } from "react-router";
 
-import styles from "./styles.module.scss";
-import { agents } from "../../model/agents";
-import type { AgentModel } from "../../model/agents/model";
+import {
+    agents,
+} from "../../model/agent";
+
+import type {
+    AgentModel,
+} from "../../model/agent/model";
 
 import {
-  AgentChat,
-} from "../../components/AgentChat";
-
-import {
-  AgentConfigPanel,
+    AgentConfigPanel,
 } from "../../components/AgentConfigPanel";
 
 import {
-  AgentFilesPanel,
+    AgentFilesPanel,
 } from "../../components/AgentFilesPanel";
 
 import {
-  EventsPanel,
-} from "../../components/EventsPanel";
+    ChatTabs,
+} from "../../components/ChatTabs";
+
+import styles from "./styles.module.scss";
+import { createChatAction } from "../../model/chat/create";
+
+export type AgentPageOutletContext = {
+    agent: AgentModel;
+};
 
 export function AgentPage() {
-  const navigate = useNavigate();
+    const navigate = useNavigate();
 
-  const { agentId } = useParams<{
-    agentId: string;
-  }>();
+    const {
+        agentId,
+    } = useParams<{
+        agentId: string;
+    }>();
 
-  if (!agentId) {
+    if (!agentId) {
+        return (
+            <section
+                className={styles.agentPage}
+            >
+                <div
+                    className={styles.error}
+                    role="alert"
+                >
+                    <h2>
+                        FAILED TO LOAD AGENT
+                    </h2>
+
+                    <p>
+                        Agent ID is missing
+                    </p>
+
+                    <button
+                        type="button"
+                        onClick={() => {
+                            navigate("/");
+                        }}
+                    >
+                        RETURN HOME
+                    </button>
+                </div>
+            </section>
+        );
+    }
+
     return (
-      <section
-        className={styles.agentPage}
-      >
-        <div
-          className={styles.error}
-          role="alert"
-        >
-          <h2>
-            FAILED TO LOAD AGENT
-          </h2>
-
-          <p>
-            Agent ID is missing
-          </p>
-
-          <button
-            type="button"
-            onClick={() => {
-              navigate("/");
-            }}
-          >
-            RETURN HOME
-          </button>
-        </div>
-      </section>
+        <AgentPageContent
+            agent={agents.get(agentId)}
+        />
     );
-  }
-
-  return (
-    <AgentPageContent
-      agent={agents.get(agentId)}
-    />
-  );
 }
 
 type AgentPageContentProps = {
-  agent: AgentModel;
+    agent: AgentModel;
 };
 
 const AgentPageContent = reatomComponent(({
-  agent,
+    agent,
 }: AgentPageContentProps) => {
-  const navigate = useNavigate();
 
-  const snapshot = agent.snapshot();
-  const identity = snapshot?.identity
-  const checkpoint = snapshot?.checkpoint
+    const [chatName, setChatName] = useState("");
 
-  const loadReady = agent.load.ready();
-  const loadError = agent.load.error();
+    const chats = agent.chats();
 
-  const deleteReady = agents.delete.ready();
-  const deleteError = agents.delete.error();
+    const createReady = createChatAction.ready();
 
-  const saveReady =
-    agent.configForm.submit.ready();
+    const createError = createChatAction.error();
 
-  const saveError =
-    agent.configForm.submit.error();
+    const {
+        chatId,
+    } = useParams<{
+        chatId?: string;
+    }>();
 
-  useEffect(() => {
-    if (checkpoint || !loadReady) {
-      return;
+    const navigate = useNavigate();
+
+    const data = agent.data();
+
+    const loadReady = agent.load.ready();
+
+    const loadError = agent.load.error();
+
+    const deleteReady = agents.delete.ready();
+
+    const deleteError = agents.delete.error();
+
+    const saveReady = agent.configForm
+        .submit
+        .ready();
+
+    const saveError = agent.configForm
+        .submit
+        .error();
+
+    useEffect(() => {
+        if (
+            data ||
+            loadError ||
+            !loadReady
+        ) {
+            return;
+        }
+
+        void agent.load();
+    }, [
+        agent,
+        data,
+        loadError,
+        loadReady,
+    ]);
+
+    useEffect(() => {
+        if (chatId || chats.length === 0) {
+            return;
+        }
+
+        const firstChat = chats[0];
+
+        if (!firstChat) {
+            return;
+        }
+
+        navigate(
+            `/agents/${encodeURIComponent(
+                agent.id,
+            )}/chats/${encodeURIComponent(
+                firstChat.id,
+            )}`,
+            {
+                replace: true,
+            },
+        );
+    }, [
+        agent.id,
+        chatId,
+        chats,
+        navigate,
+    ]);
+
+    const isLoading = !data && !loadError;
+
+    if (isLoading) {
+        return (
+            <section
+                className={styles.agentPage}
+            >
+                LOADING AGENT...
+            </section>
+        );
     }
 
-    void agent.load();
-  }, [
-    agent,
-    checkpoint,
-    loadReady,
-  ]);
+    if (loadError || !data) {
+        return (
+            <section
+                className={styles.agentPage}
+            >
+                <div
+                    className={styles.error}
+                    role="alert"
+                >
+                    <h2>
+                        FAILED TO LOAD AGENT
+                    </h2>
 
-  const config = checkpoint?.data.config;
-  const pageTitle = identity?.name ?? "Agent";
-  const modelLabel = config?.model || "No model selected";
-  const isLoading = !checkpoint && !loadError;
+                    <p>
+                        {
+                            loadError
+                                ?.message ??
+                            "Unknown error"
+                        }
+                    </p>
 
-  const handleSave =
-    async (): Promise<void> => {
-      if (!saveReady) {
-        return;
-      }
+                    <button
+                        type="button"
+                        onClick={() => {
+                            navigate("/");
+                        }}
+                    >
+                        RETURN HOME
+                    </button>
+                </div>
+            </section>
+        );
+    }
 
-      try {
-        await agent.configForm.submit();
-      } catch {
-        console.error(saveError)
-      }
+    const {
+        identity,
+        config,
+    } = data;
+
+    const handleCreateChat = async (): Promise<void> => {
+
+        const name = chatName.trim();
+
+        if (!name || !createReady) {
+            return;
+        }
+
+        try {
+            const chat = await createChatAction(
+                agent.id,
+                name,
+            );
+
+            setChatName("");
+
+            navigate(
+                `/agents/${encodeURIComponent(
+                    agent.id,
+                )}/chats/${encodeURIComponent(
+                    chat.id,
+                )}`,
+            );
+
+        } catch {
+            //
+        }
     };
 
-  const handleDelete = async (): Promise<void> => {
-    if (!deleteReady) {
-      return;
-    }
+    const handleSave =
+        async (): Promise<void> => {
+            if (!saveReady) {
+                return;
+            }
 
-    const confirmed =
-      window.confirm(
-        `Delete agent "${identity?.name ??
-        agent.id
-        }"?`,
-      );
+            try {
+                await agent
+                    .configForm
+                    .submit();
+            } catch {
+                //
+            }
+        };
 
-    if (!confirmed) {
-      return;
-    }
+    const handleDelete = async (): Promise<void> => {
+        if (!deleteReady) {
+            return;
+        }
 
-    try {
-      await agents.delete(agent.id);
-      navigate("/");
-    } catch { }
-  };
+        const confirmed =
+            window.confirm(
+                `Delete agent "${identity.name}"?`,
+            );
 
-  return (
-    <section
-      className={styles.agentPage}
-    >
-      <header className={styles.header}>
-        <div className={styles.identity}>
-          <div
-            className={styles.icon}
-            aria-hidden="true"
-          >
-            <span className={styles.iconWindow}>
-              <span className={styles.iconWindowBar} />
-              <span className={styles.iconCursor}>
-                _
-              </span>
-            </span>
-          </div>
+        if (!confirmed) {
+            return;
+        }
 
-          <div className={styles.identityCopy}>
-            <div className={styles.identityTitle}>
-              <h1>{pageTitle.toLowerCase()}</h1>
+        try {
+            await agents.delete(
+                agent.id,
+            );
 
-              <span className={styles.status}>
-                ACTIVE
-              </span>
+            navigate("/");
+        } catch {
+            //
+        }
+    };
+
+    return (
+        <section
+            className={styles.agentPage}
+        >
+            <header
+                className={styles.header}
+            >
+                <div
+                    className={styles.identity}
+                >
+                    <div
+                        className={
+                            styles.identityCopy
+                        }
+                    >
+                        <div
+                            className={styles.identityTitle}
+                        >
+                            <h1>
+                                {identity.name.toLowerCase()}
+                            </h1>
+
+                            <span
+                                className={styles.status}
+                            >
+                                ACTIVE
+                            </span>
+                        </div>
+
+                        <p>
+                            {config.model || "No model selected"}
+                        </p>
+                    </div>
+                </div>
+
+                <div className={styles.headerRight}>
+                    <div
+                        className={styles.createChat}
+                    >
+                        <input
+                            type="text"
+                            value={chatName}
+                            placeholder="New chat"
+                            disabled={!createReady}
+                            onChange={event => {
+                                setChatName(event.target.value);
+                            }}
+                            onKeyDown={event => {
+                                if (event.key === "Enter"
+                                ) {
+                                    void handleCreateChat();
+                                }
+                            }}
+                        />
+
+                        <button
+                            type="button"
+                            disabled={
+                                !createReady ||
+                                !chatName.trim()
+                            }
+                            onClick={() => {
+                                void handleCreateChat();
+                            }}
+                        >
+                            {
+                                createReady
+                                    ? "CREATE"
+                                    : "CREATING..."
+                            }
+                        </button>
+                    </div>
+
+                    <div
+                        className={styles.headerActions}
+                    >
+                        <button
+                            type="button"
+                            className={styles.saveButton}
+                            disabled={!saveReady}
+                            onClick={() => {
+                                void handleSave();
+                            }}
+                        >
+                            {
+                                saveReady
+                                    ? "SAVE"
+                                    : "SAVING..."
+                            }
+                        </button>
+
+                        <button
+                            type="button"
+                            className={styles.deleteButton}
+                            disabled={!deleteReady}
+                            onClick={() => {
+                                void handleDelete();
+                            }}
+                        >
+                            {
+                                deleteReady
+                                    ? "DELETE"
+                                    : "DELETING..."
+                            }
+                        </button>
+
+                        <button
+                            className={styles.closeButton}
+                            type="button"
+                            onClick={() => {
+                                navigate("/");
+                            }}
+                        >
+                            CLOSE
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <div
+                className={styles.leftRail}
+            >
+                <AgentConfigPanel
+                    agent={agent}
+                />
+
+                <AgentFilesPanel />
             </div>
 
-            <p>{modelLabel}</p>
-          </div>
-        </div>
-
-        <div
-          className={styles.actionsGroup}
-        >
-          <span
-            className={styles.actionsLabel}
-          >
-            ACTIONS
-          </span>
-
-          <div
-            className={styles.headerActions}
-          >
-            <button
-              className={styles.saveButton}
-              type="button"
-              disabled={!saveReady}
-              onClick={() => {
-                void handleSave();
-              }}
+            <div
+                className={styles.chatTabs}
             >
-              {saveReady
-                ? "SAVE"
-                : "SAVING..."}
-            </button>
+                <ChatTabs
+                    agent={agent}
+                />
+            </div>
 
-            <button
-              className={styles.deleteButton}
-              type="button"
-              disabled={!deleteReady}
-              onClick={() => {
-                void handleDelete();
-              }}
-            >
-              {deleteReady
-                ? "DELETE"
-                : "DELETING..."}
-            </button>
+            <Outlet
+                context={{ agent }}
+            />
 
-            <button
-              className={styles.closeButton}
-              type="button"
-              onClick={() => {
-                navigate("/");
-              }}
-            >
-              CLOSE
-            </button>
-          </div>
-        </div>
-      </header>
+            {saveError && (
+                <div
+                    role="alert"
+                    className={
+                        styles.error
+                    }
+                >
+                    {saveError.message}
+                </div>
+            )}
 
-
-      <div className={styles.leftRail}>
-        <AgentConfigPanel agent={agent} />
-        <AgentFilesPanel />
-      </div>
-
-      <AgentChat agent={agent} />
-
-      <div className={styles.events}>
-        <EventsPanel agent={agent} />
-      </div>
-    </section>
-  );
+            {deleteError && (
+                <div
+                    role="alert"
+                    className={
+                        styles.error
+                    }
+                >
+                    {
+                        deleteError.message
+                    }
+                </div>
+            )}
+        </section>
+    );
 });

@@ -23,6 +23,7 @@ import { SandboxService } from "./services/sandbox/service";
 import { createSandboxTransport } from "./services/sandbox/transport";
 import { ExecutionService } from "./services/execute";
 import { runRepository } from "./db/runs";
+import { CAPABILITY_DEFINITIONS } from "./capabilities";
 
 const transport = createSandboxTransport();
 
@@ -63,7 +64,8 @@ const app = new Elysia()
 
   .use(chatRoutes({
     chatRepository,
-    runRepository
+    runRepository,
+    workspaceStore
   }))
 
   .use(metadataRoutes())
@@ -111,6 +113,274 @@ const app = new Elysia()
     },
   )
 
+  .get('jev', async ({ set }) => {
+
+    const TYPESAFE_API_URL =
+      "https://api.typesafe.ai/v1/systemone";
+
+    const TEST_CASES = [
+      {
+        id: "crypto-news",
+        prompt:
+          "Find the current Bitcoin price and explain whether recent news could be affecting it.",
+      },
+
+      {
+        id: "website-research",
+        prompt:
+          "Open the TypeSafe AI website, inspect the documentation and summarize how Jev works.",
+      },
+
+      {
+        id: "crypto-comparison",
+        prompt:
+          "Compare the current prices of Bitcoin and Ethereum, then search for recent market news that might explain their movement.",
+      },
+
+      {
+        id: "research-report",
+        prompt:
+          "Research recent developments in AI agents and create a short report with the findings.",
+      },
+
+      {
+        id: "browser-download",
+        prompt:
+          "Find the latest TypeSafe AI documentation, open the relevant page and download any useful document if available.",
+      },
+    ];
+
+    const capabilityCriteria =
+      Object.fromEntries(
+        CAPABILITY_DEFINITIONS.map(
+          ({
+            id,
+            description,
+          }) => [
+              id,
+              description,
+            ],
+        ),
+      );
+
+    type JevChoiceAnswer = {
+      type: "choice";
+
+      choice:
+      string;
+
+      probabilities:
+      Record<string, number>;
+
+      confidence:
+      number;
+    };
+
+    type JevResponse = {
+      model:
+      string;
+
+      answers:
+      Record<
+        string,
+        JevChoiceAnswer
+      >;
+
+      usage: {
+        input_tokens:
+        number;
+
+        output_tokens:
+        number;
+      };
+    };
+
+    const apiKey =
+      process.env.JEV_API_KEY;
+
+    if (!apiKey) {
+      set.status = 500;
+
+      return {
+        ok: false,
+
+        error:
+          "TYPESAFE_API_KEY is not configured",
+      };
+    }
+
+    const results =
+      await Promise.all(
+        TEST_CASES.map(
+          async ({
+            id,
+            prompt,
+          }) => {
+            const startedAt =
+              performance.now();
+
+            const response =
+              await fetch(
+                TYPESAFE_API_URL,
+                {
+                  method:
+                    "POST",
+
+                  headers: {
+                    Authorization:
+                      `Bearer ${apiKey}`,
+
+                    "Content-Type":
+                      "application/json",
+                  },
+
+                  body:
+                    JSON.stringify({
+                      model:
+                        "jev-latest",
+
+                      state: {
+                        userRequest:
+                          prompt,
+                      },
+
+                      questions: {
+                        capability: {
+                          type:
+                            "choice",
+
+                          instructions:
+                            `
+Choose the capability that should be used FIRST
+to make progress on the user's request.
+
+The request may eventually require multiple capabilities.
+Do not try to solve the whole task.
+
+Choose only the most appropriate next capability.
+                                `.trim(),
+
+                          criteria:
+                            capabilityCriteria,
+                        },
+                      },
+                    }),
+                },
+              );
+
+            const latencyMs =
+              Math.round(
+                performance.now()
+                - startedAt,
+              );
+
+            if (!response.ok) {
+              return {
+                id,
+                prompt,
+
+                ok: false as const,
+
+                status:
+                  response.status,
+
+                error:
+                  await response.text(),
+
+                latencyMs,
+              };
+            }
+
+            const data =
+              await response
+                .json() as JevResponse;
+
+            const answer =
+              data
+                .answers
+                .capability;
+
+            return {
+              id,
+              prompt,
+
+              ok: true as const,
+
+              choice:
+                answer.choice,
+
+              confidence:
+                answer.confidence,
+
+              probabilities:
+                answer.probabilities,
+
+              model:
+                data.model,
+
+              usage:
+                data.usage,
+
+              latencyMs,
+            };
+          },
+        ),
+      );
+
+    const successful =
+      results.filter(
+        (
+          result,
+        ): result is Extract<
+          typeof result,
+          {
+            ok: true;
+          }
+        > =>
+          result.ok,
+      );
+
+
+    return {
+      ok: true,
+
+      capabilities:
+        capabilityCriteria,
+
+      results,
+
+      totals: {
+        requests:
+          results.length,
+
+        inputTokens:
+          successful.reduce(
+            (
+              total,
+              result,
+            ) =>
+              total
+              + result
+                .usage
+                .input_tokens,
+            0,
+          ),
+
+        outputTokens:
+          successful.reduce(
+            (
+              total,
+              result,
+            ) =>
+              total
+              + result
+                .usage
+                .output_tokens,
+            0,
+          ),
+      },
+    };
+  })
   .post(
     "/deleteFiles",
     async ({ body: { files } }) => {

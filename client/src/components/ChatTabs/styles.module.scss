@@ -1,0 +1,165 @@
+.tabs {
+    display: flex;
+    align-items: center;
+
+    gap: 2px;
+
+    min-height: 28px;
+
+    background:
+        var(--color-window);
+
+    overflow-x: auto;
+}
+
+.tab {
+    display: flex;
+    align-items: center;
+
+    flex: 0 1 auto;
+
+    width: fit-content;
+    max-width: 125px;
+
+    height: 24px;
+    min-width: 0;
+
+    padding:
+        0
+        5px
+        0
+        8px;
+
+    color: #111;
+
+    font-size: 11px;
+    text-decoration: none;
+
+    &:hover .deleteTab {
+        opacity: 1;
+        visibility: visible;
+    }
+}
+
+.tab:has(.activeTabLink) {
+    border-top:
+        1px solid var(--color-window-light);
+
+    border-left:
+        1px solid var(--color-window-light);
+
+    border-right:
+        1px solid var(--color-window-dark);
+
+    box-shadow:
+        inset 0 -2px 0 #000080;
+
+    background:
+        var(--color-window);
+}
+
+.activeTab {
+    font-weight: 700;
+
+    .deleteTab {
+        opacity: 1;
+        visibility: visible;
+    }
+}
+
+.tabContent {
+    display: inline-flex;
+    align-items: center;
+
+    max-width: 100%;
+
+    height: 100%;
+}
+
+.tabLink,
+.activeTabLink {
+    display: flex;
+    align-items: center;
+
+    min-width: 0;
+
+    color: #111;
+
+    font-size: 11px;
+    text-decoration: none;
+
+    overflow: hidden;
+}
+
+.activeTabLink {
+    font-weight: 700;
+}
+
+.tabIcon {
+    flex: 0 0 auto;
+
+    margin-right: 5px;
+
+    font-size: 10px;
+    line-height: 1;
+
+    transform: translateY(1px);
+}
+
+.activeTabLink .tabIcon {
+    color: #000080;
+}
+
+.tabTitle {
+    min-width: 0;
+
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.deleteTab {
+    flex: 0 0 auto;
+
+    width: 0;
+    height: 16px;
+
+    margin-left: 0;
+
+    padding: 0;
+
+    border: 0;
+    background: transparent;
+
+    color: #777;
+
+    font-size: 10px;
+    line-height: 16px;
+
+    cursor: pointer;
+
+    transform: translateY(-1px);
+
+    opacity: 0;
+    visibility: hidden;
+
+    overflow: hidden;
+
+    transition:
+        opacity 80ms ease,
+        width 80ms ease,
+        margin-left 80ms ease;
+
+    &:hover {
+        color: #c00000;
+    }
+}
+
+.tab:hover .deleteTab,
+.activeTab .deleteTab {
+    width: 13px;
+    margin-left: 4px;
+
+    opacity: 1;
+    visibility: visible;
+}

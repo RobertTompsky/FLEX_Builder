@@ -1,5 +1,5 @@
+import type { MetadataResponse } from "@flex-builder/shared/metadata";
 import { API_URL, parseResponse } from "./shared";
-import type { MetadataResponse } from "@flex-builder/shared/agent";
 
 async function getMetadata(
   signal?: AbortSignal,

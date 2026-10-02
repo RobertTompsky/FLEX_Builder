@@ -1,34 +1,43 @@
 import {
   reatomComponent,
 } from "@reatom/react";
-import type { AgentModel } from "../../model/agents/model";
+import type { AgentModel } from "../../model/agent/model";
 import { Message } from "./Message";
 import styles from "./styles.module.scss";
 import {
   useState,
 } from "react";
+import type { ChatModel } from "../../model/chat/model";
 
-type AgentChatProps = {
+type ChatProps = {
   agent: AgentModel;
+  chat: ChatModel;
 };
 
-export const AgentChat =
+export const Chat =
   reatomComponent(({
     agent,
-  }: AgentChatProps) => {
+    chat
+  }: ChatProps) => {
     const [
       query,
       setQuery,
     ] = useState("");
 
-    const messages = agent.messages();
+    const messages =
+      chat.messages();
 
-    const runStatus = agent.run.status();
+    const runStatus =
+      chat.run.status();
 
-    const sendReady = agent.run.send.ready();
+    const sendReady =
+      chat.run.start.ready();
 
-    const sendError = agent.run.send.error();
-    const stopReady = agent.run.stop.ready();
+    const sendError =
+      chat.run.start.error();
+
+    const stopReady =
+      chat.run.stop.ready();
     const isRunning = runStatus === "running";
 
     const canSend =
@@ -55,18 +64,19 @@ export const AgentChat =
 
         const {
           name: _name,
-          ...config
-        } = agent.configForm();
+          ...body
+        } =
+          agent.configForm();
 
         setQuery("");
 
         try {
-          await agent.run.send({
-            ...config,
+          await chat.run.start({
+            body,
             query: nextQuery,
           });
         } catch {
-          // agent.run.send.error()
+          // chat.run.start.error()
         }
       };
 
@@ -77,9 +87,9 @@ export const AgentChat =
         }
 
         try {
-          await agent.run.stop();
+          await chat.run.stop();
         } catch {
-          // agent.run.stop.error()
+          // chat.run.stop.error()
         }
       };
 
@@ -87,14 +97,6 @@ export const AgentChat =
       <section
         className={styles.panel}
       >
-        <header
-          className={styles.header}
-        >
-          <span>
-            chat.exe
-          </span>
-        </header>
-
         <div
           className={styles.body}
         >

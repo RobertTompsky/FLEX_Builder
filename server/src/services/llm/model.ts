@@ -86,7 +86,7 @@ export async function model({
 
             case "error": {
                 await onEvent?.({
-                    event: "error",
+                    event: "llm_error",
 
                     data: {
                         message: event.message,

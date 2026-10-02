@@ -1,25 +1,33 @@
 import Elysia from "elysia";
-import { approveToolCallsRoute } from "./approveToolcalls";
 import { getChatItemsRoute } from "./getChatItems";
 import { RouteDeps } from "../types";
 import { getChatRoute } from "./getChat";
 import { getChatRunsRoute } from "./getChatRuns";
+import { approveToolCallsRoute } from "./approveToolcalls";
+import { deleteChatRoute } from "./deleteChat";
 
-type ChatRouteDeps = Pick<RouteDeps, 'chatRepository' | "runRepository">
+type ChatRouteDeps = Pick<RouteDeps, 'chatRepository' | 'runRepository' | "workspaceStore">
 
 export function chatRoutes(
     deps: ChatRouteDeps,
 ) {
     const {
         chatRepository,
-        runRepository
+        runRepository,
+        workspaceStore
     } = deps;
 
     return new Elysia({
         prefix: "/chats",
     })
-        .use(approveToolCallsRoute({ chatRepository }))
         .use(getChatItemsRoute({ chatRepository }))
-        .use(getChatRoute({ chatRepository }))
         .use(getChatRunsRoute({ runRepository }))
+        .use(getChatRoute({ chatRepository }))
+        .use(approveToolCallsRoute({ chatRepository }))
+        .use(
+            deleteChatRoute({
+                chatRepository,
+                workspaceStore,
+            }),
+        )
 }

@@ -1,13 +1,14 @@
-import { CapabilityEvent } from '../capabilities/capabilities.events';
-import { ExecutionEvent, ExecutionSource } from '../sandbox';
-import type { AgentEvent } from './agent.events'
-import { AgentIdentity } from './agent.types';
+import type { AgentEvent, AgentIdentity } from ".";
+import type { CapabilityEvent } from "../capabilities";
+import type { RunEvent } from "../run/events";
+import type { ExecutionEvent, ExecutionSource } from "../sandbox";
 
 type WithExecutionSource = {
   source: ExecutionSource;
 };
 
 export type AgentSourceEvent =
+  | RunEvent
   | AgentEvent
   | (
     (
@@ -21,23 +22,17 @@ export type ToAgentSSEMessage<
 > =
   T extends unknown
   ? {
-    event:
-    T["event"];
+    event: T["event"];
 
     data: {
-      agent:
-      AgentIdentity;
-
-      data:
-      T["data"];
+      agent: AgentIdentity;
+      data: T["data"];
     } & (
       T extends {
-        source:
-        infer TSource;
+        source: infer TSource;
       }
       ? {
-        source:
-        TSource;
+        source: TSource;
       }
       : {}
     );
@@ -47,27 +42,19 @@ export type ToAgentSSEMessage<
 export function toAgentSSEMessage<
   T extends AgentSourceEvent,
 >(
-  agent:
-    AgentIdentity,
-
-  event:
-    T,
+  agent: AgentIdentity,
+  event: T,
 ): ToAgentSSEMessage<T> {
   return {
-    event:
-      event.event,
-
+    event: event.event,
     data: {
       agent,
-
-      data:
-        event.data,
+      data: event.data,
 
       ...(
         "source" in event
           ? {
-            source:
-              event.source,
+            source: event.source,
           }
           : {}
       ),

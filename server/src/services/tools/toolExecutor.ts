@@ -98,11 +98,11 @@ export function createToolExecutor(tools: ToolRegistry) {
                 });
 
                 await onEvent?.({
-                    event: "tool_result",
+                    event: "tool_error",
                     data: {
                         callId: toolCall.call_id,
                         name: toolCall.name,
-                        outputPreview: serialized.slice(0, 2000),
+                        message,
                     },
                 });
             }
@@ -123,11 +123,5 @@ function serializeToolResult(result: unknown): string {
 function throwIfAborted(
     signal?: AbortSignal,
 ): void {
-    if (
-        signal?.aborted
-    ) {
-        throw new Error(
-            "aborted",
-        );
-    }
+    signal?.throwIfAborted();
 }

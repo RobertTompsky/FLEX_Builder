@@ -9,34 +9,33 @@ import type {
 import {
     createSSEWriter,
     streamSSE,
-} from "../../sse";
+} from "../../../sse";
 
 import {
     UPLOADS_DIR,
-} from "../../shared/data";
+} from "../../../shared/data";
 
 import {
     AgentEvent,
     AgentSSEMessage,
-    ExecuteAgentBodySchema,
-    ExecuteAgentParamsSchema,
     toAgentSSEMessage,
 } from "@flex-builder/shared/agent";
 
-import { RouteDeps } from "../types";
-import { agent } from "../../services/agent/agent";
-import { createHooks } from "../../services/agent/hooks/createHooks";
-import { getPendingToolCalls } from "../../services/agent/messages";
+import { RouteDeps } from "../../types";
+import { agent } from "../../../services/agent/agent";
+import { createHooks } from "../../../services/agent/hooks/createHooks";
+import { getPendingToolCalls } from "../../../services/agent/messages";
 import { SandboxEvent } from "@flex-builder/shared/sandbox";
-import { createAgentTools } from "../../services/agent/tools/createTools";
-import { RunTsRuntime } from "../../tools/runTsTool/types";
+import { createAgentTools } from "../../../services/agent/tools/createTools";
+import { RunTsRuntime } from "../../../tools/runTsTool/types";
+import { RunEvent, StartRunBodySchema, StartRunParamsSchema } from "@flex-builder/shared/run";
 
-export function executeAgentRoute(
+export function startRunRoute(
     deps: RouteDeps,
 ) {
     return new Elysia()
         .post(
-            "/:agentId/chats/:chatId",
+            "/:agentId/chats/:chatId/runs",
 
             async ({
                 body,
@@ -163,12 +162,19 @@ export function executeAgentRoute(
                 return streamSSE(async (stream) => {
                     const writeSSE = createSSEWriter<AgentSSEMessage>(stream);
 
+                    const emitRunEvent = async (event: RunEvent) => {
+                        await writeSSE(
+                            toAgentSSEMessage(
+                                agentRecord.identity,
+                                event,
+                            ),
+                        );
+                    };
+
                     const emitAgentEvent = async (event: AgentEvent) => {
                         await writeSSE(
                             toAgentSSEMessage(
-                                agentRecord
-                                    .identity,
-
+                                agentRecord.identity,
                                 event,
                             ),
                         );
@@ -193,6 +199,14 @@ export function executeAgentRoute(
                             capabilities: capabilityConfigs,
                             runtime,
                             onEvent: emitSandboxEvent,
+                        });
+
+                        await emitRunEvent({
+                            event: "status",
+                            data: {
+                                runId: run.id,
+                                status: 'running'
+                            },
                         });
 
                         const result = await agent(
@@ -221,21 +235,57 @@ export function executeAgentRoute(
                                 );
                         }
 
+                        if (
+                            result.status ===
+                            "awaiting_tool_approval"
+                        ) {
+                            await deps.runRepository
+                                .updateStatus(
+                                    run.id,
+                                    "paused",
+                                );
+
+                            await emitRunEvent({
+                                event: "status",
+                                data: {
+                                    runId: run.id,
+                                    status: "paused",
+                                    reason: "tool_approval_required",
+                                },
+                            });
+
+                            return;
+                        }
+
                         await deps.runRepository.updateStatus(
                             run.id,
                             "completed",
                         );
+
+                        await emitRunEvent({
+                            event: "status",
+                            data: {
+                                runId: run.id,
+                                status: "completed",
+                            },
+                        });
                     } catch (error) {
-                        await deps.runRepository
-                            .updateStatus(
-                                run.id,
-                                controller.signal.aborted
-                                    ? "stopped"
-                                    : "failed",
-                            );
+                        const status = controller.signal.aborted
+                            ? "stopped"
+                            : "failed";
 
-                        throw error;
+                        await deps.runRepository.updateStatus(
+                            run.id,
+                            status,
+                        );
 
+                        await emitRunEvent({
+                            event: "status",
+                            data: {
+                                runId: run.id,
+                                status,
+                            },
+                        });
                     } finally {
                         request.signal.removeEventListener(
                             "abort",
@@ -253,8 +303,8 @@ export function executeAgentRoute(
             },
 
             {
-                params: ExecuteAgentParamsSchema,
-                body: ExecuteAgentBodySchema,
+                params: StartRunParamsSchema,
+                body: StartRunBodySchema,
             },
         );
 }
