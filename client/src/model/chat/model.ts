@@ -37,11 +37,22 @@ export function createChatModel(
     );
 
     const load = action(
-        async () => {
+        async (
+            signal?:
+                AbortSignal,
+        ) => {
             await Promise.all([
-                loadChat(),
-                loadMessages(),
-                loadRuns(),
+                loadChat(
+                    signal,
+                ),
+
+                loadMessages(
+                    signal,
+                ),
+
+                loadRuns(
+                    signal,
+                ),
             ]);
         },
         `chats.${chatId}.load`,
@@ -50,11 +61,16 @@ export function createChatModel(
     );
 
     const loadChat = action(
-        async () => {
+        async (
+            signal?: AbortSignal,
+        ) => {
             const response = await wrap(
                 chatsApi.get({
                     params: {
                         chatId,
+                    },
+                    options: {
+                        signal,
                     },
                 }),
             );
@@ -69,11 +85,16 @@ export function createChatModel(
     );
 
     const loadMessages = action(
-        async () => {
+        async (
+            signal?: AbortSignal,
+        ) => {
             const response = await wrap(
                 chatsApi.getItems({
                     params: {
                         chatId,
+                    },
+                    options: {
+                        signal,
                     },
                 }),
             );
@@ -88,12 +109,18 @@ export function createChatModel(
     );
 
     const loadRuns = action(
-        async () => {
+        async (
+            signal?: AbortSignal,
+        ) => {
             const result =
                 await wrap(
                     runsApi.list({
                         params: {
                             chatId,
+                        },
+
+                        options: {
+                            signal,
                         },
                     }),
                 );
@@ -111,6 +138,7 @@ export function createChatModel(
         agentId,
         chatId,
         messages,
+        reloadRuns: loadRuns,
     });
 
     return {

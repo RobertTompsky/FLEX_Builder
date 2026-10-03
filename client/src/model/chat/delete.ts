@@ -16,34 +16,31 @@ import {
     agents,
 } from "../agent";
 
-import {
-    getAgentModel,
-} from "../agent/registry";
-
-import {
-    deleteChatModel,
-} from "./registry";
+import type {
+    AgentModel,
+} from "../agent/model";
 
 
 type DeleteChatResult = {
-    deletedAgent: boolean;
-    remainingChats: Chat[];
-};
+    deletedAgent:
+        boolean;
 
+    remainingChats:
+        Chat[];
+};
 
 export const deleteChatAction =
     action(
         async ({
-            agentId,
+            agent,
             chatId,
         }: {
-            agentId: string;
-            chatId: string;
+            agent:
+                AgentModel;
+
+            chatId:
+                string;
         }): Promise<DeleteChatResult> => {
-            const agent =
-                getAgentModel(
-                    agentId,
-                );
 
             const currentChats =
                 agent.chats();
@@ -54,11 +51,7 @@ export const deleteChatAction =
                 1
             ) {
                 await agents.delete(
-                    agentId,
-                );
-
-                deleteChatModel(
-                    chatId,
+                    agent.id,
                 );
 
                 return {
@@ -82,7 +75,7 @@ export const deleteChatAction =
 
             const remainingChats =
                 currentChats.filter(
-                    (chat) =>
+                    chat =>
                         chat.id !==
                         chatId,
                 );
@@ -93,11 +86,6 @@ export const deleteChatAction =
             );
 
 
-            deleteChatModel(
-                chatId,
-            );
-
-
             return {
                 deletedAgent:
                     false,
@@ -105,6 +93,7 @@ export const deleteChatAction =
                 remainingChats,
             };
         },
+
         "chats.delete",
     ).extend(
         withAsync(),

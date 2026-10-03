@@ -42,11 +42,15 @@ export type RpcTraceCall =
         method: "execute";
         client: "execution";
         server: "sandbox";
+        capability: string;
+        action: string;
     }
     | {
         method: "execute";
         client: "sandbox";
         server: "server";
+        capability: string;
+        action: string;
     };
 
 export type RpcTraceEvent = {

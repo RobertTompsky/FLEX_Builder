@@ -12,10 +12,6 @@ import {
     agentsList,
 } from "./list";
 
-import {
-    deleteAgentModel,
-} from "./registry";
-
 export const deleteAgentAction = action(
     async (
         agentId: string,
@@ -32,8 +28,6 @@ export const deleteAgentAction = action(
                         result.agentId,
                 ),
         );
-
-        deleteAgentModel(result.agentId);
 
         return result.agentId;
     },

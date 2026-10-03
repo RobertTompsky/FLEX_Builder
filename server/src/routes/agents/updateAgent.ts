@@ -48,15 +48,18 @@ export function updateAgentRoute(
             const updated = await agentRepository.update(
                 agentId,
                 {
-                    ...body.config,
+                    name: body.name,
+                    config: body.config
                 },
             );
 
             await capabilityRepository.setForAgent(agentId, body.capabilities);
 
+            const capabilities = await capabilityRepository.getByAgentId(agentId)
+
             return {
                 ...updated!,
-                capabilities: await capabilityRepository.getByAgentId(agentId),
+                capabilities,
             } satisfies UpdateAgentResponse
         },
         {

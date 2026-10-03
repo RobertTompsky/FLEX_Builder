@@ -47,6 +47,7 @@ type CreateAgentToolsInput = {
     runId: string;
     workspace: Workspace;
     capabilities: AgentCapabilityConfig[];
+    maxExecuteConcurrency: number;
     runtime: RunTsRuntime;
     onEvent?: (event: SandboxEvent) =>
         | void
@@ -58,6 +59,7 @@ export function createAgentTools({
     runId,
     workspace,
     capabilities: configs,
+    maxExecuteConcurrency,
     runtime,
     onEvent,
     allowSubagents = true,
@@ -84,7 +86,7 @@ export function createAgentTools({
                                         "execute" as const,
                                 }),
                             ),
-
+                        maxExecuteConcurrency,
                         runtime,
                         onEvent,
                         allowSubagents: false,
@@ -111,6 +113,7 @@ export function createAgentTools({
                 promptCapabilities,
             ),
             capabilities: executableCapabilities,
+            maxExecuteConcurrency,
             runtime,
             onEvent,
         }),

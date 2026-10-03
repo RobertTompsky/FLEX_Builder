@@ -27,7 +27,6 @@ import type {
 
 import styles from "./styles.module.scss";
 
-
 function cx(
     ...classes:
         Array<
@@ -44,79 +43,57 @@ function cx(
 
 
 function decodePartialJsonString(
-    value:
-        string,
+    value: string
 ): string {
-    let result =
-        "";
+    let result = "";
 
     for (
         let index = 0;
-
-        index <
-        value.length;
-
+        index < value.length;
         index++
     ) {
-        const char =
-            value[index];
+        const char = value[index];
 
-        if (
-            char === '"'
-        ) {
+        if (char === '"') {
             break;
         }
 
-        if (
-            char !== "\\"
-        ) {
+        if (char !== "\\") {
             result +=
                 char;
 
             continue;
         }
 
-        const next =
-            value[
-            index + 1
-            ];
+        const next = value[index + 1];
 
-        if (
-            next ===
-            undefined
-        ) {
+        if (next === undefined) {
             break;
         }
 
         switch (next) {
             case "n":
-                result +=
-                    "\n";
+                result += "\n";
                 break;
 
             case "r":
-                result +=
-                    "\r";
+                result += "\r";
                 break;
 
             case "t":
-                result +=
-                    "\t";
+                result += "\t";
                 break;
 
             case '"':
-                result +=
-                    '"';
+                result += '"';
                 break;
 
             case "\\":
-                result +=
-                    "\\";
+                result += "\\";
                 break;
 
             default:
-                result +=
-                    next;
+                result += next;
         }
 
         index++;
@@ -127,8 +104,7 @@ function decodePartialJsonString(
 
 
 function extractStreamingCode(
-    raw:
-        string,
+    raw: string,
 ): string | null {
     const match =
         /"code"\s*:\s*"/
@@ -155,16 +131,14 @@ function extractStreamingCode(
 
 
 function extractCode(
-    raw:
-        string,
+    raw: string,
 ): string {
     try {
-        const parsed =
-            JSON.parse(
-                raw.trim(),
-            ) as {
-                code?: unknown;
-            };
+        const parsed = JSON.parse(
+            raw.trim(),
+        ) as {
+            code?: unknown;
+        };
 
         return typeof
             parsed.code ===
@@ -173,92 +147,26 @@ function extractCode(
             : raw;
     } catch {
         return (
-            extractStreamingCode(
-                raw,
-            ) ??
-            raw
+            extractStreamingCode(raw) ?? raw
         );
     }
 }
 
 
 function formatCode(
-    raw:
-        string,
+    raw: string,
 ): string {
     return beautifyJs(
         extractCode(
             raw,
         ),
         {
-            indent_size:
-                2,
-
-            wrap_line_length:
-                60,
-
-            preserve_newlines:
-                true,
+            indent_size: 2,
+            wrap_line_length: 60,
+            preserve_newlines: true,
         },
     );
 }
-
-
-function parseNestedJson(
-    value:
-        unknown,
-): unknown {
-    if (
-        typeof value ===
-        "string"
-    ) {
-        try {
-            return parseNestedJson(
-                JSON.parse(
-                    value,
-                ),
-            );
-        } catch {
-            return value;
-        }
-    }
-
-    if (
-        Array.isArray(
-            value,
-        )
-    ) {
-        return value.map(
-            parseNestedJson,
-        );
-    }
-
-    if (
-        typeof value ===
-        "object" &&
-        value !==
-        null
-    ) {
-        return Object.fromEntries(
-            Object.entries(
-                value,
-            ).map(
-                ([
-                    key,
-                    nested,
-                ]) => [
-                        key,
-                        parseNestedJson(
-                            nested,
-                        ),
-                    ],
-            ),
-        );
-    }
-
-    return value;
-}
-
 
 function tryFormatJson(
     value: string,
@@ -309,14 +217,11 @@ function tryFormatJson(
 function CodeBlock({
     code,
 }: {
-    code:
-    string;
+    code: string;
 }) {
     return (
         <div
-            className={
-                styles.code
-            }
+            className={styles.code}
         >
             <SyntaxHighlighter
                 language="typescript"
@@ -324,32 +229,20 @@ function CodeBlock({
                     atomDark
                 }
                 customStyle={{
-                    margin:
-                        0,
-
-                    padding:
-                        "6px 8px",
-
-                    background:
-                        "transparent",
-
-                    fontSize:
-                        "10px",
-
-                    lineHeight:
-                        1.4,
+                    margin: 0,
+                    padding: "6px 8px",
+                    background: "transparent",
+                    fontSize: "10px",
+                    lineHeight: 1.4,
                 }}
                 codeTagProps={{
                     style: {
-                        fontFamily:
-                            'Consolas, "Courier New", monospace',
+                        fontFamily: 'Consolas, "Courier New", monospace',
                     },
                 }}
             >
                 {
-                    formatCode(
-                        code,
-                    )
+                    formatCode(code)
                 }
             </SyntaxHighlighter>
         </div>
@@ -366,14 +259,10 @@ function ResultBlock({
 
     return (
         <details
-            className={
-                styles.expandable
-            }
+            className={styles.expandable}
         >
             <summary
-                className={
-                    styles.file
-                }
+                className={styles.file}
             >
                 RESULT.txt
             </summary>
@@ -424,8 +313,7 @@ function ResultBlock({
 function ErrorBlock({
     message,
 }: {
-    message:
-    string;
+    message: string;
 }) {
     return (
         <div
@@ -443,8 +331,7 @@ function ErrorBlock({
 function ArtifactBlock({
     view,
 }: {
-    view:
-    ArtifactView;
+    view: ArtifactView;
 }) {
     const {
         event,
@@ -512,8 +399,7 @@ function ArtifactBlock({
 function ExecutionBlock({
     view,
 }: {
-    view:
-    ExecutionView;
+    view: ExecutionView;
 }) {
     const {
         event,
@@ -616,8 +502,11 @@ function ExecutionBlock({
                 method,
                 client,
                 server,
-            } =
-                event.data.data;
+            } = event.data.data;
+
+            const executeLabel = method === "execute"
+                ? `${event.data.data.capability}.${event.data.data.action}`
+                : null;
 
             return (
                 <div
@@ -647,6 +536,13 @@ function ExecutionBlock({
                         {server}
                         {" · "}
                         {method}
+
+                        {executeLabel && (
+                            <>
+                                {" · "}
+                                {executeLabel}
+                            </>
+                        )}
                     </div>
                 </div>
             );
@@ -658,8 +554,7 @@ function ExecutionBlock({
 function SubagentToolBlock({
     view,
 }: {
-    view:
-    SubagentToolView;
+    view: SubagentToolView;
 }) {
     return (
         <div
@@ -728,8 +623,7 @@ function SubagentToolBlock({
 function SubagentBlock({
     view,
 }: {
-    view:
-    SubagentView;
+    view: SubagentView;
 }) {
     return (
         <div
@@ -821,8 +715,7 @@ function SubagentBlock({
 function ToolBlock({
     view,
 }: {
-    view:
-    ToolView;
+    view: ToolView;
 }) {
     return (
         <div
@@ -953,8 +846,7 @@ function ToolBlock({
 function BaseEvent({
     event,
 }: {
-    event:
-    AgentSSEMessage;
+    event: AgentSSEMessage;
 }) {
     switch (event.event) {
         case "status": {
@@ -1016,13 +908,9 @@ function BaseEvent({
 export function EventViewBlock({
     view,
 }: {
-    view:
-    EventView;
+    view: EventView;
 }) {
-    if (
-        view.kind ===
-        "tool"
-    ) {
+    if (view.kind === "tool") {
         return (
             <ToolBlock
                 view={view}

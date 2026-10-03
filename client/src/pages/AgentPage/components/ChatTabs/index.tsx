@@ -9,14 +9,13 @@ import {
 
 import type {
     AgentModel,
-} from "../../model/agent/model";
+} from "../../../../model/agent/model";
 
 import {
     deleteChatAction,
-} from "../../model/chat/delete";
+} from "../../../../model/chat/delete";
 
 import styles from "./styles.module.scss";
-
 
 type ChatTabsProps = {
     agent: AgentModel;
@@ -40,7 +39,7 @@ export const ChatTabs = reatomComponent(({
         }
 
         const result = await deleteChatAction({
-            agentId: agent.id,
+            agent,
             chatId,
         });
 

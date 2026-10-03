@@ -8,7 +8,7 @@ import {
 
 import type {
   RunModel,
-} from "../../model/run/model";
+} from "../../../../model/run/model";
 
 import {
   buildEventViews,

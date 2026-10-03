@@ -40,6 +40,7 @@ import type {
 import {
     z,
 } from "zod";
+import { withConcurrencyLimit } from "../../services/execute/semaphore";
 
 type SandboxEventHandler = (
     event: SandboxEvent,
@@ -52,6 +53,7 @@ type CreateRunTsToolInput = {
     workspace: Workspace;
     description: string;
     capabilities: Capability[];
+    maxExecuteConcurrency: number;
     runtime: RunTsRuntime;
     onEvent?: SandboxEventHandler;
 };
@@ -63,7 +65,7 @@ export function createRunTsTool({
     workspace,
     description,
     capabilities,
-
+    maxExecuteConcurrency,
     runtime: {
         sandbox,
         executions,
@@ -109,9 +111,22 @@ export function createRunTsTool({
                 emit: emitCapabilityEvent,
             });
 
+            const executeTestDelayMs = Number(
+                process.env.EXECUTE_TEST_DELAY_MS
+                ?? 0
+            );
+
+            const limitedExecute = withConcurrencyLimit(
+                execute,
+                maxExecuteConcurrency,
+                Number.isFinite(executeTestDelayMs)
+                    ? executeTestDelayMs
+                    : 0,
+            );
+
             executions.register(
                 executionId,
-                execute,
+                limitedExecute,
                 emitExecutionEvent,
             );
 
@@ -127,19 +142,17 @@ export function createRunTsTool({
                     },
                 });
 
-                const result =
-                    await sandbox.run(
-                        {
-                            executionId,
-                            code: input.code,
-                            cwd: workspace.root,
-                            timeoutMs: DEFAULT_TIMEOUT_MS,
-                        },
-
-                        {
-                            signal: context.signal,
-                        },
-                    );
+                const result = await sandbox.run(
+                    {
+                        executionId,
+                        code: input.code,
+                        cwd: workspace.root,
+                        timeoutMs: DEFAULT_TIMEOUT_MS,
+                    },
+                    {
+                        signal: context.signal,
+                    },
+                );
 
                 return {
                     stdout: formatSandboxResult(result),

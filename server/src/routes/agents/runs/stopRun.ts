@@ -51,23 +51,11 @@ export function stopRunRoute(
         };
       }
 
-      controller.abort();
+      controller.abort(new Error("user_requested"));
 
-      return streamSSE(async (sse) => {
-        const writeAgentSSE = createSSEWriter<AgentSSEMessage>(sse);
-
-        await writeAgentSSE({
-          event: "status",
-          data: {
-            agent: agent.identity,
-            data: {
-              runId,
-              status: 'stopped',
-              reason: "user_requested",
-            },
-          },
-        });
-      });
+      return {
+        ok: true,
+      };
     },
     {
       params: StopRunParamsSchema,

@@ -4,6 +4,10 @@ import {
   wrap,
 } from "@reatom/core";
 
+import type {
+  AgentListItem,
+} from "@flex-builder/shared/agent";
+
 import {
   agentsApi,
 } from "../../api/agents";
@@ -11,51 +15,49 @@ import {
 import {
   agentsList,
 } from "./list";
-import type { AgentListItem } from "@flex-builder/shared/agent";
-import { createChatAction } from "../chat/create";
 
-export const createAgentAction =
-  action(
-    async (
-      signal?: AbortSignal,
-    ): Promise<AgentListItem> => {
-      const agent = await wrap(
+
+export const createAgentAction = action(
+  async (
+    signal?: AbortSignal,
+  ): Promise<AgentListItem> => {
+
+    const agent =
+      await wrap(
         agentsApi.create({
           options: {
-            signal
-          }
-        }
-        ),
+            signal,
+          },
+        }),
       );
 
-      agentsList.data.set(
-        (agents) => {
-          const alreadyExists = agents.some(
-            (item) =>
+    agentsList.data.set(
+      agents => {
+
+        const alreadyExists =
+          agents.some(
+            item =>
               item.id ===
               agent.id,
           );
 
-          if (alreadyExists) {
-            return agents;
-          }
 
-          return [
-            ...agents,
-            agent,
-          ];
-        },
-      );
+        if (alreadyExists) {
+          return agents;
+        }
 
-      await createChatAction(
-        agent.id,
-        "New Chat",
-        signal,
-      );
 
-      return agent;
-    },
-    "createAgent",
-  ).extend(
-    withAsync(),
-  );
+        return [
+          ...agents,
+          agent,
+        ];
+      },
+    );
+
+    return agent;
+  },
+
+  "createAgent",
+).extend(
+  withAsync(),
+);

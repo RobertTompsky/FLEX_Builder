@@ -59,8 +59,7 @@ export function createAgentModel(
     `agents.${agentId}.chats`,
   );
 
-  const configForm =
-    reatomForm(
+  const configForm =    reatomForm(
       (name) => ({
         name: reatomField(
           "",
@@ -80,6 +79,11 @@ export function createAgentModel(
         maxTurns: reatomField(
           3,
           `${name}.maxTurns`,
+        ),
+
+        maxExecuteConcurrency: reatomField(
+          5,
+          `${name}.maxExecuteConcurrency`,
         ),
 
         policies: {
@@ -134,26 +138,66 @@ export function createAgentModel(
               }),
             );
 
-          syncAgent(agent);
+          setAgent(agent);
 
           return agent;
         },
       },
     );
 
-  const syncAgent = (
+  const setAgent = (
     agent: AgentDetails,
   ): void => {
-    data.set(agent);
-
-    configForm.reset(
-      toFormValues(agent),
+    data.set(
+      agent,
     );
 
+    const values =
+      toFormValues(
+        agent,
+      );
+
+    configForm.fields
+      .name
+      .reset(
+        values.name,
+      );
+
+    configForm.fields
+      .model
+      .reset(
+        values.model,
+      );
+
+    configForm.fields
+      .prompt
+      .reset(
+        values.prompt,
+      );
+
+    configForm.fields
+      .maxTurns
+      .reset(
+        values.maxTurns,
+      );
+
+    configForm.fields
+      .policies
+      .preToolUse
+      .reset(
+        values.policies.preToolUse,
+      );
+
+    configForm.fields
+      .capabilities
+      .reset(
+        values.capabilities,
+      );
+
     agentsList.data.set(
-      (agents) =>
+      agents =>
         agents.map(
-          (item) =>
+          item =>
             item.id === agentId
               ? {
                 ...agent.identity,
@@ -166,17 +210,22 @@ export function createAgentModel(
   };
 
   const load = action(
-    async (): Promise<void> => {
+    async (
+      signal?: AbortSignal
+    ): Promise<void> => {
       const agent =
         await wrap(
           agentsApi.get({
             params: {
               agentId,
             },
+            options: {
+              signal
+            }
           }),
         );
 
-      syncAgent(agent);
+      setAgent(agent);
 
       chats.set(agent.chats);
     },

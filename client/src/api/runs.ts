@@ -102,43 +102,24 @@ async function stop({
     options,
 }: {
     params: StopRunParams;
-    options: SSEOptions<AgentSSEMessage>;
+    options?: RequestOptions;
 }): Promise<void> {
-    await fetchEventSource(
-        `${API_URL}/agents/${encodeURIComponent(agentId)}/chats/${encodeURIComponent(chatId)}/runs/${encodeURIComponent(runId)}/stop`,
+
+    const response = await fetch(
+        `${API_URL}/agents/${encodeURIComponent(
+            agentId,
+        )}/chats/${encodeURIComponent(
+            chatId,
+        )}/runs/${encodeURIComponent(
+            runId,
+        )}/stop`,
         {
             method: "POST",
-            signal: options.signal,
-            async onopen(response) {
-                if (!response.ok) {
-                    throw new Error(
-                        `HTTP ${response.status}`,
-                    );
-                }
-            },
-            onmessage(message) {
-                if (
-                    !message.event ||
-                    !message.data
-                ) {
-                    return;
-                }
-
-                const data = JSON.parse(
-                    message.data,
-                ) as AgentSSEMessage["data"];
-
-                options.onEvent({
-                    event: message.event,
-                    data,
-                } as AgentSSEMessage);
-            },
-            onerror(error) {
-                // Prevent POST /stop retry.
-                throw error;
-            },
+            signal: options?.signal,
         },
     );
+
+    await parseResponse(response);
 }
 
 export const runsApi = {

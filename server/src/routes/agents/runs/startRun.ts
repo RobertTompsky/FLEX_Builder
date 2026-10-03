@@ -28,7 +28,11 @@ import { getPendingToolCalls } from "../../../services/agent/messages";
 import { SandboxEvent } from "@flex-builder/shared/sandbox";
 import { createAgentTools } from "../../../services/agent/tools/createTools";
 import { RunTsRuntime } from "../../../tools/runTsTool/types";
-import { RunEvent, StartRunBodySchema, StartRunParamsSchema } from "@flex-builder/shared/run";
+import {
+    type RunEvent,
+    StartRunBodySchema,
+    StartRunParamsSchema
+} from "@flex-builder/shared/run";
 
 export function startRunRoute(
     deps: RouteDeps,
@@ -55,11 +59,11 @@ export function startRunRoute(
                     prompt,
                     maxTurns,
                     capabilities: capabilityConfigs,
+                    maxExecuteConcurrency,
                     policies,
                 } = body;
 
-                const agentRecord = await deps.agentRepository
-                    .get(agentId);
+                const agentRecord = await deps.agentRepository.get(agentId);
 
                 if (!agentRecord) {
                     set.status = 404;
@@ -197,6 +201,7 @@ export function startRunRoute(
                             runId: run.id,
                             workspace,
                             capabilities: capabilityConfigs,
+                            maxExecuteConcurrency: maxExecuteConcurrency ?? 5,
                             runtime,
                             onEvent: emitSandboxEvent,
                         });
@@ -235,10 +240,7 @@ export function startRunRoute(
                                 );
                         }
 
-                        if (
-                            result.status ===
-                            "awaiting_tool_approval"
-                        ) {
+                        if (result.status === "awaiting_tool_approval") {
                             await deps.runRepository
                                 .updateStatus(
                                     run.id,
@@ -279,11 +281,18 @@ export function startRunRoute(
                             status,
                         );
 
+                        const reason = controller.signal.reason;
+
+                        const reasonMessage = reason instanceof Error
+                            ? reason.message
+                            : undefined;
+
                         await emitRunEvent({
                             event: "status",
                             data: {
                                 runId: run.id,
                                 status,
+                                reason: reasonMessage,
                             },
                         });
                     } finally {

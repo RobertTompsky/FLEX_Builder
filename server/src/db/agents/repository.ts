@@ -4,6 +4,7 @@ import {
   getAgent,
   listAgents,
   updateAgent,
+  UpdateAgentInput,
 } from "./queries";
 
 import type {
@@ -25,8 +26,10 @@ export interface AgentRepository {
 
   update(
     agentId: string,
-    config: AgentConfig,
-  ): Promise<Agent | undefined>;
+    input: UpdateAgentInput,
+  ): Promise<
+    Agent | undefined
+  >;
 
   delete(
     agentId: string,

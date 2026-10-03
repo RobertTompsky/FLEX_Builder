@@ -4,7 +4,7 @@ import {
 
 import type {
     ChatModel,
-} from "../../model/chat/model";
+} from "../../../../model/chat/model";
 
 import styles from "./styles.module.scss";
 import type { Run } from "@flex-builder/shared/run";
@@ -101,36 +101,23 @@ export const RunsPanel = reatomComponent(({
 
     return (
         <section
-            className={
-                styles.panel
-            }
+            className={styles.panel}
         >
             <header
-                className={
-                    styles.header
-                }
+                className={styles.header}
             >
                 <span
-                    className={
-                        styles.title
-                    }
+                    className={styles.title}
                 >
                     RUN HISTORY
                 </span>
 
                 <span
-                    className={
-                        styles.count
-                    }
+                    className={styles.count}
                 >
                     [
                     {
-                        String(
-                            runs.length,
-                        ).padStart(
-                            3,
-                            "0",
-                        )
+                        String(runs.length).padStart(3, "0")
                     }
                     ]
                 </span>
@@ -148,66 +135,44 @@ export const RunsPanel = reatomComponent(({
             </div>
 
             <div
-                className={
-                    styles.body
-                }
+                className={styles.body}
             >
                 {runs.length === 0 ? (
                     <div
-                        className={
-                            styles.empty
-                        }
+                        className={styles.empty}
                     >
                         No runs recorded
                     </div>
                 ) : (
-                    runs.map(
+                    runs
+                    .toReversed()
+                    .map(
                         (
                             run,
                             index,
                         ) => {
-                            const duration =
-                                getRunDurationMs(
-                                    run,
-                                );
+                            const duration = getRunDurationMs(run);
 
                             return (
                                 <button
-                                    key={
-                                        run.id
-                                    }
+                                    key={run.id}
                                     type="button"
-                                    className={
-                                        styles.run
-                                    }
+                                    className={styles.run}
                                 >
                                     <span
-                                        className={
-                                            styles.index
-                                        }
+                                        className={styles.index}
                                     >
                                         {
-                                            String(
-                                                index + 1,
-                                            ).padStart(
-                                                2,
-                                                "0",
-                                            )
+                                            String(index + 1).padStart(2, "0")
                                         }
                                     </span>
 
                                     <span
-                                        className={
-                                            styles.runId
-                                        }
-                                        title={
-                                            run.id
-                                        }
+                                        className={styles.runId}
+                                        title={run.id}
                                     >
                                         {
-                                            formatRunId(
-                                                run.id,
-                                            )
+                                            formatRunId(run.id)
                                         }
                                     </span>
 
@@ -222,16 +187,11 @@ export const RunsPanel = reatomComponent(({
                                             ]
                                         }
                                     >
-                                        {
-                                            run.status
-                                                .toUpperCase()
-                                        }
+                                        {run.status.toUpperCase()}
                                     </span>
 
                                     <span
-                                        className={
-                                            styles.duration
-                                        }
+                                        className={styles.duration}
                                     >
                                         {
                                             duration !== null
@@ -249,51 +209,37 @@ export const RunsPanel = reatomComponent(({
             </div>
 
             <footer
-                className={
-                    styles.footer
-                }
+                className={styles.footer}
             >
                 <span
-                    className={
-                        styles.footerLead
-                    }
+                    className={styles.footerLead}
                 >
                     &gt;&gt;&gt;
                 </span>
 
                 <span
-                    className={
-                        styles.footerTotal
-                    }
+                    className={styles.footerTotal}
                 >
                     {runs.length} RUNS TOTAL
                 </span>
 
                 <span
-                    className={
-                        styles.footerStat
-                    }
+                    className={styles.footerStat}
                 >
                     SUCCESS
                     <strong
-                        className={
-                            styles.success
-                        }
+                        className={styles.success}
                     >
                         {successCount}
                     </strong>
                 </span>
 
                 <span
-                    className={
-                        styles.footerStat
-                    }
+                    className={styles.footerStat}
                 >
                     FAILED
                     <strong
-                        className={
-                            styles.failed
-                        }
+                        className={styles.failed}
                     >
                         {failedCount}
                     </strong>

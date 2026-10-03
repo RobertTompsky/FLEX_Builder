@@ -182,7 +182,7 @@ $error: #ff4444;
 }
 
 .label {
-  flex: 0 0 90px;
+  flex: 0 0 auto;
 
   min-width: 90px;
 
@@ -215,22 +215,24 @@ $error: #ff4444;
 }
 
 .input,
+.select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.input,
 .select,
 .textarea {
   @include control;
 }
 
 .input {
-  flex: 1;
-
   &::placeholder {
     color: #4444aa;
   }
 }
 
 .select {
-  flex: 1;
-
   padding-right: 24px;
 
   appearance: none;

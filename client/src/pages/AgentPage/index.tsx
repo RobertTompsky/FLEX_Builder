@@ -17,21 +17,22 @@ import {
     agents,
 } from "../../model/agent";
 
-import type {
-    AgentModel,
+import {
+    createAgentModel,
+    type AgentModel,
 } from "../../model/agent/model";
 
 import {
     AgentConfigPanel,
-} from "../../components/AgentConfigPanel";
+} from "./components/AgentConfigPanel";
 
 import {
     AgentFilesPanel,
-} from "../../components/AgentFilesPanel";
+} from "./components/AgentFilesPanel";
 
 import {
     ChatTabs,
-} from "../../components/ChatTabs";
+} from "./components/ChatTabs";
 
 import styles from "./styles.module.scss";
 import { createChatAction } from "../../model/chat/create";
@@ -41,21 +42,28 @@ export type AgentPageOutletContext = {
 };
 
 export function AgentPage() {
-    const navigate = useNavigate();
+    const navigate =
+        useNavigate();
 
     const {
         agentId,
-    } = useParams<{
-        agentId: string;
-    }>();
+    } =
+        useParams<{
+            agentId:
+            string;
+        }>();
 
     if (!agentId) {
         return (
             <section
-                className={styles.agentPage}
+                className={
+                    styles.agentPage
+                }
             >
                 <div
-                    className={styles.error}
+                    className={
+                        styles.error
+                    }
                     role="alert"
                 >
                     <h2>
@@ -80,8 +88,38 @@ export function AgentPage() {
     }
 
     return (
+        <AgentPageRoute
+            key={
+                agentId
+            }
+            agentId={
+                agentId
+            }
+        />
+    );
+}
+
+type AgentPageRouteProps = {
+    agentId:
+    string;
+};
+
+function AgentPageRoute({
+    agentId,
+}: AgentPageRouteProps) {
+    const [agent] =
+        useState(
+            () =>
+                createAgentModel(
+                    agentId,
+                ),
+        );
+
+    return (
         <AgentPageContent
-            agent={agents.get(agentId)}
+            agent={
+                agent
+            }
         />
     );
 }
@@ -100,49 +138,58 @@ const AgentPageContent = reatomComponent(({
 
     const createReady = createChatAction.ready();
 
-    const createError = createChatAction.error();
-
-    const {
-        chatId,
-    } = useParams<{
-        chatId?: string;
-    }>();
+    const { chatId } = useParams<{ chatId?: string }>();
 
     const navigate = useNavigate();
 
     const data = agent.data();
 
     const loadReady = agent.load.ready();
-
     const loadError = agent.load.error();
 
     const deleteReady = agents.delete.ready();
-
     const deleteError = agents.delete.error();
 
     const saveReady = agent.configForm
         .submit
         .ready();
-
     const saveError = agent.configForm
         .submit
         .error();
 
     useEffect(() => {
+        const controller =
+            new AbortController();
+
+        void agent.load(
+            controller.signal,
+        );
+
+        return () => {
+            controller.abort();
+        };
+    }, [
+        agent,
+    ]);
+
+    useEffect(() => {
         if (
-            data ||
-            loadError ||
-            !loadReady
+            !data ||
+            chats.length > 0 ||
+            !createReady
         ) {
             return;
         }
 
-        void agent.load();
+        void createChatAction(
+            agent,
+            "New Chat",
+        );
     }, [
         agent,
         data,
-        loadError,
-        loadReady,
+        chats.length,
+        createReady,
     ]);
 
     useEffect(() => {
@@ -225,7 +272,6 @@ const AgentPageContent = reatomComponent(({
     } = data;
 
     const handleCreateChat = async (): Promise<void> => {
-
         const name = chatName.trim();
 
         if (!name || !createReady) {
@@ -234,7 +280,7 @@ const AgentPageContent = reatomComponent(({
 
         try {
             const chat = await createChatAction(
-                agent.id,
+                agent,
                 name,
             );
 

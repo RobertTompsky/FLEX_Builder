@@ -1,5 +1,7 @@
 import {
     useEffect,
+    useMemo,
+    useState,
 } from "react";
 
 import {
@@ -16,8 +18,9 @@ import {
     chats,
 } from "../../model/chat";
 
-import type {
-    ChatModel,
+import {
+    createChatModel,
+    type ChatModel,
 } from "../../model/chat/model";
 
 import type {
@@ -26,22 +29,58 @@ import type {
 
 import {
     Chat,
-} from "../../components/Chat";
+} from "./components/Chat";
 
 import {
     EventsPanel,
-} from "../../components/EventsPanel";
+} from "./components/EventsPanel";
 
 import styles from "./styles.module.scss";
-import { RunsPanel } from "../../components/RunsPanel";
+import { RunsPanel } from "./components/RunsPanel";
+
+type ChatPageRouteProps = {
+    agent: AgentPageOutletContext["agent"];
+    chatId: string;
+};
+
+function ChatPageRoute({
+    agent,
+    chatId,
+}: ChatPageRouteProps) {
+    const [chat] = useState(
+        () => createChatModel(
+            agent.id,
+            chatId,
+        ),
+    );
+
+    return (
+        <ChatPageContent
+            agent={agent}
+            chat={chat}
+        />
+    );
+}
 
 export function ChatPage() {
-    const navigate = useNavigate();
-    const { agent } = useOutletContext<AgentPageOutletContext>();
+    const navigate =
+        useNavigate();
+
+    const {
+        agent,
+    } =
+        useOutletContext<
+            AgentPageOutletContext
+        >();
 
     const {
         chatId,
-    } = useParams<{ chatId: string }>();
+    } =
+        useParams<{
+            chatId:
+            string;
+        }>();
+
 
     if (!chatId) {
         return (
@@ -82,143 +121,135 @@ export function ChatPage() {
     }
 
     return (
-        <ChatPageContent
+        <ChatPageRoute
+            key={chatId}
             agent={agent}
-            chat={
-                chats.get(
-                    agent.id,
-                    chatId,
-                )
-            }
+            chatId={chatId}
         />
     );
 }
 
 type ChatPageContentProps = {
-    agent:
-    AgentPageOutletContext["agent"];
-
-    chat:
-    ChatModel;
+    agent: AgentPageOutletContext["agent"];
+    chat: ChatModel;
 };
 
-const ChatPageContent =
-    reatomComponent(({
-        agent,
+const ChatPageContent = reatomComponent(({
+    agent,
+    chat,
+}: ChatPageContentProps) => {
+    const navigate = useNavigate();
+
+    const data = chat.data();
+
+    const loadError = chat.load.error();
+
+    useEffect(() => {
+        if (data || loadError) {
+            return;
+        }
+
+        void chat.load();
+    }, [
         chat,
-    }: ChatPageContentProps) => {
-        const navigate = useNavigate();
+        data,
+        loadError,
+    ]);
 
-        const data = chat.data();
+    useEffect(() => {
+        const controller = new AbortController();
 
-        const loadError = chat.load.error();
+        void chat.load(controller.signal);
 
-        useEffect(() => {
-            if (
-                data ||
-                loadError
-            ) {
-                return;
-            }
+        return () => {
+            controller.abort();
+        };
+    }, [
+        chat,
+    ]);
 
-            void chat.load();
-        }, [
-            chat,
-            data,
-            loadError,
-        ]);
+    const isLoading = !data && !loadError;
 
-        const isLoading = !data && !loadError;
-
-        if (isLoading) {
-            return (
-                <section
-                    className={
-                        styles.chatPage
-                    }
-                >
-                    LOADING CHAT...
-                </section>
-            );
-        }
-
-        if (
-            loadError ||
-            !data
-        ) {
-            return (
-                <section
-                    className={
-                        styles.chatPage
-                    }
-                >
-                    <div
-                        className={
-                            styles.error
-                        }
-                        role="alert"
-                    >
-                        <h2>
-                            FAILED TO LOAD CHAT
-                        </h2>
-
-                        <p>
-                            {
-                                loadError
-                                    ?.message ??
-                                "Unknown error"
-                            }
-                        </p>
-
-                        <button
-                            type="button"
-                            onClick={() => {
-                                navigate(
-                                    `/agents/${encodeURIComponent(
-                                        agent.id,
-                                    )}`,
-                                );
-                            }}
-                        >
-                            BACK TO AGENT
-                        </button>
-                    </div>
-                </section>
-            );
-        }
-
+    if (isLoading) {
         return (
-            <div
+            <section
+                className={styles.chatPage}
+            >
+                LOADING CHAT...
+            </section>
+        );
+    }
+
+    if (loadError || !data) {
+        return (
+            <section
                 className={styles.chatPage}
             >
                 <div
-                    className={styles.chat}
+                    className={styles.error}
+                    role="alert"
                 >
-                    <Chat
-                        agent={agent}
+                    <h2>
+                        FAILED TO LOAD CHAT
+                    </h2>
+
+                    <p>
+                        {
+                            loadError
+                                ?.message ??
+                            "Unknown error"
+                        }
+                    </p>
+
+                    <button
+                        type="button"
+                        onClick={() => {
+                            navigate(
+                                `/agents/${encodeURIComponent(
+                                    agent.id,
+                                )}`,
+                            );
+                        }}
+                    >
+                        BACK TO AGENT
+                    </button>
+                </div>
+            </section>
+        );
+    }
+
+    return (
+        <div
+            className={styles.chatPage}
+        >
+            <div
+                className={styles.chat}
+            >
+                <Chat
+                    agent={agent}
+                    chat={chat}
+                />
+            </div>
+
+            <div
+                className={styles.rightRail}
+            >
+                <div
+                    className={styles.runs}
+                >
+                    <RunsPanel
                         chat={chat}
                     />
                 </div>
 
                 <div
-                    className={styles.rightRail}
+                    className={styles.events}
                 >
-                    <div
-                        className={styles.runs}
-                    >
-                        <RunsPanel
-                            chat={chat}
-                        />
-                    </div>
-
-                    <div
-                        className={styles.events}
-                    >
-                        <EventsPanel
-                            run={chat.run}
-                        />
-                    </div>
+                    <EventsPanel
+                        run={chat.run}
+                    />
                 </div>
             </div>
-        );
-    });
+        </div>
+    );
+});

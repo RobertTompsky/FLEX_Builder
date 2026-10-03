@@ -81,28 +81,52 @@ export async function createAgent(
   return agent;
 }
 
+export type UpdateAgentInput = {
+  name: string;
+  config: AgentConfig;
+};
+
 export async function updateAgent(
-  agentId: string,
-  config: AgentConfig,
-): Promise<Agent | undefined> {
+  agentId:
+    string,
+
+  input:
+    UpdateAgentInput,
+): Promise<
+  Agent | undefined
+> {
+  const {
+    name,
+    config,
+  } =
+    input;
+
   const result = await db
     .updateTable("agents")
     .set({
+      name,
       model: config.model,
       prompt: config.prompt,
       max_turns: config.maxTurns,
-      pre_tool_use:
-        config.policies.preToolUse,
+      pre_tool_use: config
+        .policies
+        .preToolUse,
       updated_at: Date.now(),
     })
-    .where("id", "=", agentId)
+    .where(
+      "id",
+      "=",
+      agentId,
+    )
     .executeTakeFirst();
 
   if (result.numUpdatedRows === 0n) {
     return undefined;
   }
 
-  return getAgent(agentId);
+  return getAgent(
+    agentId,
+  );
 }
 
 export async function deleteAgent(

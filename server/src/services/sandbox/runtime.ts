@@ -24,7 +24,6 @@ const DEFAULT_TIMEOUT_MS = 10_000;
 
 const MAX_OUTPUT_BYTES = 1_000_000;
 
-
 export class SandboxRuntime {
 
     constructor(
@@ -308,105 +307,120 @@ export class SandboxRuntime {
             });
 
 
-            executeServer = new ExecuteRpcServer(
-                async (
-                    executeInput,
-                    options,
-                ) => {
+            executeServer =
+                new ExecuteRpcServer(
+                    async (
+                        executeInput,
+                        options,
+                    ) => {
+                        const {
+                            input: {
+                                capability,
+                                action
+                            }
+                        } = executeInput;
 
-                    await this.emit(
-                        executionId,
-                        {
-                            event: "rpc_trace",
-                            data: {
-                                phase: "request",
-                                method: "execute",
-                                client: "execution",
-                                server: "sandbox",
+
+                        await this.emit(
+                            executionId,
+                            {
+                                event:                                    "rpc_trace",
+                                data: {
+                                    phase:                                        "request",
+                                    method:                                        "execute",
+                                    client:                                        "execution",
+                                    server:                                        "sandbox",
+                                    capability,
+                                    action,
+                                },
                             },
-                        },
-                    );
+                        );
 
 
-                    await this.emit(
-                        executionId,
-                        {
-                            event: "rpc_trace",
+                        await this.emit(
+                            executionId,
+                            {
+                                event:                                    "rpc_trace",
 
-                            data: {
-                                phase: "request",
-                                method: "execute",
-                                client: "sandbox",
-                                server: "server",
+                                data: {
+                                    phase:                                        "request",
+                                    method:                                        "execute",
+                                    client:                                       "sandbox",
+                                    server:                                        "server",
+                                    capability,
+                                    action,
+                                },
                             },
-                        },
-                    );
+                        );
 
 
-                    try {
-                        return await this.executeClient
-                            .execute(
-                                executeInput,
-                                options,
+                        try {
+                            return await this
+                                .executeClient
+                                .execute(
+                                    executeInput,
+                                    options,
+                                );
+
+                        } finally {
+                            await this.emit(
+                                executionId,
+                                {
+                                    event:                                        "rpc_trace",
+                                    data: {
+                                        phase:                                            "response",
+                                        method:                                            "execute",
+                                        client:                                            "sandbox",
+                                        server:                                            "server",
+                                        capability,
+                                        action,
+                                    },
+                                },
                             );
 
-                    } finally {
 
-                        await this.emit(
-                            executionId,
-                            {
-                                event: "rpc_trace",
-                                data: {
-                                    phase: "response",
-                                    method: "execute",
-                                    client: "sandbox",
-                                    server: "server",
+                            await this.emit(
+                                executionId,
+                                {
+                                    event:                                        "rpc_trace",
+                                    data: {
+                                        phase:                                            "response",
+                                        method:                                            "execute",
+                                        client:                                            "execution",
+                                        server:                                            "sandbox",
+                                        capability,
+                                        action,
+                                    },
                                 },
-                            },
-                        );
+                            );
+                        }
+                    },
+                );
 
+            // console.error(
+            //     "[sandbox] execution transport",
+            //     {
+            //         constructor:
+            //             executionTransport
+            //                 .constructor
+            //                 .name,
 
-                        await this.emit(
-                            executionId,
-                            {
-                                event: "rpc_trace",
+            //         onMessage:
+            //             typeof executionTransport
+            //                 .onMessage,
 
-                                data: {
-                                    phase: "response",
-                                    method: "execute",
-                                    client: "execution",
-                                    server: "sandbox",
-                                },
-                            },
-                        );
-                    }
-                },
-            );
+            //         onDisconnect:
+            //             typeof executionTransport
+            //                 .onDisconnect,
 
-console.error(
-    "[sandbox] execution transport",
-    {
-        constructor:
-            executionTransport
-                .constructor
-                .name,
-
-        onMessage:
-            typeof executionTransport
-                .onMessage,
-
-        onDisconnect:
-            typeof executionTransport
-                .onDisconnect,
-
-        methods:
-            Object.getOwnPropertyNames(
-                Object.getPrototypeOf(
-                    executionTransport,
-                ),
-            ),
-    },
-);
+            //         methods:
+            //             Object.getOwnPropertyNames(
+            //                 Object.getPrototypeOf(
+            //                     executionTransport,
+            //                 ),
+            //             ),
+            //     },
+            // );
             await executeServer.connect(executionTransport);
 
 

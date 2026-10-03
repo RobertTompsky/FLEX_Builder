@@ -30,10 +30,8 @@ export type AgentParams = z.infer<typeof AgentParamsSchema>;
 export const UpdateAgentBodySchema = z.object({
     name: AgentIdentitySchema.shape.name,
     config: AgentConfigSchema,
-    capabilities:
-        z.array(
-            AgentCapabilityConfigSchema,
-        ),
+    capabilities: z
+        .array(AgentCapabilityConfigSchema)
 });
 
 export type UpdateAgentBody =

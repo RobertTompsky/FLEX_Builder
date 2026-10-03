@@ -12,6 +12,7 @@ import type {
 } from "@flex-builder/shared/agent";
 
 import type {
+    Run,
     RunStatus,
     StartRunBody,
 } from "@flex-builder/shared/run";
@@ -31,11 +32,16 @@ import {
 
 type RunModelStatus = | "idle" | RunStatus;
 
-type RunBody = Omit<StartRunBody, "query">;
+type RunConfig =
+    Omit<
+        StartRunBody,
+        | "query"
+        | "maxExecuteConcurrency"
+    >;
 
 
 type StartRunInput = {
-    body: RunBody;
+    config: RunConfig;
     query: string | null;
 };
 
@@ -43,22 +49,27 @@ type CreateRunModelInput = {
     agentId: string;
     chatId: string;
     messages: Atom<UIMessage[]>;
+    reloadRuns: () => Promise<unknown>;
 };
 
 export function createRunModel({
     agentId,
     chatId,
     messages,
+    reloadRuns,
 }: CreateRunModelInput) {
+
+    const maxExecuteConcurrency = atom(
+        5,
+        `chats.${chatId}.run.maxExecuteConcurrency`,
+    );
 
     const events = atom<AgentSSEMessage[]>(
         [],
         `chats.${chatId}.run.events`,
     );
 
-
-    let currentBody: RunBody | null = null;
-
+    let currentConfig: RunConfig | null = null;
 
     const latestStatusEvent = computed(
         () => {
@@ -106,17 +117,35 @@ export function createRunModel({
     const appendEvent = (
         event: AgentSSEMessage,
     ): void => {
-
-        events.set(current => [...current, event]);
+        events.set(
+            current => [
+                ...current,
+                event,
+            ],
+        );
 
         applyMessageEvent(
             messages,
             event,
         );
+
+        if (event.event !== "status") {
+            return;
+        }
+
+        const { status } = event.data.data;
+
+        if (
+            status === "completed" ||
+            status === "stopped" ||
+            status === "failed"
+        ) {
+            void reloadRuns();
+        }
     };
 
     const execute = async ({
-        body,
+        config,
         query,
     }: StartRunInput): Promise<void> => {
         await wrap(
@@ -126,12 +155,12 @@ export function createRunModel({
                     chatId,
                 },
                 body: {
-                    ...body,
+                    ...config,
                     query,
+                    maxExecuteConcurrency: maxExecuteConcurrency(),
                 },
                 options: {
-                    onEvent:
-                        appendEvent,
+                    onEvent: appendEvent,
                 },
             }),
         );
@@ -139,7 +168,7 @@ export function createRunModel({
 
     const start = action(
         async ({
-            body,
+            config,
             query,
         }: StartRunInput): Promise<void> => {
             const currentStatus = status();
@@ -166,8 +195,7 @@ export function createRunModel({
                 events.set([]);
             }
 
-            currentBody =
-                body;
+            currentConfig = config;
 
             if (query !== null) {
                 messages.set(
@@ -183,7 +211,7 @@ export function createRunModel({
             }
 
             await execute({
-                body,
+                config,
                 query,
             });
         },
@@ -203,7 +231,7 @@ export function createRunModel({
                 );
             }
 
-            if (!currentBody) {
+            if (!currentConfig) {
                 throw new Error(
                     "Run body is missing",
                 );
@@ -221,7 +249,7 @@ export function createRunModel({
             );
 
             await execute({
-                body: currentBody,
+                config: currentConfig,
                 query: null,
             });
         },
@@ -229,7 +257,6 @@ export function createRunModel({
     ).extend(
         withAsync(),
     );
-
 
     const stop = action(
         async (): Promise<void> => {
@@ -248,10 +275,7 @@ export function createRunModel({
                         agentId,
                         chatId,
                         runId,
-                    },
-                    options: {
-                        onEvent: appendEvent,
-                    },
+                    }
                 }),
             );
         },
