@@ -1,4 +1,4 @@
-import { ResponseFunctionToolCallItem } from "openai/resources/responses/responses.js";
+import { ResponseFunctionToolCallItem } from "openai/resources/responses/responses";
 import { Tool, ToolRegistry } from "./types";
 
 function getTool(

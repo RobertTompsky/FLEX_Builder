@@ -2,7 +2,7 @@ import Elysia from "elysia";
 
 import type {
   ResponseInputItem,
-} from "openai/resources/responses/responses.js";
+} from "openai/resources/responses/responses";
 
 import { ChatParamsSchema } from "@flex-builder/shared/chat";
 import { RouteDeps } from "../types";

@@ -1,10 +1,10 @@
 import { AgentEvent, LlmEvent } from "@flex-builder/shared/agent";
-import { Reasoning } from "openai/resources.js";
-import { FunctionTool, ResponseInputItem } from "openai/resources/responses/responses.js";
+import { Reasoning } from "openai/resources";
+import { FunctionTool, ResponseInput } from "openai/resources/responses/responses";
 
 export type LlmConfig = {
     model: string;
-    messages: ResponseInputItem[];
+    messages: ResponseInput;
     tools: FunctionTool[];
     reasoning?: Reasoning;
     signal?: AbortSignal;
@@ -17,5 +17,5 @@ export type LlmConfig = {
 export type LlmStepResult = {
     status: | "completed" | "tool_calls";
     responseId: string;
-    output: ResponseInputItem[];
+    output: ResponseInput;
 };

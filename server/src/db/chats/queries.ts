@@ -1,4 +1,4 @@
-import type { ResponseInputItem } from "openai/resources/responses/responses.js";
+import type { ResponseInputItem } from "openai/resources/responses/responses";
 import type { Chat } from "@flex-builder/shared/chat";
 
 import { db } from "../index";

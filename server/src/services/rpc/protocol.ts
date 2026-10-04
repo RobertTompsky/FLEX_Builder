@@ -57,6 +57,10 @@ export const JsonRpcErrorCode = {
     internalError: -32603,
 } as const;
 
+export const JsonRpcNotificationMethod = {
+    cancelRequest: "$/cancelRequest",
+} as const;
+
 export function isJsonRpcRequest(
     message: JsonRpcMessage,
 ): message is JsonRpcRequest {

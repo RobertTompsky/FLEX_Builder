@@ -9,11 +9,9 @@ import type {
 import styles from "./styles.module.scss";
 import type { Run } from "@flex-builder/shared/run";
 
-
 type RunsPanelProps = {
     chat: ChatModel;
 };
-
 
 function formatRunId(
     runId: string,
@@ -37,20 +35,15 @@ function getRunDurationMs(
         return null;
     }
 
-    const startedAt =
-        new Date(
-            run.startedAt,
-        ).getTime();
+    const startedAt = new Date(
+        run.startedAt,
+    ).getTime();
 
-    const finishedAt =
-        new Date(
-            run.finishedAt,
-        ).getTime();
+    const finishedAt = new Date(
+        run.finishedAt,
+    ).getTime();
 
-    return Math.max(
-        0,
-        finishedAt - startedAt,
-    );
+    return Math.max(0, finishedAt - startedAt);
 }
 
 function formatDuration(
@@ -68,20 +61,9 @@ function formatDuration(
             }s`;
     }
 
-    const minutes =
-        Math.floor(
-            durationMs /
-            60_000,
-        );
+    const minutes = Math.floor(durationMs / 60_000);
 
-    const seconds =
-        Math.floor(
-            (
-                durationMs %
-                60_000
-            ) /
-            1000,
-        );
+    const seconds = Math.floor((durationMs % 60_000) / 1000);
 
     return `${minutes}m ${seconds}s`;
 }
@@ -91,13 +73,17 @@ export const RunsPanel = reatomComponent(({
 }: RunsPanelProps) => {
     const runs = chat.runs();
 
-    const successCount = runs.filter(
-        run => run.status === "completed",
-    ).length;
+    const successCount = runs
+        .filter(
+            run => run.status === "completed",
+        )
+        .length;
 
-    const failedCount = runs.filter(
-        run => run.status === "failed",
-    ).length;
+    const failedCount = runs
+        .filter(
+            run => run.status === "failed",
+        )
+        .length;
 
     return (
         <section
@@ -145,66 +131,64 @@ export const RunsPanel = reatomComponent(({
                     </div>
                 ) : (
                     runs
-                    .toReversed()
-                    .map(
-                        (
-                            run,
-                            index,
-                        ) => {
-                            const duration = getRunDurationMs(run);
+                        .toReversed()
+                        .map(
+                            (
+                                run,
+                                index,
+                            ) => {
+                                const duration = getRunDurationMs(run);
 
-                            return (
-                                <button
-                                    key={run.id}
-                                    type="button"
-                                    className={styles.run}
-                                >
-                                    <span
-                                        className={styles.index}
+                                return (
+                                    <button
+                                        key={run.id}
+                                        type="button"
+                                        className={styles.run}
                                     >
-                                        {
-                                            String(index + 1).padStart(2, "0")
-                                        }
-                                    </span>
+                                        <span
+                                            className={styles.index}
+                                        >
+                                            {
+                                                String(index + 1).padStart(2, "0")
+                                            }
+                                        </span>
 
-                                    <span
-                                        className={styles.runId}
-                                        title={run.id}
-                                    >
-                                        {
-                                            formatRunId(run.id)
-                                        }
-                                    </span>
+                                        <span
+                                            className={styles.runId}
+                                            title={run.id}
+                                        >
+                                            {formatRunId(run.id)}
+                                        </span>
 
-                                    <span
-                                        className={
-                                            styles[
-                                            `status${run.status
-                                                .charAt(0)
-                                                .toUpperCase()}${run.status.slice(
-                                                    1,
-                                                )}`
-                                            ]
-                                        }
-                                    >
-                                        {run.status.toUpperCase()}
-                                    </span>
+                                        <span
+                                            className={
+                                                styles[
+                                                `status${run.status
+                                                    .charAt(0)
+                                                    .toUpperCase()}${run.status.slice(
+                                                        1,
+                                                    )}`
+                                                ]
+                                            }
+                                        >
+                                            {run.status.toUpperCase()}
+                                        </span>
 
-                                    <span
-                                        className={styles.duration}
-                                    >
-                                        {
-                                            duration !== null
-                                                ? formatDuration(
-                                                    duration,
-                                                )
-                                                : "--"
-                                        }
-                                    </span>
-                                </button>
-                            );
-                        },
-                    )
+                                        <span
+                                            className={styles.duration}
+                                        >
+                                            {
+                                                duration !== null
+                                                    ? formatDuration(
+                                                        duration,
+                                                    )
+                                                    : "--"
+                                            }
+                                        </span>
+                                    </button>
+                                );
+                            },
+                        )
                 )}
             </div>
 

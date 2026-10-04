@@ -4,7 +4,7 @@ import fs from "fs-extra";
 
 import type {
     ResponseInputItem,
-} from "openai/resources/responses/responses.js";
+} from "openai/resources/responses/responses";
 
 import {
     createSSEWriter,

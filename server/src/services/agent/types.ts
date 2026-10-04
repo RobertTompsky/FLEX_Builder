@@ -1,14 +1,11 @@
 import type {
-    ResponseInputItem,
-} from "openai/resources/responses/responses.js";
-
-import type {
     AgentHooks,
 } from "./hooks/types";
 
 import type {
     ToolRegistry,
 } from "../tools/types";
+import { ResponseInputItem } from "openai/resources/responses/responses";
 
 export type AgentConfig = {
     model: string;

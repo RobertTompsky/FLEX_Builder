@@ -1,11 +1,10 @@
-
 import {
     StdioTransport,
 } from "../rpc/stdio/stdio";
 
 import {
-    ExecuteRpcClient,
-} from "../execute/rpc";
+    RpcRelay,
+} from "../rpc/relay";
 
 import {
     SandboxRpcServer,
@@ -14,41 +13,64 @@ import {
 import {
     SandboxRuntime,
 } from "./runtime";
+import { ExecuteRpcMethod } from "../execute/rpc/protocol";
 
 const transport = new StdioTransport();
 
-const executeClient = new ExecuteRpcClient();
+const relay = new RpcRelay({
+    upstream: transport,
+    maxConcurrency: 4,
+});
 
-const runtime = new SandboxRuntime(executeClient);
+const runtime = new SandboxRuntime({
+    relay,
+    async emitExecutionEvent(
+        executionId,
+        event,
+    ) {
+        await transport.send({
+            jsonrpc: "2.0",
+            method: ExecuteRpcMethod.executionEvent,
+            params: {
+                executionId,
+                event,
+            },
+        });
+    },
+});
 
 const sandboxServer = new SandboxRpcServer(runtime);
 
-await Promise.all([
-    sandboxServer.connect(transport),
-    executeClient.connect(transport),
-]);
+await sandboxServer.connect(transport);
 
-console.error("[sandbox] service started");
+relay.connect();
 
-console.error("[sandbox] server started");
+console.error(
+    "[sandbox] service started",
+);
 
 let shuttingDown = false;
 
-async function shutdown(code = 0) {
+async function shutdown(
+    code = 0,
+) {
     if (shuttingDown) {
         return;
     }
 
     shuttingDown = true;
 
-    await sandboxServer.close();
+    relay.close();
 
-    await executeClient.close();
+    await sandboxServer.close();
 
     await transport.close();
 
-    process.exit(code);
+    process.exit(
+        code,
+    );
 }
+
 
 process.stdin.once(
     "close",
@@ -56,6 +78,7 @@ process.stdin.once(
         void shutdown();
     },
 );
+
 
 process.once(
     "SIGINT",
@@ -65,6 +88,7 @@ process.once(
         );
     },
 );
+
 
 process.once(
     "SIGTERM",

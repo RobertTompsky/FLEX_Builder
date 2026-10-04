@@ -1,6 +1,5 @@
 import {
     useEffect,
-    useMemo,
     useState,
 } from "react";
 
@@ -13,10 +12,6 @@ import {
     useOutletContext,
     useParams,
 } from "react-router";
-
-import {
-    chats,
-} from "../../model/chat";
 
 import {
     createChatModel,

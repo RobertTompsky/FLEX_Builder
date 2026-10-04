@@ -497,16 +497,40 @@ function ExecutionBlock({
             );
 
         case "rpc_trace": {
+            const data =
+                event.data.data;
+
             const {
                 phase,
                 method,
                 client,
                 server,
-            } = event.data.data;
+            } = data;
 
-            const executeLabel = method === "execute"
-                ? `${event.data.data.capability}.${event.data.data.action}`
-                : null;
+            const from =
+                phase === "request"
+                    ? client
+                    : server;
+
+            const to =
+                phase === "request"
+                    ? server
+                    : client;
+
+            const isSandboxRun =
+                method === "sandbox/run";
+
+            const title =
+                isSandboxRun
+                    ? phase === "request"
+                        ? "SANDBOX RUN"
+                        : "SANDBOX RESULT"
+                    : `RPC ${phase.toUpperCase()}`;
+
+            const executeLabel =
+                method === "execute"
+                    ? `${data.capability}.${data.action}`
+                    : null;
 
             return (
                 <div
@@ -519,11 +543,7 @@ function ExecutionBlock({
                             styles.line
                         }
                     >
-                        RPC{" "}
-                        {
-                            phase
-                                .toUpperCase()
-                        }
+                        {title}
                     </div>
 
                     <div
@@ -531,11 +551,9 @@ function ExecutionBlock({
                             styles.nestedMeta
                         }
                     >
-                        {client}
+                        {from}
                         {" → "}
-                        {server}
-                        {" · "}
-                        {method}
+                        {to}
 
                         {executeLabel && (
                             <>

@@ -1,6 +1,6 @@
 import type {
     ResponseFunctionToolCallItem,
-} from "openai/resources/responses/responses.js";
+} from "openai/resources/responses/responses";
 import { PreToolUsePolicy } from "@flex-builder/shared/hooks";
 import type { Tool, ToolRegistry } from "../../../tools/types";
 import { resolveToolCall } from "../../../tools/resolveToolCall";

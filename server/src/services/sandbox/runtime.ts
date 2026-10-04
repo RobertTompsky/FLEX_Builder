@@ -13,36 +13,77 @@ import type {
     SandboxRunInput,
     SandboxRunResult,
 } from "./types";
-import { ExecuteRpcClient, ExecuteRpcServer } from "../execute/rpc";
-import { ExecutionHostTransport } from "./execution/host";
-import { RpcTransport } from "../rpc/transport";
-import { ExecutionEvent } from "@flex-builder/shared/sandbox";
-import { createExecutionEnv } from "./execution/env";
-import { validateCode } from "./execution/validateCode";
 
-const DEFAULT_TIMEOUT_MS = 10_000;
+import {
+    ExecutionHostTransport,
+} from "./execution/host";
 
-const MAX_OUTPUT_BYTES = 1_000_000;
+import type {
+    RpcTransport,
+} from "../rpc/transport";
+
+import type {
+    ExecutionEvent,
+} from "@flex-builder/shared/sandbox";
+
+import {
+    createExecutionEnv,
+} from "./execution/env";
+
+import {
+    validateCode,
+} from "./execution/validateCode";
+
+import {
+    RpcRelay,
+} from "../rpc/relay";
+
+
+const DEFAULT_TIMEOUT_MS =
+    10_000;
+
+const MAX_OUTPUT_BYTES =
+    1_000_000;
+
+
+type SandboxRuntimeDeps = {
+    relay:
+        RpcRelay;
+
+    emitExecutionEvent: (
+        executionId:
+            string,
+
+        event:
+            ExecutionEvent,
+    ) =>
+        | void
+        | Promise<void>;
+};
+
 
 export class SandboxRuntime {
 
     constructor(
-        private readonly executeClient:
-            ExecuteRpcClient,
+        private readonly deps:
+            SandboxRuntimeDeps,
     ) { }
 
 
     private async emit(
-        executionId: string,
-        event: ExecutionEvent,
+        executionId:
+            string,
+
+        event:
+            ExecutionEvent,
     ): Promise<void> {
 
         try {
-            await this.executeClient
-                .emitEvent({
+            await this.deps
+                .emitExecutionEvent(
                     executionId,
                     event,
-                });
+                );
 
         } catch (error) {
             console.error(
@@ -54,8 +95,11 @@ export class SandboxRuntime {
 
 
     async run(
-        input: SandboxRunInput,
-        signal: AbortSignal,
+        input:
+            SandboxRunInput,
+
+        signal:
+            AbortSignal,
     ): Promise<SandboxRunResult> {
 
         signal.throwIfAborted();
@@ -64,58 +108,93 @@ export class SandboxRuntime {
             executionId,
             code,
             cwd: inputCwd,
-            timeoutMs: inputTimeoutMs,
+            timeoutMs:
+                inputTimeoutMs,
         } = input;
 
 
-        const validationError = validateCode(code);
+        const validationError =
+            validateCode(
+                code,
+            );
 
         if (validationError) {
             await this.emit(
                 executionId,
                 {
-                    event: "rpc_trace",
+                    event:
+                        "rpc_trace",
+
                     data: {
-                        phase: "response",
-                        method: "sandbox/run",
-                        client: "server",
-                        server: "sandbox",
+                        phase:
+                            "response",
+
+                        method:
+                            "sandbox/run",
+
+                        client:
+                            "server",
+
+                        server:
+                            "sandbox",
                     },
                 },
             );
 
             return {
-                stdout: `[BLOCKED] ${validationError}`,
-                stderr: "",
-                exitCode: 0,
-                timedOut: false,
+                stdout:
+                    `[BLOCKED] ${validationError}`,
+
+                stderr:
+                    "",
+
+                exitCode:
+                    0,
+
+                timedOut:
+                    false,
             };
         }
 
 
-        const cwd = inputCwd ?? process.cwd();
+        const cwd =
+            inputCwd ??
+            process.cwd();
 
-        const timeoutMs = inputTimeoutMs ?? DEFAULT_TIMEOUT_MS;
+        const timeoutMs =
+            inputTimeoutMs ??
+            DEFAULT_TIMEOUT_MS;
 
-        const userFile = path.join(
-            cwd,
-            `.sandbox-${randomUUID()}.ts`,
-        );
+        const userFile =
+            path.join(
+                cwd,
+                `.sandbox-${randomUUID()}.ts`,
+            );
 
-        const controller = new AbortController();
 
-        let timedOut = false;
+        const controller =
+            new AbortController();
 
-        let outputExceeded = false;
+        let timedOut =
+            false;
 
-        let outputBytes = 0;
+        let outputExceeded =
+            false;
+
+        let outputBytes =
+            0;
+
 
         const onAbort = () => {
-            if (controller.signal.aborted) {
+            if (
+                controller.signal.aborted
+            ) {
                 return;
             }
 
-            controller.abort(signal.reason);
+            controller.abort(
+                signal.reason,
+            );
         };
 
 
@@ -128,32 +207,57 @@ export class SandboxRuntime {
             },
         );
 
-        // Covers the small race between
-        // throwIfAborted() and addEventListener().
+        /*
+         * Covers the small race between
+         * throwIfAborted() and addEventListener().
+         */
         if (signal.aborted) {
             onAbort();
         }
 
-        let timeout: ReturnType<typeof setTimeout> | undefined;
 
-        let executeServer: ExecuteRpcServer | undefined;
+        let timeout:
+            ReturnType<
+                typeof setTimeout
+            >
+            | undefined;
 
-        let executionTransport: RpcTransport | undefined;
+        let executionTransport:
+            RpcTransport
+            | undefined;
 
-        let killProcess: (() => void) | undefined;
+        let detachExecution:
+            (() => Promise<void>)
+            | undefined;
 
-        const reserveOutput = (bytes: number): boolean => {
-            if (controller.signal.aborted) {
+        let killProcess:
+            (() => void)
+            | undefined;
+
+
+        const reserveOutput = (
+            bytes:
+                number,
+        ): boolean => {
+
+            if (
+                controller.signal.aborted
+            ) {
                 return false;
             }
 
-            if (outputBytes + bytes <= MAX_OUTPUT_BYTES) {
-                outputBytes += bytes;
+            if (
+                outputBytes + bytes <=
+                MAX_OUTPUT_BYTES
+            ) {
+                outputBytes +=
+                    bytes;
 
                 return true;
             }
 
-            outputExceeded = true;
+            outputExceeded =
+                true;
 
             controller.abort(
                 new Error(
@@ -172,95 +276,146 @@ export class SandboxRuntime {
                 "utf8",
             );
 
-            controller.signal.throwIfAborted();
+            controller.signal
+                .throwIfAborted();
 
-            const entryFile = path.join(
-                import.meta.dir,
-                "./execution/entry.ts",
-            );
 
-            const child = Bun.spawn(
-                [
-                    "bun",
-                    entryFile,
-                    userFile,
-                    executionId,
-                ],
-                {
-                    cwd,
-                    env: createExecutionEnv(),
-                    stdin: "pipe",
-                    stdout: "pipe",
-                    stderr: "pipe",
-                },
-            );
+            const entryFile =
+                path.join(
+                    import.meta.dir,
+                    "./execution/entry.ts",
+                );
+
+
+            const child =
+                Bun.spawn(
+                    [
+                        "bun",
+                        entryFile,
+                        userFile,
+                        executionId,
+                    ],
+                    {
+                        cwd,
+
+                        env:
+                            createExecutionEnv(),
+
+                        stdin:
+                            "pipe",
+
+                        stdout:
+                            "pipe",
+
+                        stderr:
+                            "pipe",
+                    },
+                );
 
 
             killProcess = () => {
-                if (child.exitCode === null) {
+                if (
+                    child.exitCode ===
+                    null
+                ) {
                     child.kill();
                 }
             };
 
-            controller.signal.addEventListener(
-                "abort",
-                killProcess,
-                {
-                    once:
-                        true,
-                },
-            );
 
-            if (controller.signal.aborted) {
+            controller.signal
+                .addEventListener(
+                    "abort",
+                    killProcess,
+                    {
+                        once:
+                            true,
+                    },
+                );
+
+            if (
+                controller.signal.aborted
+            ) {
                 killProcess();
             }
 
-            timeout = setTimeout(() => {
-                if (controller.signal.aborted) {
-                    return;
-                }
 
-                timedOut = true;
+            timeout =
+                setTimeout(
+                    () => {
+                        if (
+                            controller
+                                .signal
+                                .aborted
+                        ) {
+                            return;
+                        }
 
-                controller.abort(
-                    new Error(
-                        "Sandbox execution timed out",
-                    ),
+                        timedOut =
+                            true;
+
+                        controller.abort(
+                            new Error(
+                                "Sandbox execution timed out",
+                            ),
+                        );
+                    },
+                    timeoutMs,
                 );
-            },
-                timeoutMs,
-            );
 
 
             await this.emit(
                 executionId,
                 {
-                    event: "started",
+                    event:
+                        "started",
+
                     data: {
-                        pid: child.pid,
+                        pid:
+                            child.pid,
                     },
                 },
             );
 
-            const stdin = child.stdin;
 
-            if (!stdin || typeof stdin === "number") {
+            const stdin =
+                child.stdin;
+
+            if (
+                !stdin ||
+                typeof stdin ===
+                    "number"
+            ) {
                 throw new Error(
                     "Sandbox stdin is not available",
                 );
             }
 
-            const stdout = child.stdout;
 
-            if (!(stdout instanceof ReadableStream)) {
+            const stdout =
+                child.stdout;
+
+            if (
+                !(
+                    stdout instanceof
+                    ReadableStream
+                )
+            ) {
                 throw new Error(
                     "Sandbox stdout is not available",
                 );
             }
 
-            const stderr = child.stderr;
 
-            if (!(stderr instanceof ReadableStream)) {
+            const stderr =
+                child.stderr;
+
+            if (
+                !(
+                    stderr instanceof
+                    ReadableStream
+                )
+            ) {
                 throw new Error(
                     "Sandbox stderr is not available",
                 );
@@ -268,13 +423,11 @@ export class SandboxRuntime {
 
 
             /*
-             * Limit the physical streams before anything
-             * starts accumulating their contents.
+             * Limit physical streams before
+             * anything accumulates their contents.
              *
-             * stdout includes both user output and execution RPC,
-             * which is intentional here: an execution process
-             * should not be able to emit unlimited data through
-             * either channel.
+             * stdout includes both user output
+             * and execution RPC.
              */
             const limitedStdout =
                 limitReadableStream(
@@ -289,139 +442,52 @@ export class SandboxRuntime {
                 );
 
 
-            const stdoutLines: string[] = [];
-
-            executionTransport = new ExecutionHostTransport({
-                stdout:
-                    limitedStdout,
-
-                async writeLine(line) {
-                    stdin.write(line + "\n");
-
-                    await stdin.flush();
-                },
-
-                onStdout(line) {
-                    stdoutLines.push(line);
-                },
-            });
+            const stdoutLines:
+                string[] = [];
 
 
-            executeServer =
-                new ExecuteRpcServer(
-                    async (
-                        executeInput,
-                        options,
-                    ) => {
-                        const {
-                            input: {
-                                capability,
-                                action
-                            }
-                        } = executeInput;
+            executionTransport =
+                new ExecutionHostTransport({
+                    stdout:
+                        limitedStdout,
 
-
-                        await this.emit(
-                            executionId,
-                            {
-                                event:                                    "rpc_trace",
-                                data: {
-                                    phase:                                        "request",
-                                    method:                                        "execute",
-                                    client:                                        "execution",
-                                    server:                                        "sandbox",
-                                    capability,
-                                    action,
-                                },
-                            },
+                    async writeLine(
+                        line,
+                    ) {
+                        stdin.write(
+                            line +
+                            "\n",
                         );
 
-
-                        await this.emit(
-                            executionId,
-                            {
-                                event:                                    "rpc_trace",
-
-                                data: {
-                                    phase:                                        "request",
-                                    method:                                        "execute",
-                                    client:                                       "sandbox",
-                                    server:                                        "server",
-                                    capability,
-                                    action,
-                                },
-                            },
-                        );
-
-
-                        try {
-                            return await this
-                                .executeClient
-                                .execute(
-                                    executeInput,
-                                    options,
-                                );
-
-                        } finally {
-                            await this.emit(
-                                executionId,
-                                {
-                                    event:                                        "rpc_trace",
-                                    data: {
-                                        phase:                                            "response",
-                                        method:                                            "execute",
-                                        client:                                            "sandbox",
-                                        server:                                            "server",
-                                        capability,
-                                        action,
-                                    },
-                                },
-                            );
-
-
-                            await this.emit(
-                                executionId,
-                                {
-                                    event:                                        "rpc_trace",
-                                    data: {
-                                        phase:                                            "response",
-                                        method:                                            "execute",
-                                        client:                                            "execution",
-                                        server:                                            "sandbox",
-                                        capability,
-                                        action,
-                                    },
-                                },
-                            );
-                        }
+                        await stdin.flush();
                     },
-                );
 
-            // console.error(
-            //     "[sandbox] execution transport",
-            //     {
-            //         constructor:
-            //             executionTransport
-            //                 .constructor
-            //                 .name,
+                    onStdout(
+                        line,
+                    ) {
+                        stdoutLines.push(
+                            line,
+                        );
+                    },
+                });
 
-            //         onMessage:
-            //             typeof executionTransport
-            //                 .onMessage,
 
-            //         onDisconnect:
-            //             typeof executionTransport
-            //                 .onDisconnect,
-
-            //         methods:
-            //             Object.getOwnPropertyNames(
-            //                 Object.getPrototypeOf(
-            //                     executionTransport,
-            //                 ),
-            //             ),
-            //     },
-            // );
-            await executeServer.connect(executionTransport);
+            /*
+             * This is the important part:
+             *
+             * execution no longer connects to a
+             * local ExecuteRpcServer.
+             *
+             * Its RPC transport is attached directly
+             * to the sandbox relay.
+             */
+            detachExecution =
+                await this.deps
+                    .relay
+                    .attach(
+                        executionId,
+                        executionTransport,
+                    );
 
 
             const [
@@ -429,7 +495,9 @@ export class SandboxRuntime {
                 exitCode,
             ] =
                 await Promise.all([
-                    new Response(limitedStderr).text(),
+                    new Response(
+                        limitedStderr,
+                    ).text(),
 
                     child.exited,
                 ]);
@@ -439,7 +507,9 @@ export class SandboxRuntime {
                 await this.emit(
                     executionId,
                     {
-                        event: "timeout",
+                        event:
+                            "timeout",
+
                         data: {
                             timeoutMs,
                         },
@@ -452,9 +522,12 @@ export class SandboxRuntime {
                 await this.emit(
                     executionId,
                     {
-                        event: "output_exceeded",
+                        event:
+                            "output_exceeded",
+
                         data: {
-                            maxOutputBytes: MAX_OUTPUT_BYTES,
+                            maxOutputBytes:
+                                MAX_OUTPUT_BYTES,
                         },
                     },
                 );
@@ -464,7 +537,9 @@ export class SandboxRuntime {
             await this.emit(
                 executionId,
                 {
-                    event: "exit",
+                    event:
+                        "exit",
+
                     data: {
                         exitCode,
                     },
@@ -473,11 +548,15 @@ export class SandboxRuntime {
 
 
             /*
-             * Parent cancellation is semantically different
-             * from our internal timeout/output-limit abort.
+             * Parent cancellation is semantically
+             * different from internal timeout /
+             * output-limit abort.
              *
-             * The former cancels sandbox/run itself.
-             * The latter produces a normal SandboxRunResult.
+             * Parent cancellation cancels
+             * sandbox/run itself.
+             *
+             * Internal abort produces a normal
+             * SandboxRunResult.
              */
             if (signal.aborted) {
                 throw (
@@ -504,6 +583,7 @@ export class SandboxRuntime {
                 );
             }
 
+
             return {
                 stdout:
                     output.length > 0
@@ -512,13 +592,15 @@ export class SandboxRuntime {
                         ) + "\n"
                         : "",
 
-                stderr: stderrText,
+                stderr:
+                    stderrText,
+
                 exitCode,
+
                 timedOut,
             };
 
         } finally {
-
             if (timeout) {
                 clearTimeout(
                     timeout,
@@ -533,31 +615,45 @@ export class SandboxRuntime {
                         killProcess,
                     );
 
-                // Covers failures during setup too:
-                // connect(), stream validation, etc.
+                /*
+                 * Covers failures during setup too.
+                 */
                 killProcess();
             }
 
 
-            try {
-                await executeServer?.close();
+            /*
+             * detach() owns the execution transport
+             * once relay.attach() succeeded.
+             */
+            if (detachExecution) {
+                try {
+                    await detachExecution();
 
-            } catch (error) {
-                console.error(
-                    "[sandbox] failed to close execute server",
-                    error,
-                );
-            }
+                } catch (error) {
+                    console.error(
+                        "[sandbox] failed to detach execution",
+                        error,
+                    );
+                }
 
+            } else if (
+                executionTransport
+            ) {
+                /*
+                 * attach() may fail after the transport
+                 * has already been constructed.
+                 */
+                try {
+                    await executionTransport
+                        .close();
 
-            try {
-                await executionTransport?.close();
-
-            } catch (error) {
-                console.error(
-                    "[sandbox] failed to close execution transport",
-                    error,
-                );
+                } catch (error) {
+                    console.error(
+                        "[sandbox] failed to close execution transport",
+                        error,
+                    );
+                }
             }
 
 
@@ -567,21 +663,30 @@ export class SandboxRuntime {
             );
 
 
-            await unlink(userFile).catch(() => { });
+            await unlink(
+                userFile,
+            ).catch(
+                () => { },
+            );
 
 
             /*
-             * A sandbox/run RPC error is still a response
-             * from the sandbox side, so keep the trace
-             * balanced even when run() throws.
+             * A sandbox/run RPC error is still
+             * a response from the sandbox side,
+             * so keep the trace balanced.
              */
             await this.emit(
                 executionId,
                 {
-                    event: "rpc_trace",
+                    event:
+                        "rpc_trace",
+
                     data: {
-                        phase: "response",
-                        method: "sandbox/run",
+                        phase:
+                            "response",
+
+                        method:
+                            "sandbox/run",
 
                         client:
                             "server",
@@ -598,14 +703,18 @@ export class SandboxRuntime {
 
 function limitReadableStream(
     stream:
-        ReadableStream<Uint8Array>,
+        ReadableStream<
+            Uint8Array
+        >,
 
     reserve:
         (
             bytes:
                 number,
         ) => boolean,
-): ReadableStream<Uint8Array> {
+): ReadableStream<
+    Uint8Array
+> {
 
     const reader =
         stream.getReader();
@@ -614,7 +723,6 @@ function limitReadableStream(
     return new ReadableStream<
         Uint8Array
     >({
-
         async pull(
             controller,
         ) {
@@ -632,10 +740,16 @@ function limitReadableStream(
             }
 
 
-            if (!reserve(value.byteLength)) {
+            if (
+                !reserve(
+                    value.byteLength,
+                )
+            ) {
                 await reader
                     .cancel()
-                    .catch(() => { });
+                    .catch(
+                        () => { },
+                    );
 
                 controller.close();
 
@@ -643,13 +757,22 @@ function limitReadableStream(
             }
 
 
-            controller.enqueue(value);
+            controller.enqueue(
+                value,
+            );
         },
 
-        async cancel(reason) {
+
+        async cancel(
+            reason,
+        ) {
             await reader
-                .cancel(reason)
-                .catch(() => { });
+                .cancel(
+                    reason,
+                )
+                .catch(
+                    () => { },
+                );
         },
     });
 }

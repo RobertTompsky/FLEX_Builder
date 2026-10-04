@@ -1,7 +1,3 @@
-import type {
-    ResponseFunctionToolCallItem,
-    ResponseInputItem,
-} from "openai/resources/responses/responses.js";
 
 import {
     model,
@@ -25,6 +21,10 @@ import type {
 } from "@flex-builder/shared/agent";
 import { getPendingToolCalls } from "./messages";
 import { buildModelTools } from "../tools/buildModelTools";
+import { 
+    ResponseFunctionToolCallItem, 
+    ResponseInputItem 
+} from "openai/resources/responses/responses";
 
 type AgentEventHandler = (
     event: AgentEvent,

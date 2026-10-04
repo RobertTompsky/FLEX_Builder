@@ -2,6 +2,7 @@ import {
     isJsonRpcNotification,
     isJsonRpcRequest,
     JsonRpcErrorCode,
+    JsonRpcNotificationMethod,
 } from "./protocol";
 
 import type {
@@ -277,7 +278,7 @@ export class RpcServer {
     ): void {
         if (
             notification.method ===
-            "$/cancelRequest"
+            JsonRpcNotificationMethod.cancelRequest
         ) {
             const params =
                 notification.params as

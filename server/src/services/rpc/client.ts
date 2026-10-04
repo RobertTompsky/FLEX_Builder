@@ -1,5 +1,6 @@
 import {
     isJsonRpcResponse,
+    JsonRpcNotificationMethod,
 } from "./protocol";
 
 import type {
@@ -164,7 +165,7 @@ export class RpcClient {
                     request.cleanup();
 
                     void this.notify(
-                        "$/cancelRequest",
+                        JsonRpcNotificationMethod.cancelRequest,
                         {
                             id,
                         },
@@ -201,6 +202,14 @@ export class RpcClient {
                 }
             },
         );
+
+        if (
+            signal?.aborted ||
+            !this.pending.has(id)
+        ) {
+            return result;
+        }
+
 
         try {
             await transport.send({

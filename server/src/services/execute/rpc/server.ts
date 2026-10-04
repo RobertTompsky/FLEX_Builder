@@ -26,22 +26,78 @@ export class ExecuteRpcServer
     ) {
         super();
 
+        const emitTrace = async (
+            input:
+                ExecuteRpcInput,
+
+            phase:
+                "request"
+                | "response",
+        ) => {
+            if (!onEvent) {
+                return;
+            }
+
+            const {
+                executionId,
+                input: {
+                    capability,
+                    action,
+                },
+            } = input;
+
+            await onEvent({
+                executionId,
+
+                event: {
+                    event:
+                        "rpc_trace",
+
+                    data: {
+                        phase,
+                        method:
+                            "execute",
+                        client:
+                            "execution",
+                        server:
+                            "server",
+                        capability,
+                        action,
+                    },
+                },
+            });
+        };
+
         this.register<
             ExecuteRpcInput,
             unknown
         >(
             ExecuteRpcMethod.execute,
 
-            (
+            async (
                 input,
                 signal,
-            ) =>
-                execute(
+            ) => {
+                await emitTrace(
                     input,
-                    {
-                        signal,
-                    },
-                ),
+                    "request",
+                );
+
+                try {
+                    return await execute(
+                        input,
+                        {
+                            signal,
+                        },
+                    );
+                }
+                finally {
+                    await emitTrace(
+                        input,
+                        "response",
+                    );
+                }
+            },
         );
 
         if (onEvent) {

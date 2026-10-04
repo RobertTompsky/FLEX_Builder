@@ -1,6 +1,6 @@
 import type {
     FunctionTool,
-} from "openai/resources/responses/responses.js";
+} from "openai/resources/responses/responses";
 
 import {
     z,

@@ -1,7 +1,7 @@
 import { LlmConfig, LlmStepResult } from "./types";
 import { CodeGenSchema } from "@flex-builder/shared/capabilities";
-import { ResponseInputItem } from "openai/resources/responses/responses.js";
-import { toResponseInputItems } from "openai/lib/responses/ResponseInputItems.js";
+import { ResponseInput, ResponseInputItem } from "openai/resources/responses/responses";
+import { toResponseInputItems } from "openai/lib/responses/ResponseInputItems";
 import OpenAI from "openai";
 
 const openai = new OpenAI({
@@ -17,7 +17,6 @@ export async function model({
     onEvent,
 }: LlmConfig): Promise<LlmStepResult> {
     throwIfAborted(signal);
-
     if (messages.length === 0) {
         throw new Error(
             "No messages provided",

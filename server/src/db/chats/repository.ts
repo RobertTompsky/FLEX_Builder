@@ -4,7 +4,7 @@ import {
 
 import type {
   ResponseInputItem,
-} from "openai/resources/responses/responses.js";
+} from "openai/resources/responses/responses";
 
 import type {
   Chat,

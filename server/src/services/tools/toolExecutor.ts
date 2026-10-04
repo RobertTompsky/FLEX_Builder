@@ -1,7 +1,7 @@
 import type {
     ResponseFunctionToolCallItem,
     ResponseInputItem,
-} from "openai/resources/responses/responses.js";
+} from "openai/resources/responses/responses";
 
 import type {
     ToolRegistry,

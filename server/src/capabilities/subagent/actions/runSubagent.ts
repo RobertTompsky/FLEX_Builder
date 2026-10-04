@@ -1,9 +1,5 @@
 import z from "zod";
 
-import type {
-    ResponseInputItem,
-} from "openai/resources/responses/responses.js";
-
 import { randomUUID } from "crypto";
 
 import {
@@ -21,6 +17,7 @@ import {
 import type {
     ToolRegistry,
 } from "../../../services/tools/types";
+import { ResponseInputItem } from "openai/resources/responses/responses";
 
 export const SUBAGENT_CAPABILITY_IDS = [
     "web",
