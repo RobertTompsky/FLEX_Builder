@@ -1,10 +1,7 @@
 import {
     ExecuteRpcClient,
 } from "../../execute/rpc";
-
-import {
-    ExecutionStdioTransport,
-} from "./stdio";
+import { ExecutionIpcTransport } from "./transport/execution";
 
 import {
     sandboxGlobal,
@@ -13,6 +10,7 @@ import {
 const userFile = process.argv.at(2);
 
 const executionId = process.argv.at(3);
+
 
 if (!userFile) {
     throw new Error(
@@ -26,7 +24,15 @@ if (!executionId) {
     );
 }
 
-const transport = new ExecutionStdioTransport();
+// process.send?.({
+//     kind:
+//         "debug",
+//     message:
+//         "entry alive",
+// });
+
+const transport = new ExecutionIpcTransport();
+
 
 const executeClient = new ExecuteRpcClient();
 
@@ -45,10 +51,10 @@ sandboxGlobal.execute =
 
             options,
         );
-
 try {
     await import(userFile);
 } finally {
     await executeClient.close();
+
     await transport.close();
 }

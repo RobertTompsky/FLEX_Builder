@@ -10,7 +10,7 @@ Execute TypeScript code in a sandboxed Bun process.
 const RUN_TS_RULES = `
 ## Rules
 
-- When needed, output final tool results using console.log(...).
+- Output final tool results using console.log(JSON.stringify(result, null, 2));
 - Write pure TypeScript.
 `.trim();
 

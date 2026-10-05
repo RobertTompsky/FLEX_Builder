@@ -1,13 +1,8 @@
-import {
-    randomUUID,
-} from "crypto";
-
 import type {
     JsonRpcId,
     JsonRpcMessage,
     JsonRpcNotification,
     JsonRpcRequest,
-    JsonRpcResponse,
 } from "./protocol";
 
 import {
@@ -25,36 +20,24 @@ import type {
 type RelayChannel = {
     transport:
         RpcTransport;
-
-    active:
-        number;
-
-    queue:
-        JsonRpcRequest[];
-
-    upstreamByDownstream:
-        Map<
-            JsonRpcId,
-            JsonRpcId
-        >;
 };
 
 
 type PendingRequest = {
     executionId:
         string;
-
-    downstreamId:
-        JsonRpcId;
 };
 
 
 type RpcRelayOptions = {
     upstream:
         RpcTransport;
+};
 
-    maxConcurrency:
-        number;
+
+export type RpcRelayAttachment = {
+    close():
+        Promise<void>;
 };
 
 
@@ -66,6 +49,11 @@ export class RpcRelay {
             RelayChannel
         >();
 
+    /*
+     * Request ids are globally unique,
+     * so requestId is enough to route
+     * the response back to its execution.
+     */
     private readonly pending =
         new Map<
             JsonRpcId,
@@ -108,7 +96,7 @@ export class RpcRelay {
         transport:
             RpcTransport,
     ): Promise<
-        () => Promise<void>
+        RpcRelayAttachment
     > {
 
         if (
@@ -125,24 +113,11 @@ export class RpcRelay {
         await transport.connect();
 
 
-        const channel:
-            RelayChannel = {
-                transport,
-
-                active:
-                    0,
-
-                queue:
-                    [],
-
-                upstreamByDownstream:
-                    new Map(),
-            };
-
-
         this.channels.set(
             executionId,
-            channel,
+            {
+                transport,
+            },
         );
 
 
@@ -167,14 +142,28 @@ export class RpcRelay {
             );
 
 
-        return async () => {
-            unsubscribeMessage();
-            unsubscribeDisconnect();
+        let closed =
+            false;
 
-            await this.detach(
-                executionId,
-                true,
-            );
+
+        return {
+            close:
+                async () => {
+                    if (closed) {
+                        return;
+                    }
+
+                    closed =
+                        true;
+
+                    unsubscribeMessage();
+                    unsubscribeDisconnect();
+
+                    await this.detach(
+                        executionId,
+                        true,
+                    );
+                },
         };
     }
 
@@ -197,7 +186,11 @@ export class RpcRelay {
         message:
             JsonRpcMessage,
     ): Promise<void> {
-
+console.error(
+    "[relay] DOWNSTREAM",
+    executionId,
+    message,
+);
         if (
             isJsonRpcNotification(
                 message,
@@ -215,35 +208,12 @@ export class RpcRelay {
 
 
         if (
-            !isJsonRpcRequest(
+            isJsonRpcRequest(
                 message,
             )
         ) {
-            await this.options
-                .upstream
-                .send(
-                    message,
-                );
-
-            return;
-        }
-
-
-        const channel =
-            this.channels.get(
+            await this.forwardRequest(
                 executionId,
-            );
-
-        if (!channel) {
-            return;
-        }
-
-
-        if (
-            channel.active >=
-            this.options.maxConcurrency
-        ) {
-            channel.queue.push(
                 message,
             );
 
@@ -251,111 +221,76 @@ export class RpcRelay {
         }
 
 
-        await this.forwardRequest(
-            executionId,
-            message,
-        );
+        /*
+         * Other downstream messages are simply
+         * forwarded. In practice execution should
+         * mostly produce requests + notifications.
+         */
+        await this.options
+            .upstream
+            .send(
+                message,
+            );
     }
 
 
-    private async cancelRequest(
+    private async forwardRequest(
         executionId:
             string,
 
-        notification:
-            JsonRpcNotification,
+        request:
+            JsonRpcRequest,
     ): Promise<void> {
 
-        const channel =
-            this.channels.get(
+        if (
+            !this.channels.has(
                 executionId,
-            );
-
-        if (!channel) {
-            return;
-        }
-
-
-        const params =
-            notification.params as
-                | {
-                    id?:
-                        JsonRpcId;
-                }
-                | undefined;
-
-        const downstreamId =
-            params?.id;
-
-        if (
-            downstreamId ===
-            undefined
+            )
         ) {
             return;
         }
 
 
         /*
-         * Request hasn't been forwarded yet.
-         *
-         * Remove it from the local concurrency
-         * queue. The server has never seen it,
-         * so there is nothing to cancel upstream.
+         * UUID request ids should make this impossible,
+         * but failing loudly here is much nicer than
+         * routing a response to the wrong execution.
          */
-        const queuedIndex =
-            channel.queue
-                .findIndex(
-                    request =>
-                        request.id ===
-                        downstreamId,
+        if (
+            this.pending.has(
+                request.id,
+            )
+        ) {
+            throw new Error(
+                `Duplicate RPC request id: ${String(
+                    request.id,
+                )}`,
+            );
+        }
+
+
+        this.pending.set(
+            request.id,
+            {
+                executionId,
+            },
+        );
+
+
+        try {
+            await this.options
+                .upstream
+                .send(
+                    request,
                 );
 
-        if (
-            queuedIndex !==
-            -1
-        ) {
-            channel.queue.splice(
-                queuedIndex,
-                1,
+        } catch (error) {
+            this.pending.delete(
+                request.id,
             );
 
-            return;
+            throw error;
         }
-
-
-        /*
-         * Request is already running upstream.
-         *
-         * Translate the child-local request id
-         * into the id visible to RpcServer.
-         */
-        const upstreamId =
-            channel
-                .upstreamByDownstream
-                .get(
-                    downstreamId,
-                );
-
-        if (
-            upstreamId ===
-            undefined
-        ) {
-            return;
-        }
-
-
-        await this.options
-            .upstream
-            .send({
-                ...notification,
-
-                params: {
-                    ...params,
-
-                    id:
-                        upstreamId,
-                },
-            });
     }
 
 
@@ -365,9 +300,9 @@ export class RpcRelay {
     ): Promise<void> {
 
         /*
-         * Upstream is shared with SandboxRpcServer,
-         * so ignore messages unrelated to requests
-         * routed through this relay.
+         * The upstream transport is shared with
+         * SandboxRpcServer, so relay only consumes
+         * responses belonging to execution requests.
          */
         if (
             !isJsonRpcResponse(
@@ -404,155 +339,72 @@ export class RpcRelay {
         }
 
 
-        channel
-            .upstreamByDownstream
-            .delete(
-                pending.downstreamId,
-            );
-
-
-        channel.active =
-            Math.max(
-                0,
-                channel.active - 1,
-            );
-
-
         await channel.transport
             .send(
-                withResponseId(
-                    message,
-                    pending.downstreamId,
-                ),
+                message,
             );
-
-
-        await this.flush(
-            pending.executionId,
-        );
     }
 
 
-    private async forwardRequest(
+    private async cancelRequest(
         executionId:
             string,
 
-        request:
-            JsonRpcRequest,
+        notification:
+            JsonRpcNotification,
     ): Promise<void> {
 
-        const channel =
-            this.channels.get(
-                executionId,
-            );
+        const params =
+            notification.params as
+                | {
+                    id?:
+                        JsonRpcId;
+                }
+                | undefined;
 
-        if (!channel) {
-            return;
-        }
+        const requestId =
+            params?.id;
 
-
-        const upstreamId =
-            randomUUID();
-
-
-        const upstreamRequest:
-            JsonRpcRequest = {
-                ...request,
-
-                id:
-                    upstreamId,
-            };
-
-
-        channel.active++;
-
-
-        channel
-            .upstreamByDownstream
-            .set(
-                request.id,
-                upstreamId,
-            );
-
-
-        this.pending.set(
-            upstreamId,
-            {
-                executionId,
-
-                downstreamId:
-                    request.id,
-            },
-        );
-
-
-        try {
-            await this.options
-                .upstream
-                .send(
-                    upstreamRequest,
-                );
-
-        } catch (error) {
-
-            this.pending.delete(
-                upstreamId,
-            );
-
-            channel
-                .upstreamByDownstream
-                .delete(
-                    request.id,
-                );
-
-            channel.active =
-                Math.max(
-                    0,
-                    channel.active - 1,
-                );
-
-            await this.flush(
-                executionId,
-            );
-
-            throw error;
-        }
-    }
-
-
-    private async flush(
-        executionId:
-            string,
-    ): Promise<void> {
-
-        const channel =
-            this.channels.get(
-                executionId,
-            );
-
-        if (!channel) {
-            return;
-        }
-
-
-        while (
-            channel.active <
-                this.options.maxConcurrency &&
-            channel.queue.length > 0
+        if (
+            requestId ===
+            undefined
         ) {
-            const request =
-                channel.queue.shift();
-
-            if (!request) {
-                return;
-            }
-
-
-            await this.forwardRequest(
-                executionId,
-                request,
-            );
+            return;
         }
+
+
+        const pending =
+            this.pending.get(
+                requestId,
+            );
+
+        /*
+         * Don't allow one execution to cancel
+         * another execution's request.
+         */
+        if (
+            !pending ||
+            pending.executionId !==
+                executionId
+        ) {
+            return;
+        }
+
+
+        /*
+         * RpcServer doesn't send a response for an
+         * aborted request, so relay owns cleanup here.
+         */
+        this.pending.delete(
+            requestId,
+        );
+
+
+        await this.options
+            .upstream
+            .send(
+                notification,
+            );
     }
 
 
@@ -575,17 +427,29 @@ export class RpcRelay {
 
 
         /*
-         * Child is going away.
-         *
-         * Cancel every request from this execution
-         * that is already running on the server.
+         * Execution is disappearing, so cancel every
+         * upstream operation belonging to it.
          */
         for (
-            const upstreamId
-            of channel
-                .upstreamByDownstream
-                .values()
+            const [
+                requestId,
+                pending,
+            ]
+            of this.pending
         ) {
+            if (
+                pending.executionId !==
+                executionId
+            ) {
+                continue;
+            }
+
+
+            this.pending.delete(
+                requestId,
+            );
+
+
             await this.options
                 .upstream
                 .send({
@@ -593,29 +457,18 @@ export class RpcRelay {
                         "2.0",
 
                     method:
-                        JsonRpcNotificationMethod.cancelRequest,
+                        JsonRpcNotificationMethod
+                            .cancelRequest,
 
                     params: {
                         id:
-                            upstreamId,
+                            requestId,
                     },
                 })
                 .catch(
                     () => { },
                 );
-
-            this.pending.delete(
-                upstreamId,
-            );
         }
-
-
-        channel
-            .upstreamByDownstream
-            .clear();
-
-        channel.queue.length =
-            0;
 
 
         this.channels.delete(
@@ -628,20 +481,4 @@ export class RpcRelay {
                 .close();
         }
     }
-}
-
-
-function withResponseId(
-    response:
-        JsonRpcResponse,
-
-    id:
-        JsonRpcId,
-): JsonRpcResponse {
-
-    return {
-        ...response,
-
-        id,
-    };
 }

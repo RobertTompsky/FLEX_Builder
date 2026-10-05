@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
     isJsonRpcResponse,
     JsonRpcNotificationMethod,
@@ -47,8 +48,6 @@ export class RpcError
 
 
 export class RpcClient {
-
-    private nextId = 1;
 
     private transport?: RpcTransport;
 
@@ -119,7 +118,7 @@ export class RpcClient {
 
         signal?.throwIfAborted();
 
-        const id = this.nextId++;
+        const id = randomUUID();
 
         let onAbort: (() => void) | undefined;
 

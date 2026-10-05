@@ -18,5 +18,9 @@ export function createExecutionEnv(): Record<string, string> {
         }
     }
 
-    return env;
+    return {
+        ...env,
+        NO_COLOR: "1",
+        FORCE_COLOR: "0",
+    }
 }

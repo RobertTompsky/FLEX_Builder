@@ -27,35 +27,50 @@ export type CodeExecutionEvent =
         };
     };
 
-export type RpcTraceNode =
-    | "server"
-    | "sandbox"
-    | "execution";
-
 export type RpcTraceCall =
     | {
-        method: "sandbox/run";
-        client: "server";
-        server: "sandbox";
+        method:
+            "sandbox/run";
+
+        client:
+            "server";
+
+        server:
+            "sandbox";
     }
     | {
-        method: "execute";
-        client: "execution";
-        server: "server";
-        capability: string;
-        action: string;
+        method:
+            "execute";
+
+        client:
+            "execution";
+
+        server:
+            "server";
+
+        capability:
+            string;
+
+        action:
+            string;
     };
 
 export type RpcTraceEvent = {
-    event: "rpc_trace";
+    event:
+        "rpc_trace";
 
-    data: {
-        // executionId: string;
+    data:
+        RpcTraceCall & {
+            phase:
+                "request"
+                | "response";
 
-        phase:
-        | "request"
-        | "response";
-    } & RpcTraceCall;
+            requestId?:
+                string;
+
+            executionId?:
+                string;
+        };
 };
 
 export type ExecutionEvent =
@@ -69,8 +84,7 @@ export type ExecutionEventInput = {
 
 export type SandboxEvent =
     (
-        | CodeExecutionEvent
-        | RpcTraceEvent
+        ExecutionEvent
         | CapabilityEvent
     ) & {
         source: ExecutionSource;

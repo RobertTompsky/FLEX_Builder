@@ -13,58 +13,101 @@ import {
 import {
     SandboxRuntime,
 } from "./runtime";
-import { ExecuteRpcMethod } from "../execute/rpc/protocol";
 
-const transport = new StdioTransport();
+import {
+    BunExecutionHost,
+} from "./execution/host";
 
-const relay = new RpcRelay({
-    upstream: transport,
-    maxConcurrency: 4,
-});
+import {
+    ExecuteRpcMethod,
+} from "../execute/rpc/protocol";
 
-const runtime = new SandboxRuntime({
-    relay,
-    async emitExecutionEvent(
-        executionId,
-        event,
-    ) {
-        await transport.send({
-            jsonrpc: "2.0",
-            method: ExecuteRpcMethod.executionEvent,
-            params: {
-                executionId,
-                event,
-            },
-        });
-    },
-});
 
-const sandboxServer = new SandboxRpcServer(runtime);
+const transport =
+    new StdioTransport();
 
-await sandboxServer.connect(transport);
+
+const relay =
+    new RpcRelay({
+        upstream:
+            transport,
+    });
+
+
+const executionHost =
+    new BunExecutionHost();
+
+
+const runtime =
+    new SandboxRuntime({
+        executionHost,
+        relay,
+
+        async emitExecutionEvent(
+            executionId,
+            event,
+        ) {
+            await transport.send({
+                jsonrpc:
+                    "2.0",
+
+                method:
+                    ExecuteRpcMethod
+                        .executionEvent,
+
+                params: {
+                    executionId,
+                    event,
+                },
+            });
+        },
+    });
+
+
+const sandboxServer =
+    new SandboxRpcServer(
+        runtime,
+    );
+
+
+await sandboxServer.connect(
+    transport,
+);
+
 
 relay.connect();
+
 
 console.error(
     "[sandbox] service started",
 );
 
-let shuttingDown = false;
+
+let shuttingDown =
+    false;
+
 
 async function shutdown(
     code = 0,
 ) {
-    if (shuttingDown) {
+    if (
+        shuttingDown
+    ) {
         return;
     }
 
-    shuttingDown = true;
+    shuttingDown =
+        true;
+
 
     relay.close();
 
-    await sandboxServer.close();
+    await sandboxServer
+        .close();
 
-    await transport.close();
+    await transport
+        .close();
+
 
     process.exit(
         code,
