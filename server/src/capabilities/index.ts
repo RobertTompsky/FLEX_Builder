@@ -35,7 +35,6 @@ type CapabilityFactoryContext = {
 
 type CapabilityEntry = {
     definition: Pick<Capability, "id" | 'description'>;
-
     create: (
         context: CapabilityFactoryContext,
     ) => Capability | null;
@@ -46,20 +45,16 @@ const CAPABILITY_REGISTRY = {
         definition: ARTIFACT_CAPABILITY_DEFINITION,
 
         create: ({ workspace }) =>
-            createArtifactCapability({
-                workspace,
-            }),
+            createArtifactCapability({ workspace }),
     },
 
     browser: {
         definition: BROWSER_CAPABILITY_DEFINITION,
-
         create: () => browserCapabilitiy,
     },
 
     crypto: {
         definition: CRYPTO_CAPABILITY_DEFINITION,
-
         create: () => cryptoCapability,
     },
 
@@ -70,12 +65,10 @@ const CAPABILITY_REGISTRY = {
 
     subagent: {
         definition: SUBAGENT_CAPABILITY_DEFINITION,
-
         create: ({ createSubagentTools }) =>
             createSubagentTools
                 ? createSubagentCapability({
-                    createTools:
-                        createSubagentTools,
+                    createTools: createSubagentTools,
                 })
                 : null,
     },

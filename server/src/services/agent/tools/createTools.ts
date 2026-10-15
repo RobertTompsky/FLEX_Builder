@@ -1,8 +1,4 @@
 import type {
-    Browser,
-} from "playwright";
-
-import type {
     AgentCapabilityConfig,
 } from "@flex-builder/shared/capabilities";
 

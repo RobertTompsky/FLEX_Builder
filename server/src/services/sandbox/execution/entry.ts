@@ -11,7 +11,6 @@ const userFile = process.argv.at(2);
 
 const executionId = process.argv.at(3);
 
-
 if (!userFile) {
     throw new Error(
         "Missing user file",
@@ -24,15 +23,7 @@ if (!executionId) {
     );
 }
 
-// process.send?.({
-//     kind:
-//         "debug",
-//     message:
-//         "entry alive",
-// });
-
 const transport = new ExecutionIpcTransport();
-
 
 const executeClient = new ExecuteRpcClient();
 
@@ -48,9 +39,9 @@ sandboxGlobal.execute =
                 executionId,
                 input,
             },
-
             options,
         );
+
 try {
     await import(userFile);
 } finally {

@@ -12,37 +12,23 @@ import type {
 export class ExecutionIpcTransport
     implements RpcTransport {
 
-    private connected =
-        false;
+    private connected = false;
 
+    private readonly messageHandlers = new Set<MessageHandler>();
 
-    private readonly messageHandlers =
-        new Set<
-            MessageHandler
-        >();
+    private readonly disconnectHandlers = new Set<TransportDisconnectHandler>();
 
+    private readonly handleProcessMessage = (message: unknown) => {
+        if (!this.connected) {
+            return;
+        }
 
-    private readonly disconnectHandlers =
-        new Set<
-            TransportDisconnectHandler
-        >();
+        const rpcMessage = message as JsonRpcMessage;
 
-
-    private readonly handleProcessMessage =
-        (
-            message: unknown,
-        ) => {
-
-            if (!this.connected) {
-                return;
-            }
-
-            const rpcMessage = message as JsonRpcMessage;
-
-            for (const handler of this.messageHandlers) {
-                void handler(rpcMessage);
-            }
-        };
+        for (const handler of this.messageHandlers) {
+            void handler(rpcMessage);
+        }
+    };
 
     private readonly handleProcessDisconnect = () => {
         this.disconnect(
@@ -87,9 +73,7 @@ export class ExecutionIpcTransport
         );
     }
 
-    onMessage(
-        handler: MessageHandler,
-    ): () => void {
+    onMessage(handler: MessageHandler): () => void {
         this.messageHandlers.add(handler);
 
         return () => {
@@ -97,10 +81,7 @@ export class ExecutionIpcTransport
         };
     }
 
-
-    onDisconnect(
-        handler: TransportDisconnectHandler,
-    ): () => void {
+    onDisconnect(handler: TransportDisconnectHandler): () => void {
         this.disconnectHandlers.add(handler);
 
         return () => {
@@ -108,11 +89,7 @@ export class ExecutionIpcTransport
         };
     }
 
-
-    async send(
-        message: JsonRpcMessage,
-    ): Promise<void> {
-
+    async send(message: JsonRpcMessage): Promise<void> {
         //     console.error(
         //         "[ipc child] SEND",
         //         message,
@@ -139,8 +116,7 @@ export class ExecutionIpcTransport
     }
 
 
-    async close():
-        Promise<void> {
+    async close(): Promise<void> {
 
         if (!this.connected) {
             return;
@@ -164,11 +140,7 @@ export class ExecutionIpcTransport
     }
 
 
-    private disconnect(
-        error:
-            Error,
-    ): void {
-
+    private disconnect(error: Error): void {
         if (!this.connected) {
             return;
         }

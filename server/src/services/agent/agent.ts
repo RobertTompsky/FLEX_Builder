@@ -19,14 +19,15 @@ import type {
 import type {
     AgentEvent,
 } from "@flex-builder/shared/agent";
-import { getPendingToolCalls } from "./messages";
+import { getPendingToolCalls } from "../llm/messages";
 import { buildModelTools } from "../tools/buildModelTools";
-import { 
-    ResponseFunctionToolCallItem, 
-    ResponseInputItem 
+import {
+    ResponseFunctionToolCallItem,
+    ResponseInputItem
 } from "openai/resources/responses/responses";
+import { selectModelTools } from "./hooks/selectTools/selectModelTools";
 
-type AgentEventHandler = (
+export type AgentEventHandler = (
     event: AgentEvent,
 ) => void | Promise<void>;
 
@@ -56,8 +57,6 @@ export async function agent(
     let turnsUsed = 0;
 
     let pendingToolCalls = getPendingToolCalls(messages);
-
-    const modelTools = buildModelTools(tools);
 
     const executeTools = createToolExecutor(tools);
 
@@ -118,10 +117,16 @@ export async function agent(
 
         turnsUsed++;
 
+        const selectedTools = await selectModelTools(
+            hooks?.selectTools,
+            messages,
+            tools,
+        );
+
         const step = await model({
             model: modelName,
             messages,
-            tools: modelTools,
+            tools: buildModelTools(selectedTools),
             signal,
             reasoning: {
                 effort: "none",

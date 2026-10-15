@@ -6,7 +6,7 @@ import type {
 
 import { ChatParamsSchema } from "@flex-builder/shared/chat";
 import { RouteDeps } from "../types";
-import { getPendingToolCalls } from "../../services/agent/messages";
+import { getPendingToolCalls } from "../../services/llm/messages";
 import { ApproveToolCallsBodySchema } from "@flex-builder/shared/run";
 
 type ApproveToolCallsRouteDeps = Pick<RouteDeps, 'chatRepository'>

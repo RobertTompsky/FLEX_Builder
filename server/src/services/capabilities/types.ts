@@ -3,7 +3,7 @@ import { CapabilityEvent } from "@flex-builder/shared/capabilities";
 
 export type ExecutionOptions = {
     signal?:
-        AbortSignal;
+    AbortSignal;
 
     emit?(
         event: CapabilityEvent,
@@ -23,15 +23,20 @@ export type Action = {
     description: string;
 
     inputSchema:
-        z.ZodType;
+    z.ZodType;
 
     outputSchema:
-        z.ZodType;
+    z.ZodType;
 
     execute(
         input: ActionInput,
     ): Promise<unknown>;
 };
+
+export type CapabilityDefinition = {
+    id: string;
+    description: string;
+}
 
 export type Capability = {
     id: string;

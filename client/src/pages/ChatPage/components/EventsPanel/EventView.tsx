@@ -860,6 +860,65 @@ function ToolBlock({
     );
 }
 
+type ToolSelectionMessage = Extract<
+    AgentSSEMessage,
+    { event: "tool_selection" }
+>;
+
+function ToolSelectionBlock({
+    event,
+}: {
+    event: ToolSelectionMessage;
+}) {
+    const { model, tools } = event.data.data;
+
+    const selectedCount = tools.filter(
+        tool => tool.selected,
+    ).length;
+
+    return (
+        <div className={styles.selectionEvent}>
+            <div
+                className={cx(
+                    styles.line,
+                    styles.selectionTitle,
+                )}
+            >
+                <span className={styles.selectionIndicator}>
+                    ■
+                </span>
+
+                TOOL SELECTION
+
+                <span className={styles.selectionModel}>
+                    · {model}
+                </span>
+            </div>
+
+            <div className={styles.selectionBody}>
+                {tools.map(tool => (
+                    <div
+                        key={tool.name}
+                        className={cx(
+                            styles.selectionTool,
+                            !tool.selected &&
+                            styles.selectionSkipped,
+                        )}
+                    >
+                        <span>
+                            {tool.selected ? "■" : "□"}{" "}
+                            {tool.name}
+                        </span>
+
+                        <span>
+                            {(tool.probability * 100).toFixed(1)}%
+                        </span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
 
 function BaseEvent({
     event,
@@ -872,25 +931,17 @@ function BaseEvent({
                 runId,
                 status,
                 reason,
-            } =
-                event.data.data;
+            } = event.data.data;
 
             return (
                 <div
-                    className={
-                        styles.line
-                    }
+                    className={styles.line}
                 >
                     RUN:{" "}
-                    {
-                        status
-                            .toUpperCase()
-                    }
+                    {status.toUpperCase()}
 
                     <span
-                        className={
-                            styles.dim
-                        }
+                        className={styles.dim}
                     >
                         {" "}
                         {runId}
@@ -904,6 +955,13 @@ function BaseEvent({
                 </div>
             );
         }
+
+        case "tool_selection":
+            return (
+                <ToolSelectionBlock
+                    event={event}
+                />
+            );
 
         case "llm_error":
             return (

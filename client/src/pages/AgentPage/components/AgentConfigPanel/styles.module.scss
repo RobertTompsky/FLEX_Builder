@@ -432,7 +432,6 @@ $error: #ff4444;
   }
 }
 
-
 .capabilityName {
   min-width: 0;
 
@@ -445,6 +444,7 @@ $error: #ff4444;
 .labelContent {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
 }
 
 .accessOptions {
@@ -578,13 +578,9 @@ $error: #ff4444;
 
 .error {
   margin-top: 8px;
-
   padding: 4px 8px;
-
   border: 1px solid #660000;
-
   border-radius: 2px;
-
   background:
     rgba(255,
       0,
@@ -592,7 +588,6 @@ $error: #ff4444;
       0.08);
 
   color: $error;
-
   font-size: 10px;
   font-weight: 600;
 }
@@ -600,28 +595,18 @@ $error: #ff4444;
 .footer {
   display: flex;
   align-items: center;
-
   flex: 0 0 auto;
-
   gap: 16px;
-
   padding: 4px 12px;
-
-  border-top:
-    1px solid $border-light;
-
+  border-top: 1px solid $border-light;
   background:
     linear-gradient(180deg,
       #12124a 0%,
       #1a1a6e 100%);
-
-  color:
-    $text-muted;
-
+  color: $text-muted;
   font-size: 9px;
 
   span {
-    letter-spacing:
-      0.5px;
+    letter-spacing: 0.5px;
   }
 }

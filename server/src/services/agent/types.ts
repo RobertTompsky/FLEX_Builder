@@ -1,16 +1,15 @@
 import type {
     AgentHooks,
 } from "./hooks/types";
-
 import type {
-    ToolRegistry,
+    Tool,
 } from "../tools/types";
 import { ResponseInputItem } from "openai/resources/responses/responses";
 
 export type AgentConfig = {
     model: string;
     messages: ResponseInputItem[];
-    tools: ToolRegistry;
+    tools: Tool[];
     hooks?: AgentHooks;
     opts?: {
         maxTurns?: number;

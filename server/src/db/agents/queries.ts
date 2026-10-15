@@ -87,11 +87,8 @@ export type UpdateAgentInput = {
 };
 
 export async function updateAgent(
-  agentId:
-    string,
-
-  input:
-    UpdateAgentInput,
+  agentId: string,
+  input: UpdateAgentInput,
 ): Promise<
   Agent | undefined
 > {

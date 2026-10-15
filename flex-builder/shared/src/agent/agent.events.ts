@@ -1,3 +1,5 @@
+import { PreToolUseEvent, SelectToolsEvent } from "../hooks";
+
 export type LlmEvent =
   | {
     event: "text_delta";
@@ -71,3 +73,9 @@ export type ToolExecutorEvent =
 export type AgentEvent =
   | LlmEvent
   | ToolExecutorEvent
+  | SelectToolsEvent
+  | PreToolUseEvent
+
+export type AgentEventHandler = (
+  event: AgentEvent,
+) => void | Promise<void>;

@@ -4,7 +4,7 @@ import {
   ChatParamsSchema,
 } from "@flex-builder/shared/chat";
 import { RouteDeps } from "../types";
-import { toUIMessages } from "../../services/agent/messages";
+import { toUIMessages } from "../../services/llm/messages";
 
 type GetChatItemsRouteDeps = Pick<RouteDeps, 'chatRepository'>
 

@@ -1,8 +1,9 @@
 import { z } from "zod";
-import { chromium } from "playwright";
 import TurndownService from "turndown";
-import { action } from "../../../services/capabilities";
-import { BrowserContext } from "./types";
+import {
+    action,
+} from "../../../services/capabilities";
+
 
 const BrowserOpenInputSchema = z.object({
     url: z
@@ -13,23 +14,20 @@ const BrowserOpenInputSchema = z.object({
             "markdown",
             "html",
         ])
-        .default("markdown"),
-
-    waitUntil: z
-        .enum([
-            "load",
-            "domcontentloaded",
-            "networkidle",
-            "commit",
-        ])
-        .default("domcontentloaded"),
+        .default(
+            "markdown",
+        ),
 
     timeout: z
         .number()
         .int()
         .positive()
-        .max(60_000)
-        .default(30_000),
+        .max(
+            60_000,
+        )
+        .default(
+            30_000,
+        ),
 });
 
 const BrowserOpenOutputSchema = z.object({
@@ -46,68 +44,91 @@ const BrowserOpenOutputSchema = z.object({
 });
 
 export const openPageAction = action({
-    description: "Open a web page in a browser and return its rendered content as Markdown or HTML.",
-    inputSchema: BrowserOpenInputSchema,
-    outputSchema: BrowserOpenOutputSchema,
+    description:
+        "Open a web page in a browser and return its rendered content as Markdown or HTML.",
+
+    inputSchema:
+        BrowserOpenInputSchema,
+
+    outputSchema:
+        BrowserOpenOutputSchema,
 
     async execute({
         args,
-        options,
     }) {
         const {
             url,
-            waitUntil,
             timeout,
             format,
         } = args;
 
-        const browser = await chromium.launch({
-            headless: true,
-        });
+        const view =
+            new Bun.WebView({
+                headless: true,
 
-        const page = await browser.newPage();
+                backend:
+                    "chrome",
+            });
 
         try {
-            const response = await page.goto(
-                url,
-                {
-                    waitUntil,
+            await Promise.race([
+                view.navigate(
+                    url,
+                ),
+
+                Bun.sleep(
                     timeout,
-                },
-            );
+                ).then(
+                    () => {
+                        throw new Error(
+                            `Navigation timed out after ${timeout}ms`,
+                        );
+                    },
+                ),
+            ]);
 
-            if (!response) {
-                throw new Error(
-                    `Failed to open ${url}`,
-                );
-            }
+            const {
+                finalUrl,
+                title,
+                html,
+            } = await view.evaluate<{
+                finalUrl: string;
+                title: string;
+                html: string;
+            }>(`
+                ({
+                    finalUrl: location.href,
+                    title: document.title,
+                    html: document.documentElement.outerHTML,
+                })
+            `);
 
-            if (!response.ok()) {
-                throw new Error(
-                    `Failed to open ${url}: ${response.status()} ${response.statusText()}`,
-                );
-            }
-
-            const finalUrl = page.url();
-
-            const title = await page.title();
-
-            const html = await page.content();
-
-            if (format === "html") {
+            if (
+                format === "html"
+            ) {
                 return {
-                    url: finalUrl,
+                    url:
+                        finalUrl,
+
                     title,
+
                     format,
-                    content: html,
+
+                    content:
+                        html,
                 };
             }
 
             const turndown =
                 new TurndownService({
-                    headingStyle: "atx",
-                    codeBlockStyle: "fenced",
-                    bulletListMarker: "-",
+                    headingStyle:
+                        "atx",
+
+                    codeBlockStyle:
+                        "fenced",
+
+                    bulletListMarker:
+                        "-",
                 });
 
             turndown.remove([
@@ -116,17 +137,21 @@ export const openPageAction = action({
                 "noscript",
             ]);
 
-            const markdown = turndown.turndown(html);
-
             return {
-                url: finalUrl,
+                url:
+                    finalUrl,
+
                 title,
+
                 format,
-                content: markdown,
+
+                content:
+                    turndown.turndown(
+                        html,
+                    ),
             };
         } finally {
-            await page.close();
-            await browser.close();
+            view.close();
         }
     },
 });

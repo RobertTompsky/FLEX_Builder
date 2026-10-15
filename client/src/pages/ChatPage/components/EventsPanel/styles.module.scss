@@ -951,3 +951,56 @@ $subagent-content-offset: 12px;
     opacity: 0;
   }
 }
+
+.selectionEvent {
+    padding: 3px 0 5px;
+}
+
+.selectionTitle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.selectionIndicator {
+    color: #ffff00;
+    font-size: 10px;
+    line-height: 1;
+}
+
+.selectionModel {
+    font-size: 10px;
+    font-weight: 400;
+    opacity: 0.6;
+}
+
+.selectionBody {
+    margin: 5px 0 0 6px;
+    padding-left: 10px;
+
+    border-left: 1px solid rgba(185, 195, 255, 0.3);
+}
+
+.selectionTool {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 8px;
+    padding: 3px 4px;
+
+    font-size: 10px;
+    color: #dce2ff;
+}
+
+.selectionSkipped {
+    opacity: 0.55;
+}
+
+.selectionSummary {
+    padding: 3px 4px 0;
+
+    color: #9aa7e8;
+    font-size: 9px;
+    opacity: 0.8;
+}

@@ -1,3 +1,4 @@
+import { PreToolUsePolicy } from "@flex-builder/shared/hooks";
 import { RunStatus } from "@flex-builder/shared/run";
 import { Generated } from "kysely";
 
@@ -7,7 +8,7 @@ export interface Agents {
     model: string;
     prompt: string;
     max_turns: number;
-    pre_tool_use: "allow" | "ask" | "deny";
+    pre_tool_use: PreToolUsePolicy;
     created_at: Generated<number>;
     updated_at: Generated<number>;
 }

@@ -7,6 +7,7 @@ import fs from 'fs-extra'
 import { listPreToolUsePolicies } from "../../services/agent/hooks/preToolUse/policy";
 import { CAPABILITY_DEFINITIONS } from "../../capabilities";
 import { MetadataResponse } from "@flex-builder/shared/metadata";
+import { listSelectToolsPolicies } from "../../services/agent/hooks/selectTools/policy";
 
 export function metadataRoutes() {
   return new Elysia({
@@ -26,6 +27,7 @@ export function metadataRoutes() {
 
       const policies: HookPoliciesInfo = {
         preToolUse: listPreToolUsePolicies(),
+        selectTools: listSelectToolsPolicies()
       };
 
       return {

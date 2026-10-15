@@ -16,11 +16,11 @@ export async function model({
     signal,
     onEvent,
 }: LlmConfig): Promise<LlmStepResult> {
+
     throwIfAborted(signal);
+
     if (messages.length === 0) {
-        throw new Error(
-            "No messages provided",
-        );
+        throw new Error("No messages provided");
     }
 
     let turnText = "";
@@ -86,7 +86,6 @@ export async function model({
             case "error": {
                 await onEvent?.({
                     event: "llm_error",
-
                     data: {
                         message: event.message,
                     },
@@ -178,10 +177,8 @@ export async function model({
     if (turnText.length > 0) {
         await onEvent?.({
             event: "text_end",
-
             data: {
                 responseId: response.id,
-
                 fullText: turnText,
             },
         });

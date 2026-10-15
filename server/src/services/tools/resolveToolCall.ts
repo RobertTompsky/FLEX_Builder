@@ -5,16 +5,10 @@ function getTool(
     tools: ToolRegistry,
     name: string,
 ): Tool {
-    const tool =
-        tools.find(
-            (tool) =>
-                tool.name === name,
-        );
+    const tool = tools.find((tool) => tool.name === name);
 
     if (!tool) {
-        throw new Error(
-            `Unknown tool "${name}"`,
-        );
+        throw new Error(`Unknown tool "${name}"`);
     }
 
     return tool;
@@ -22,21 +16,19 @@ function getTool(
 
 export function resolveToolCall(
     call: ResponseFunctionToolCallItem,
-    tools: ToolRegistry,
+    tools: Tool[],
 ) {
-    const tool =
-        getTool(
-            tools,
-            call.name,
-        );
+    const tool = tools.find(tool => tool.name === call.name);
 
-    const args =
-        tool.inputSchema.parse(
-            JSON.parse(
-                call.arguments ??
-                    "{}",
-            ),
+    if (!tool) {
+        throw new Error(
+            `Unknown tool: ${call.name}`,
         );
+    }
+
+    const rawArgs = JSON.parse(call.arguments);
+
+    const args = tool.inputSchema.parse(rawArgs);
 
     return {
         tool,

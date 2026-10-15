@@ -17,7 +17,11 @@ import type {
   UpdateAgentBody
 } from "@flex-builder/shared/agent";
 import type { AgentCapabilityConfig } from "@flex-builder/shared/capabilities";
-import type { PreToolUsePolicy } from "@flex-builder/shared/hooks";
+import type {
+  HookPolicySelection,
+  PreToolUsePolicy,
+  SelectToolsPolicy
+} from "@flex-builder/shared/hooks";
 import type { Chat } from "@flex-builder/shared/chat";
 
 type AgentConfigFormValues = {
@@ -25,15 +29,11 @@ type AgentConfigFormValues = {
   model: UpdateAgentBody["config"]["model"];
   prompt: UpdateAgentBody["config"]["prompt"];
   maxTurns: UpdateAgentBody["config"]["maxTurns"];
-  policies: {
-    preToolUse: PreToolUsePolicy;
-  };
+  policies: HookPolicySelection;
   capabilities: AgentCapabilityConfig[];
 };
 
-function toFormValues(
-  agent: AgentDetails,
-): AgentConfigFormValues {
+function toFormValues(agent: AgentDetails): AgentConfigFormValues {
   return {
     name: agent.identity.name,
     model: agent.config.model,
@@ -44,9 +44,7 @@ function toFormValues(
   };
 }
 
-export function createAgentModel(
-  agentId: string,
-) {
+export function createAgentModel(agentId: string) {
   const data = atom<
     AgentDetails | null
   >(
@@ -59,140 +57,98 @@ export function createAgentModel(
     `agents.${agentId}.chats`,
   );
 
-  const configForm =    reatomForm(
-      (name) => ({
-        name: reatomField(
-          "",
-          `${name}.name`,
+  const configForm = reatomForm(
+    (name) => ({
+      name: reatomField(
+        "",
+        `${name}.name`,
+      ),
+
+      model: reatomField(
+        "",
+        `${name}.model`,
+      ),
+
+      prompt: reatomField(
+        "",
+        `${name}.prompt`,
+      ),
+
+      maxTurns: reatomField(
+        3,
+        `${name}.maxTurns`,
+      ),
+
+      maxExecuteConcurrency: reatomField(
+        5,
+        `${name}.maxExecuteConcurrency`,
+      ),
+
+      policies: {
+        preToolUse: reatomField<PreToolUsePolicy>(
+          "allow",
+          `${name}.policies.preToolUse`,
         ),
 
-        model: reatomField(
-          "",
-          `${name}.model`,
+        selectTools: reatomField<SelectToolsPolicy>(
+          "all",
+          `${name}.policies.selectTools`,
         ),
-
-        prompt: reatomField(
-          "",
-          `${name}.prompt`,
-        ),
-
-        maxTurns: reatomField(
-          3,
-          `${name}.maxTurns`,
-        ),
-
-        maxExecuteConcurrency: reatomField(
-          5,
-          `${name}.maxExecuteConcurrency`,
-        ),
-
-        policies: {
-          preToolUse: reatomField<
-            PreToolUsePolicy
-          >(
-            "allow",
-            `${name}.policies.preToolUse`,
-          ),
-        },
-
-        capabilities: reatomField<
-          AgentCapabilityConfig[]
-        >(
-          [],
-          `${name}.capabilities`,
-        ),
-      }),
-      {
-        name:
-          `agents.${agentId}.config`,
-
-        onSubmit: async (state) => {
-          const {
-            name,
-            capabilities,
-            model,
-            prompt,
-            maxTurns,
-            policies,
-          } = state;
-
-          const agent =
-            await wrap(
-              agentsApi.update({
-                params: {
-                  agentId,
-                },
-
-                body: {
-                  name,
-
-                  config: {
-                    model,
-                    prompt,
-                    maxTurns,
-                    policies,
-                  },
-
-                  capabilities,
-                },
-              }),
-            );
-
-          setAgent(agent);
-
-          return agent;
-        },
       },
-    );
+
+      capabilities: reatomField<AgentCapabilityConfig[]>(
+        [],
+        `${name}.capabilities`,
+      ),
+    }),
+    {
+      name: `agents.${agentId}.config`,
+      onSubmit: async (state) => {
+        const {
+          name,
+          capabilities,
+          model,
+          prompt,
+          maxTurns,
+          policies,
+        } = state;
+
+        const agent = await wrap(
+          agentsApi.update({
+            params: {
+              agentId,
+            },
+
+            body: {
+              name,
+
+              config: {
+                model,
+                prompt,
+                maxTurns,
+                policies,
+              },
+
+              capabilities,
+            },
+          }),
+        );
+
+        setAgent(agent);
+
+        return agent;
+      },
+    },
+  );
 
   const setAgent = (
     agent: AgentDetails,
   ): void => {
-    data.set(
-      agent,
-    );
+    data.set(agent);
 
-    const values =
-      toFormValues(
-        agent,
-      );
+    const values = toFormValues(agent);
 
-    configForm.fields
-      .name
-      .reset(
-        values.name,
-      );
-
-    configForm.fields
-      .model
-      .reset(
-        values.model,
-      );
-
-    configForm.fields
-      .prompt
-      .reset(
-        values.prompt,
-      );
-
-    configForm.fields
-      .maxTurns
-      .reset(
-        values.maxTurns,
-      );
-
-    configForm.fields
-      .policies
-      .preToolUse
-      .reset(
-        values.policies.preToolUse,
-      );
-
-    configForm.fields
-      .capabilities
-      .reset(
-        values.capabilities,
-      );
+    configForm.reset(values);
 
     agentsList.data.set(
       agents =>
@@ -213,17 +169,16 @@ export function createAgentModel(
     async (
       signal?: AbortSignal
     ): Promise<void> => {
-      const agent =
-        await wrap(
-          agentsApi.get({
-            params: {
-              agentId,
-            },
-            options: {
-              signal
-            }
-          }),
-        );
+      const agent = await wrap(
+        agentsApi.get({
+          params: {
+            agentId,
+          },
+          options: {
+            signal
+          }
+        }),
+      );
 
       setAgent(agent);
 
@@ -243,7 +198,4 @@ export function createAgentModel(
   };
 }
 
-export type AgentModel =
-  ReturnType<
-    typeof createAgentModel
-  >;
+export type AgentModel = ReturnType<typeof createAgentModel>;

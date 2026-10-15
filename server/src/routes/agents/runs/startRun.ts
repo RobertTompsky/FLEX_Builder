@@ -24,7 +24,7 @@ import {
 import { RouteDeps } from "../../types";
 import { agent } from "../../../services/agent/agent";
 import { createHooks } from "../../../services/agent/hooks/createHooks";
-import { getPendingToolCalls } from "../../../services/agent/messages";
+import { getPendingToolCalls } from "../../../services/llm/messages";
 import { SandboxEvent } from "@flex-builder/shared/sandbox";
 import { createAgentTools } from "../../../services/agent/tools/createTools";
 import { RunTsRuntime } from "../../../tools/runTsTool/types";
@@ -62,7 +62,7 @@ export function startRunRoute(
                     maxExecuteConcurrency,
                     policies,
                 } = body;
-
+                console.log(policies)
                 const agentRecord = await deps.agentRepository.get(agentId);
 
                 if (!agentRecord) {
@@ -142,8 +142,6 @@ export function startRunRoute(
 
                 const controller = new AbortController();
 
-                const hooks = createHooks(policies);
-
                 deps.runRegistry.set(
                     agentId,
                     chatId,
@@ -176,6 +174,12 @@ export function startRunRoute(
                     };
 
                     const emitAgentEvent = async (event: AgentEvent) => {
+                        if (event.event === 'tool_selection') {
+                            console.log(
+                                "[AGENT EVENT]",
+                                event.event,
+                            );
+                        }
                         await writeSSE(
                             toAgentSSEMessage(
                                 agentRecord.identity,
@@ -197,6 +201,8 @@ export function startRunRoute(
                             executions: deps.executionService.executions,
                         };
 
+                        console.log(maxExecuteConcurrency)
+
                         const tools = createAgentTools({
                             runId: run.id,
                             workspace,
@@ -205,6 +211,8 @@ export function startRunRoute(
                             runtime,
                             onEvent: emitSandboxEvent,
                         });
+
+                        const hooks = createHooks(policies, emitAgentEvent);
 
                         await emitRunEvent({
                             event: "status",
@@ -272,6 +280,9 @@ export function startRunRoute(
                             },
                         });
                     } catch (error) {
+
+                        console.error("[RUN FAILED]", error);
+                        
                         const status = controller.signal.aborted
                             ? "stopped"
                             : "failed";

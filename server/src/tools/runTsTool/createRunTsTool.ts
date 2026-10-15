@@ -133,7 +133,6 @@ export function createRunTsTool({
             try {
                 await emitExecutionEvent({
                     event: "rpc_trace",
-
                     data: {
                         phase: "request",
                         method: "sandbox/run",
@@ -142,32 +141,24 @@ export function createRunTsTool({
                     },
                 });
 
-                const result =
-                    await sandbox.run(
-                        {
-                            executionId,
-                            code: input.code,
-                            cwd: workspace.root,
-                            timeoutMs:
-                                DEFAULT_TIMEOUT_MS,
-                        },
-                        {
-                            signal:
-                                context.signal,
-                        },
-                    );
+                const result = await sandbox.run(
+                    {
+                        executionId,
+                        code: input.code,
+                        cwd: workspace.root,
+                        timeoutMs: DEFAULT_TIMEOUT_MS,
+                    },
+                    {
+                        signal: context.signal,
+                    },
+                );
 
                 return {
-                    stdout:
-                        formatSandboxResult(
-                            result,
-                        ),
+                    stdout: formatSandboxResult(result,),
                 };
 
             } finally {
-                executions.delete(
-                    executionId,
-                );
+                executions.delete(executionId);
             }
         },
     };

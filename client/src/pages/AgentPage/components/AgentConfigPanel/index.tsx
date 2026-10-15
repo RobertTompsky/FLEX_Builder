@@ -37,40 +37,25 @@ export const AgentConfigPanel = reatomComponent(({
   const maxTurnsValue = maxTurns();
   const capabilitiesValue = capabilities();
   const preToolUseValue = policies.preToolUse();
+  const selectToolsValue = policies.selectTools();
 
-  const models =
-    metadataData
-      ? Object.values(
-        metadataData.models,
-      )
-      : [];
+  const models = metadataData
+    ? Object.values(metadataData.models)
+    : [];
 
-  const capabilityItems =
-    metadataData
-      ?.capabilities.items ??
-    [];
+  const capabilityItems = metadataData?.capabilities.items ?? [];
 
-  const accessOptions =
-    metadataData
-      ?.capabilities
-      .accessOptions ??
-    [];
+  const accessOptions = metadataData?.capabilities.accessOptions ?? [];
 
   const maxExecuteConcurrencyValue = maxExecuteConcurrency();
 
-  const policyOptions =
-    metadataData
-      ?.policies.preToolUse ??
-    [];
+  const preToolUseOptions = metadataData?.policies.preToolUse ?? [];
 
-  const getCapability = (
-    capabilityId: string,
-  ) =>
-    capabilitiesValue.find(
-      (capability) =>
-        capability.id ===
-        capabilityId,
-    );
+  const selectToolsOptions = metadataData?.policies.selectTools ?? [];
+
+  const getCapability = (capabilityId: string) => capabilitiesValue.find(
+    (capability) => capability.id === capabilityId
+  );
 
   const toggleCapability = (
     capabilityId: string,
@@ -97,8 +82,7 @@ export const AgentConfigPanel = reatomComponent(({
       ...capabilitiesValue,
       {
         id: capabilityId,
-        access:
-          defaultAccess,
+        access: defaultAccess,
       },
     ]);
   };
@@ -122,10 +106,13 @@ export const AgentConfigPanel = reatomComponent(({
   };
 
   const selectedPreToolUsePolicy =
-    policyOptions.find(
-      (policy) =>
-        policy.id ===
-        preToolUseValue,
+    preToolUseOptions.find(
+      policy => policy.id === preToolUseValue,
+    );
+
+  const selectedSelectToolsPolicy =
+    selectToolsOptions.find(
+      policy => policy.id === selectToolsValue,
     );
 
   return (
@@ -463,6 +450,46 @@ export const AgentConfigPanel = reatomComponent(({
               <div className={styles.row}>
                 <label
                   className={styles.label}
+                  htmlFor="agent-select-tools"
+                >
+                  <span className={styles.labelContent}>
+                    Select Tools
+
+                    {selectedSelectToolsPolicy?.description && (
+                      <Tooltip
+                        text={
+                          selectedSelectToolsPolicy.description
+                        }
+                      />
+                    )}
+                  </span>
+                </label>
+
+                <select
+                  id="agent-select-tools"
+                  className={styles.select}
+                  value={selectToolsValue}
+                  onChange={event => {
+                    policies.selectTools.change(
+                      event.currentTarget.value as
+                      typeof selectToolsValue,
+                    );
+                  }}
+                >
+                  {selectToolsOptions.map(policy => (
+                    <option
+                      key={policy.id}
+                      value={policy.id}
+                    >
+                      {policy.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className={styles.row}>
+                <label
+                  className={styles.label}
                   htmlFor="agent-pre-tool-use"
                 >
                   <span
@@ -496,7 +523,7 @@ export const AgentConfigPanel = reatomComponent(({
                     );
                   }}
                 >
-                  {policyOptions.map(
+                  {preToolUseOptions.map(
                     (policy) => (
                       <option
                         key={policy.id}

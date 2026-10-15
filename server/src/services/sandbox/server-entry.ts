@@ -22,98 +22,57 @@ import {
     ExecuteRpcMethod,
 } from "../execute/rpc/protocol";
 
+const transport = new StdioTransport();
 
-const transport =
-    new StdioTransport();
+const relay = new RpcRelay({ upstream: transport });
 
+const executionHost = new BunExecutionHost();
 
-const relay =
-    new RpcRelay({
-        upstream:
-            transport,
-    });
+const runtime = new SandboxRuntime({
+    executionHost,
+    relay,
+    async emitExecutionEvent(
+        executionId,
+        event,
+    ) {
+        await transport.send({
+            jsonrpc: "2.0",
+            method: ExecuteRpcMethod.executionEvent,
+            params: {
+                executionId,
+                event,
+            },
+        });
+    },
+});
 
+const sandboxServer = new SandboxRpcServer(runtime);
 
-const executionHost =
-    new BunExecutionHost();
-
-
-const runtime =
-    new SandboxRuntime({
-        executionHost,
-        relay,
-
-        async emitExecutionEvent(
-            executionId,
-            event,
-        ) {
-            await transport.send({
-                jsonrpc:
-                    "2.0",
-
-                method:
-                    ExecuteRpcMethod
-                        .executionEvent,
-
-                params: {
-                    executionId,
-                    event,
-                },
-            });
-        },
-    });
-
-
-const sandboxServer =
-    new SandboxRpcServer(
-        runtime,
-    );
-
-
-await sandboxServer.connect(
-    transport,
-);
-
+await sandboxServer.connect(transport);
 
 relay.connect();
-
 
 console.error(
     "[sandbox] service started",
 );
 
+let shuttingDown = false;
 
-let shuttingDown =
-    false;
-
-
-async function shutdown(
-    code = 0,
-) {
-    if (
-        shuttingDown
-    ) {
+async function shutdown(code = 0) {
+    if (shuttingDown) {
         return;
     }
 
-    shuttingDown =
-        true;
-
+    shuttingDown = true;
 
     relay.close();
 
-    await sandboxServer
-        .close();
+    await sandboxServer.close();
 
-    await transport
-        .close();
+    await transport.close();
 
-
-    process.exit(
-        code,
-    );
+    process.exit(code);
 }
-
 
 process.stdin.once(
     "close",
@@ -121,7 +80,6 @@ process.stdin.once(
         void shutdown();
     },
 );
-
 
 process.once(
     "SIGINT",
@@ -131,7 +89,6 @@ process.once(
         );
     },
 );
-
 
 process.once(
     "SIGTERM",

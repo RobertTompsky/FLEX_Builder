@@ -22,7 +22,6 @@ import {
 
 import styles from "./styles.module.scss";
 
-
 type EventsPanelProps = {
   run: RunModel;
 };
@@ -40,7 +39,6 @@ function cx(
     .filter(Boolean)
     .join(" ");
 }
-
 
 export const EventsPanel = reatomComponent(({
   run,
@@ -89,36 +87,21 @@ export const EventsPanel = reatomComponent(({
       }`
       ];
 
-
   const toggleToolCall = (
-    callId:
-      string,
+    callId: string,
   ): void => {
-    setApprovedToolCallIds(
-      (
-        current,
-      ) => {
-        const next =
-          new Set(
-            current,
-          );
+    setApprovedToolCallIds((current) => {
+      const next = new Set(current);
 
-        if (
-          next.has(
-            callId,
-          )
-        ) {
-          next.delete(
-            callId,
-          );
-        } else {
-          next.add(
-            callId,
-          );
-        }
+      if (next.has(callId)
+      ) {
+        next.delete(callId);
+      } else {
+        next.add(callId);
+      }
 
-        return next;
-      },
+      return next;
+    },
     );
   };
 
@@ -170,14 +153,7 @@ export const EventsPanel = reatomComponent(({
           }
         >
           [
-          {
-            String(
-              events.length,
-            ).padStart(
-              3,
-              "0",
-            )
-          }
+          {String(events.length).padStart(3, "0")}
           ]
         </span>
       </header>

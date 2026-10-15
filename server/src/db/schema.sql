@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS agents (
     prompt TEXT NOT NULL DEFAULT '',
     max_turns INTEGER NOT NULL DEFAULT 3,
     pre_tool_use TEXT NOT NULL DEFAULT 'allow'
-        CHECK (pre_tool_use IN ('allow', 'ask', 'deny')),
+        CHECK (pre_tool_use IN ('allow', 'ask', 'deny', 'auto')),
     created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
     updated_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );

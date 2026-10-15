@@ -36,9 +36,8 @@ type RunConfig =
     Omit<
         StartRunBody,
         | "query"
-        | "maxExecuteConcurrency"
+        // | "maxExecuteConcurrency"
     >;
-
 
 type StartRunInput = {
     config: RunConfig;
@@ -59,10 +58,10 @@ export function createRunModel({
     reloadRuns,
 }: CreateRunModelInput) {
 
-    const maxExecuteConcurrency = atom(
-        5,
-        `chats.${chatId}.run.maxExecuteConcurrency`,
-    );
+    // const maxExecuteConcurrency = atom(
+    //     5,
+    //     `chats.${chatId}.run.maxExecuteConcurrency`,
+    // );
 
     const events = atom<AgentSSEMessage[]>(
         [],
@@ -157,7 +156,7 @@ export function createRunModel({
                 body: {
                     ...config,
                     query,
-                    maxExecuteConcurrency: maxExecuteConcurrency(),
+                    // maxExecuteConcurrency: maxExecuteConcurrency(),
                 },
                 options: {
                     onEvent: appendEvent,
@@ -285,7 +284,6 @@ export function createRunModel({
         withAsync(),
     );
 
-
     return {
         id,
         events,
@@ -297,12 +295,10 @@ export function createRunModel({
     };
 }
 
-
 export type RunModel =
     ReturnType<
         typeof createRunModel
     >;
-
 
 function applyMessageEvent(
     messages: Atom<UIMessage[]>,
@@ -315,7 +311,6 @@ function applyMessageEvent(
             const {
                 delta,
             } = event.data.data;
-
 
             messages.set(
                 current => {
@@ -355,7 +350,6 @@ function applyMessageEvent(
             break;
         }
 
-
         case "text_end": {
             messages.set(
                 current =>
@@ -367,7 +361,6 @@ function applyMessageEvent(
 
             break;
         }
-
 
         case "status": {
             const {
@@ -381,13 +374,7 @@ function applyMessageEvent(
                 break;
             }
 
-            messages.set(
-                current =>
-                    finishLastAssistant(
-                        current,
-                        "incomplete",
-                    ),
-            );
+            messages.set(current => finishLastAssistant(current, "incomplete"));
 
             break;
         }
@@ -410,11 +397,7 @@ function finishLastAssistant(
     }
 
     return [
-        ...messages.slice(
-            0,
-            -1,
-        ),
-
+        ...messages.slice(0, -1),
         {
             ...last,
             status,

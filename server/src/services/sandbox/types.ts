@@ -3,7 +3,6 @@ import { SandboxRpcClient } from "./rpc/client";
 
 export type SandboxRunInput = {
     executionId: string
-    
     code: string;
     cwd?: string;
     timeoutMs?: number;

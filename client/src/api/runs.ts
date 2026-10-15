@@ -75,16 +75,11 @@ async function start({
             body: JSON.stringify(body),
             signal: options.signal,
             onmessage(message) {
-                if (
-                    !message.event ||
-                    !message.data
-                ) {
+                if (!message.event || !message.data) {
                     return;
                 }
 
-                options.onEvent(
-                    parseAgentSSEMessage(message),
-                );
+                options.onEvent(parseAgentSSEMessage(message));
             },
             onerror(error) {
                 throw error;
