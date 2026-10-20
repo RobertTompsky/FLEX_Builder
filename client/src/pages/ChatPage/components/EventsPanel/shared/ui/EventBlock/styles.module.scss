@@ -1,0 +1,228 @@
+$background: #1111aa;
+$background-dark: #000088;
+
+$border: #5555dd;
+
+$text: #ffffff;
+$text-muted: #8888cc;
+$text-secondary: #aaaaff;
+
+$green: #55ff55;
+$yellow: #ffff55;
+$cyan: #55ccff;
+
+$pause: #ffcc55;
+$stop: #ff9955;
+$error: #ff5555;
+
+$subagent-content-offset: 12px;
+
+.event {
+    --event-color: #ffffff;
+
+    min-width: 0;
+}
+
+.variant_status {
+    --event-color: #ffffff;
+}
+
+.variant_model {
+    --event-color: #55ccff;
+}
+
+.variant_tool {
+    --event-color: #ffff55;
+}
+
+.variant_policy {
+    --event-color: #ffcc55;
+}
+
+.variant_sandbox {
+    --event-color: #cc88ff;
+}
+
+.variant_execution {
+    --event-color: #92e9ff;
+}
+
+.variant_rpc {
+    --event-color: #b8e48f;
+}
+
+.variant_result {
+    --event-color: #55ff55;
+}
+
+.variant_error {
+    --event-color: #ff5555;
+}
+
+.header {
+    display: grid;
+
+    grid-template-columns:
+        50px 110px minmax(0, 1fr);
+
+    align-items: center;
+
+    column-gap: 10px;
+
+    width: 100%;
+    min-height: 20px;
+
+    padding:
+        3px 4px;
+
+    border: 0;
+
+    background:
+        transparent;
+
+    color:
+        $text;
+
+    font: inherit;
+    text-align: left;
+
+    cursor: pointer;
+
+    &:hover {
+        background:
+            color-mix(
+                in srgb,
+                var(--event-color) 10%,
+                transparent
+            );
+    }
+}
+
+.headerStatic {
+    cursor: default;
+
+    &:hover {
+        background:
+            transparent;
+    }
+}
+
+.eventSection {
+    display: flex;
+    align-items: center;
+
+    gap: 6px;
+
+    min-width: 0;
+
+    overflow: hidden;
+}
+
+.metaSection {
+    display: flex;
+    align-items: center;
+
+    gap: 6px;
+
+    min-width: 0;
+
+    color:        $text-secondary;
+
+    font-size: 10px;
+}
+
+.meta {
+  overflow: hidden;
+
+  white-space: nowrap;
+
+  text-overflow: ellipsis;
+}
+
+.timestamp {
+    color:
+        $text-muted;
+
+    font-size: 9px;
+    font-weight: 700;
+
+    font-variant-numeric:
+        tabular-nums;
+
+    white-space: nowrap;
+}
+
+.indicator {
+    flex: 0 0 auto;
+
+    color:
+        var(--event-color);
+
+    font-size: 7px;
+}
+
+.title {
+    min-width: 0;
+
+    overflow: hidden;
+
+    color:
+        var(--event-color);
+
+    font-size: 11px;
+    font-weight: 700;
+
+    text-overflow:
+        ellipsis;
+
+    white-space: nowrap;
+}
+
+.chevron {
+    flex: 0 0 auto;
+
+    color:
+        var(--event-color);
+
+    font-size: 10px;
+
+    transform:
+        rotate(0deg);
+
+    transition:
+        transform 100ms ease;
+}
+
+.chevronOpen {
+    transform:
+        rotate(90deg);
+}
+
+.body {
+    margin:
+        4px;
+
+    padding:
+        6px 8px;
+
+    border-left:
+        1px solid
+        color-mix(
+            in srgb,
+            var(--event-color) 45%,
+            transparent
+        );
+
+    background:
+        color-mix(
+            in srgb,
+            var(--event-color) 7%,
+            $background-dark
+        );
+
+    color:
+        $text-secondary;
+
+    font-size: 10px;
+    line-height: 1.45;
+}

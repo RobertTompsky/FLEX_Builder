@@ -26,20 +26,8 @@ import type {
 } from "./buildEventViews";
 
 import styles from "./styles.module.scss";
-
-function cx(
-    ...classes:
-        Array<
-            string
-            | false
-            | null
-            | undefined
-        >
-): string {
-    return classes
-        .filter(Boolean)
-        .join(" ");
-}
+import { EventBlock } from "./shared/ui";
+import { cx } from "../../../../shared";
 
 
 function decodePartialJsonString(
@@ -258,15 +246,7 @@ function ResultBlock({
     const formattedJson = tryFormatJson(result);
 
     return (
-        <details
-            className={styles.expandable}
-        >
-            <summary
-                className={styles.file}
-            >
-                RESULT.txt
-            </summary>
-
+        <>
             {formattedJson !== null ? (
                 <div
                     className={
@@ -304,8 +284,7 @@ function ResultBlock({
                         "[empty result]"
                     }
                 </pre>
-            )}
-        </details>
+            )}</>
     );
 }
 
@@ -397,108 +376,83 @@ function ArtifactBlock({
 
 
 function ExecutionBlock({
-    view,
+    event,
 }: {
-    view: ExecutionView;
+    event: Extract<
+        AgentSSEMessage,
+        {
+            event:
+            | "started"
+            | "timeout"
+            | "output_exceeded"
+            | "exit"
+            | "rpc_trace";
+        }
+    >;
 }) {
-    const {
-        event,
-    } = view;
-
     switch (event.event) {
         case "started":
             return (
-                <div
-                    className={
-                        styles.nestedEvent
-                    }
-                >
-                    <div
-                        className={
-                            styles.line
-                        }
-                    >
-                        EXECUTION STARTED
-                    </div>
-
-                    <div
-                        className={
-                            styles.nestedMeta
-                        }
-                    >
-                        PID:{" "}
-                        {
-                            event
-                                .data
-                                .data
-                                .pid
-                        }
-                    </div>
-                </div>
+                <EventBlock
+                    title="EXECUTION STARTED"
+                    meta={`PID ${event.data.data.pid}`}
+                    timestamp={event.data.timestamp}
+                    category="execution"
+                />
             );
 
         case "exit":
             return (
-                <div
-                    className={
-                        styles.nestedEvent
+                <EventBlock
+                    title="EXECUTION EXIT"
+                    meta={
+                        `CODE ${String(
+                            event.data.data.exitCode,
+                        )}`
                     }
-                >
-                    <div
-                        className={
-                            styles.line
-                        }
-                    >
-                        EXECUTION EXIT
-                    </div>
-
-                    <div
-                        className={
-                            styles.nestedMeta
-                        }
-                    >
-                        CODE:{" "}
-                        {
-                            String(
-                                event
-                                    .data
-                                    .data
-                                    .exitCode,
-                            )
-                        }
-                    </div>
-                </div>
+                    timestamp={
+                        event.data.timestamp
+                    }
+                    category="execution"
+                />
             );
 
         case "timeout":
             return (
-                <ErrorBlock
-                    message={
-                        `Execution timed out after ${event
-                            .data
-                            .data
-                            .timeoutMs
-                        } ms`
+                <EventBlock
+                    title="EXECUTION TIMEOUT"
+                    timestamp={
+                        event.data.timestamp
                     }
-                />
+                    category="execution"
+                >
+                    <ErrorBlock
+                        message={
+                            `Execution timed out after ${event.data.data.timeoutMs} ms`
+                        }
+                    />
+                </EventBlock>
             );
 
         case "output_exceeded":
             return (
-                <ErrorBlock
-                    message={
-                        `Output exceeded ${event
-                            .data
-                            .data
-                            .maxOutputBytes
-                        } bytes`
+                <EventBlock
+                    title="OUTPUT EXCEEDED"
+                    timestamp={
+                        event.data.timestamp
                     }
-                />
+                    category="execution"
+                >
+                    <ErrorBlock
+                        message={
+                            `Output exceeded ${event.data.data.maxOutputBytes} bytes`
+                        }
+                    />
+                </EventBlock>
             );
 
         case "rpc_trace": {
-            const data =
-                event.data.data;
+            const data = event.data.data;
 
             const {
                 phase,
@@ -507,62 +461,55 @@ function ExecutionBlock({
                 server,
             } = data;
 
-            const from =
-                phase === "request"
-                    ? client
-                    : server;
+            const from = phase === "request"
+                ? client
+                : server;
 
-            const to =
-                phase === "request"
-                    ? server
-                    : client;
+            const to = phase === "request"
+                ? server
+                : client;
 
-            const isSandboxRun =
-                method === "sandbox/run";
+            const isSandboxRun = method === "sandbox/run";
 
-            const title =
-                isSandboxRun
-                    ? phase === "request"
-                        ? "SANDBOX RUN"
-                        : "SANDBOX RESULT"
-                    : `RPC ${phase.toUpperCase()}`;
+            const title = isSandboxRun
+                ? phase === "request"
+                    ? "SANDBOX RUN"
+                    : "SANDBOX RESULT"
+                : `RPC ${phase.toUpperCase()}`;
 
-            const executeLabel =
-                method === "execute"
-                    ? `${data.capability}.${data.action}`
-                    : null;
+            const executeLabel = method === "execute"
+                ? `${data.capability}.${data.action}`
+                : undefined;
+
+            const meta = isSandboxRun
+                ? `${from} → ${to}`
+                : executeLabel;
 
             return (
-                <div
-                    className={
-                        styles.nestedEvent
+                <EventBlock
+                    title={title}
+                    meta={meta}
+                    timestamp={
+                        event.data.timestamp
+                    }
+                    category={
+                        isSandboxRun
+                            ? "sandbox"
+                            : "rpc"
                     }
                 >
-                    <div
-                        className={
-                            styles.line
-                        }
-                    >
-                        {title}
-                    </div>
-
-                    <div
-                        className={
-                            styles.nestedMeta
-                        }
-                    >
-                        {from}
-                        {" → "}
-                        {to}
-
-                        {executeLabel && (
-                            <>
-                                {" · "}
-                                {executeLabel}
-                            </>
-                        )}
-                    </div>
-                </div>
+                    {!isSandboxRun && (
+                        <div
+                            className={
+                                styles.executionRoute
+                            }
+                        >
+                            {from}
+                            {" → "}
+                            {to}
+                        </div>
+                    )}
+                </EventBlock>
             );
         }
     }
@@ -729,232 +676,243 @@ function SubagentBlock({
     );
 }
 
+type StatusMessage = Extract<
+    AgentSSEMessage,
+    {
+        event:
+        "status";
+    }
+>;
 
-function ToolBlock({
-    view,
+function StatusBlock({
+    event,
 }: {
-    view: ToolView;
+    event:
+    StatusMessage;
 }) {
+    const {
+        status,
+        reason,
+    } = event.data.data;
+
     return (
-        <div
-            className={
-                styles.toolBlock
-            }
+        <EventBlock
+            title="STATUS"
+            meta={status}
+            timestamp={event.data.timestamp}
+            category="status"
         >
-            <div
-                className={cx(
-                    styles.line,
-                    styles.tool,
-                )}
-            >
-                TOOL:{" "}
-                {view.name}
-            </div>
-
-            {view.args && (
-                <details
+            {reason && (
+                <div
                     className={
-                        styles.expandable
+                        styles.dim
                     }
-                    open
                 >
-                    <summary
-                        className={
-                            styles.file
-                        }
-                    >
-                        code.js
-                    </summary>
-
-                    <CodeBlock
-                        code={
-                            view.args
-                        }
-                    />
-                </details>
+                    {reason}
+                </div>
             )}
-
-            {
-                view.nested.length >
-                0 &&
-                (
-                    <div
-                        className={
-                            styles.nested
-                        }
-                    >
-                        {
-                            view.nested.map(
-                                (
-                                    nested,
-                                ) => {
-                                    switch (
-                                    nested.kind
-                                    ) {
-                                        case "artifact":
-                                            return (
-                                                <ArtifactBlock
-                                                    key={
-                                                        `${nested.order}-${nested.event.event}`
-                                                    }
-                                                    view={
-                                                        nested
-                                                    }
-                                                />
-                                            );
-
-                                        case "execution":
-                                            return (
-                                                <ExecutionBlock
-                                                    key={
-                                                        `${nested.order}-${nested.event.event}`
-                                                    }
-                                                    view={
-                                                        nested
-                                                    }
-                                                />
-                                            );
-
-                                        case "subagent":
-                                            return (
-                                                <SubagentBlock
-                                                    key={
-                                                        nested.runId
-                                                    }
-                                                    view={
-                                                        nested
-                                                    }
-                                                />
-                                            );
-                                    }
-                                },
-                            )
-                        }
-                    </div>
-                )
-            }
-
-            {
-                view.error &&
-                (
-                    <ErrorBlock
-                        message={
-                            view.error
-                        }
-                    />
-                )
-            }
-
-            {
-                view.result !==
-                undefined &&
-                (
-                    <ResultBlock
-                        result={
-                            view.result
-                        }
-                    />
-                )
-            }
-        </div>
+        </EventBlock>
     );
 }
-
-type ToolSelectionMessage = Extract<
-    AgentSSEMessage,
-    { event: "tool_selection" }
->;
 
 function ToolSelectionBlock({
     event,
 }: {
-    event: ToolSelectionMessage;
+    event: Extract<
+        AgentSSEMessage,
+        {
+            event:
+            "tool_selection";
+        }
+    >;
 }) {
-    const { model, tools } = event.data.data;
+    const {
+        policy,
+        model,
+        tools,
+    } = event.data.data;
 
-    const selectedCount = tools.filter(
-        tool => tool.selected,
-    ).length;
+    const isDecision = policy === "decision";
 
     return (
-        <div className={styles.selectionEvent}>
-            <div
-                className={cx(
-                    styles.line,
-                    styles.selectionTitle,
-                )}
-            >
-                <span className={styles.selectionIndicator}>
-                    ■
-                </span>
-
-                TOOL SELECTION
-
-                <span className={styles.selectionModel}>
-                    · {model}
-                </span>
-            </div>
-
-            <div className={styles.selectionBody}>
-                {tools.map(tool => (
+        <EventBlock
+            title="TOOL SELECTION"
+            meta={policy}
+            timestamp={event.data.timestamp}
+            category="policy"
+        >
+            {isDecision && (
+                <>
                     <div
-                        key={tool.name}
-                        className={cx(
-                            styles.selectionTool,
-                            !tool.selected &&
-                            styles.selectionSkipped,
-                        )}
+                        className={styles.selectionModel}
                     >
                         <span>
-                            {tool.selected ? "■" : "□"}{" "}
-                            {tool.name}
+                            MODEL{" "}
                         </span>
-
                         <span>
-                            {(tool.probability * 100).toFixed(1)}%
+                            {model}
                         </span>
                     </div>
-                ))}
-            </div>
-        </div>
+
+                    <div
+                        className={styles.selectionBody}
+                    >
+                        {tools.map(
+                            tool => (
+                                <div
+                                    key={tool.name}
+                                    className={
+                                        cx(
+                                            styles.selectionTool,
+                                            !tool.selected &&
+                                            styles.selectionSkipped,
+                                        )
+                                    }
+                                >
+                                    <span>
+                                        {tool.selected
+                                            ? "■"
+                                            : "□"}{" "}
+
+                                        {tool.name}
+                                    </span>
+
+                                    <span
+                                        className={styles.selectionProbability}
+                                    >
+                                        {
+                                            tool.probability !==
+                                                undefined
+                                                ? `${(
+                                                    tool.probability *
+                                                    100
+                                                ).toFixed(
+                                                    1,
+                                                )}%`
+                                                : "—"
+                                        }
+                                    </span>
+                                </div>
+                            ),
+                        )}
+                    </div>
+                </>
+            )}
+        </EventBlock>
+    );
+}
+
+function ToolCallBlock({
+    event,
+    args,
+}: {
+    event: Extract<
+        AgentSSEMessage,
+        {
+            event: "output_item.added";
+        }
+    >;
+
+    args: string;
+}) {
+    const {
+        name,
+    } = event.data.data;
+
+    return (
+        <EventBlock
+            title="TOOL CALL"
+            meta={name}
+            timestamp={
+                event.data.timestamp
+            }
+            category="tool"
+            opened
+        >
+            <CodeBlock
+                code={args}
+            />
+        </EventBlock>
+    );
+}
+
+function PreToolUseBlock({ event }: {
+    event: Extract<
+        AgentSSEMessage,
+        {
+            event:
+            "pre_tool_use";
+        }
+    >;
+}) {
+    const data = event.data.data;
+
+    return (
+        <EventBlock
+            title="PRE TOOL USE"
+            meta={`${data.policy} → ${data.decision}`}
+            timestamp={event.data.timestamp}
+            category="policy"
+        >
+            {data.decision !== "allow" && data.reason && (
+                <div
+                    className={
+                        styles.detail
+                    }
+                >
+                    {data.reason}
+                </div>
+            )}
+        </EventBlock>
+    );
+}
+
+function ToolResultBlock({ event }: {
+    event: Extract<
+        AgentSSEMessage,
+        {
+            event:
+            "tool_result";
+        }
+    >;
+}) {
+    const {
+        name,
+        outputPreview,
+    } = event.data.data;
+
+    return (
+        <EventBlock
+            title="TOOL RESULT"
+            meta={name}
+            timestamp={event.data.timestamp}
+            category="result"
+        >
+            {outputPreview !== undefined && (
+                <ResultBlock
+                    result={
+                        outputPreview
+                    }
+                />
+            )}
+        </EventBlock>
     );
 }
 
 function BaseEvent({
     event,
+    argsById,
 }: {
     event: AgentSSEMessage;
+    argsById: Map<string, string>;
 }) {
     switch (event.event) {
-        case "status": {
-            const {
-                runId,
-                status,
-                reason,
-            } = event.data.data;
-
+        case "status":
             return (
-                <div
-                    className={styles.line}
-                >
-                    RUN:{" "}
-                    {status.toUpperCase()}
-
-                    <span
-                        className={styles.dim}
-                    >
-                        {" "}
-                        {runId}
-                    </span>
-
-                    {reason && (
-                        <div>
-                            {reason}
-                        </div>
-                    )}
-                </div>
+                <StatusBlock
+                    event={event}
+                />
             );
-        }
 
         case "tool_selection":
             return (
@@ -963,16 +921,59 @@ function BaseEvent({
                 />
             );
 
-        case "llm_error":
+        case "output_item.added":
             return (
-                <ErrorBlock
-                    message={
-                        event
-                            .data
-                            .data
-                            .message
+                <ToolCallBlock
+                    event={event}
+                    args={
+                        argsById.get(
+                            event.data.data.id,
+                        ) ?? ""
                     }
                 />
+            );
+
+        case "pre_tool_use":
+            return (
+                <PreToolUseBlock
+                    event={event}
+                />
+            );
+
+        case "started":
+        case "timeout":
+        case "output_exceeded":
+        case "exit":
+        case "rpc_trace":
+            return (
+                <ExecutionBlock
+                    event={event}
+                />
+            );
+
+        case "tool_result":
+            return (
+                <ToolResultBlock
+                    event={event}
+                />
+            );
+
+        case "llm_error":
+            return (
+                <div
+                    className={
+                        styles.eventBlock
+                    }
+                >
+                    <ErrorBlock
+                        message={
+                            event
+                                .data
+                                .data
+                                .message
+                        }
+                    />
+                </div>
             );
 
         default:
@@ -983,22 +984,15 @@ function BaseEvent({
 
 export function EventViewBlock({
     view,
+    argsById,
 }: {
     view: EventView;
+    argsById: Map<string, string>;
 }) {
-    if (view.kind === "tool") {
-        return (
-            <ToolBlock
-                view={view}
-            />
-        );
-    }
-
     return (
         <BaseEvent
-            event={
-                view.event
-            }
+            event={view.event}
+            argsById={argsById}
         />
     );
 }

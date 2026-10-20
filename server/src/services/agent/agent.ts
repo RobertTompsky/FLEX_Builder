@@ -25,7 +25,7 @@ import {
     ResponseFunctionToolCallItem,
     ResponseInputItem
 } from "openai/resources/responses/responses";
-import { selectModelTools } from "./hooks/selectTools/selectModelTools";
+import { createSelectToolsContext } from "./hooks/selectTools/hook";
 
 export type AgentEventHandler = (
     event: AgentEvent,
@@ -117,11 +117,62 @@ export async function agent(
 
         turnsUsed++;
 
-        const selectedTools = await selectModelTools(
-            hooks?.selectTools,
-            messages,
-            tools,
-        );
+        const selectToolsPolicy = hooks?.selectTools?.policy.id ?? "all";
+
+        let selectedTools = tools;
+
+        if (
+            selectToolsPolicy === "decision" &&
+            hooks?.selectTools?.hook &&
+            tools.length > 0
+        ) {
+            const selection = await hooks.selectTools.hook(
+                createSelectToolsContext(
+                    messages,
+                    tools,
+                ),
+            );
+
+            for (const tool of selection) {
+                if (tool.probability === undefined) {
+                    throw new Error(
+                        `Missing probability for tool ${tool.name}`,
+                    );
+                }
+            }
+
+            const selectedNames = new Set(selection
+                .filter(tool => tool.selected)
+                .map(tool => tool.name),
+            );
+
+            selectedTools = tools.filter(
+                tool => selectedNames.has(tool.name),
+            );
+
+            await onEvent?.({
+                event: "tool_selection",
+                data: {
+                    policy: "decision",
+                    model: "gpt-6-luna",
+                    tools: selection,
+                },
+            });
+        } else {
+            await onEvent?.({
+                event: "tool_selection",
+                data: {
+                    policy: "all",
+                    tools:
+                        tools.map(
+                            tool => ({
+                                name: tool.name,
+                                selected: true,
+                            }),
+                        ),
+                },
+            });
+        }
 
         const step = await model({
             model: modelName,
@@ -156,15 +207,21 @@ export async function agent(
             );
         }
 
+        const preToolUseContext = createPreToolUseContext(toolCalls, tools);
+
         const preToolUseResult = await hooks
-            ?.preToolUse?.(
-                createPreToolUseContext(
-                    toolCalls,
-                    tools
-                ),
-            ) ?? {
+            ?.preToolUse?.hook(preToolUseContext) ?? {
             decision: "allow" as const,
         };
+
+        await onEvent?.({
+            event: "pre_tool_use",
+            data: {
+                ...preToolUseResult,
+                callIds: preToolUseContext.toolCalls.map(call => call.callId),
+                policy: hooks?.preToolUse?.policy.id ?? "allow",
+            },
+        });
 
         switch (preToolUseResult.decision) {
             case "ask": {
@@ -216,8 +273,6 @@ function createAgentResult(
 ): AgentResult {
     return {
         status,
-        output: messages.slice(
-            initialMessagesCount,
-        ),
+        output: messages.slice(initialMessagesCount),
     };
 }

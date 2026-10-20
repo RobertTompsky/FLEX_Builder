@@ -5,10 +5,10 @@ import type {
 import type {
     Tool,
 } from "../../../tools/types";
+import { ToolSelection } from "@flex-builder/shared/hooks";
 
 export type SelectToolsContext = {
     messages: ResponseInputItem[];
-
     tools: {
         name: string;
         description: string;
@@ -17,7 +17,7 @@ export type SelectToolsContext = {
 
 export type SelectToolsHook = (
     context: SelectToolsContext,
-) => Promise<string[]>;
+) => Promise<ToolSelection[]>;
 
 export function createSelectToolsContext(
     messages: ResponseInputItem[],
@@ -25,10 +25,12 @@ export function createSelectToolsContext(
 ): SelectToolsContext {
     return {
         messages,
-
-        tools: tools.map(tool => ({
-            name: tool.name,
-            description: tool.description,
-        })),
+        tools:
+            tools.map(
+                tool => ({
+                    name: tool.name,
+                    description: tool.description,
+                }),
+            ),
     };
 }

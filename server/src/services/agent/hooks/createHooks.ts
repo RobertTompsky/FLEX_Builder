@@ -2,13 +2,11 @@ import type {
     AgentHooks,
 } from "./types";
 
-import type {
-    HookPolicySelection,
+import {
+    PRE_TOOL_USE_POLICY_DEFINITIONS,
+    SELECT_TOOLS_POLICY_DEFINITIONS,
+    type HookPolicySelection,
 } from "@flex-builder/shared/hooks";
-
-import type {
-    AgentEventHandler,
-} from "@flex-builder/shared/agent";
 
 import {
     getPreToolUseHook,
@@ -19,18 +17,17 @@ import {
 } from "./selectTools/policy";
 
 export function createHooks(
-    policies: HookPolicySelection,
-    emit?: AgentEventHandler,
+    policies: HookPolicySelection
 ): AgentHooks {
     return {
-        preToolUse: getPreToolUseHook(
-            policies.preToolUse,
-            emit,
-        ),
+        preToolUse: {
+            hook: getPreToolUseHook(policies.preToolUse),
+            policy: PRE_TOOL_USE_POLICY_DEFINITIONS[policies.preToolUse],
+        },
 
-        selectTools: getSelectToolsHook(
-            policies.selectTools,
-            emit,
-        ),
+        selectTools: {
+            hook: getSelectToolsHook(policies.selectTools),
+            policy: SELECT_TOOLS_POLICY_DEFINITIONS[policies.selectTools],
+        },
     };
 }

@@ -1,10 +1,6 @@
 import OpenAI from "openai";
 
 import type {
-    AgentEventHandler,
-} from "@flex-builder/shared/agent";
-
-import type {
     SelectToolsHook,
 } from "./hook";
 
@@ -14,9 +10,7 @@ const openai = new OpenAI({
 
 const MIN_PROBABILITY = 0.15;
 
-export function createSelectToolsHook(
-    emit?: AgentEventHandler,
-): SelectToolsHook {
+export function createSelectToolsHook(): SelectToolsHook {
     return async context => {
         const { messages, tools } = context;
 
@@ -61,7 +55,7 @@ export function createSelectToolsHook(
                         Tool execution permissions are
                         handled separately.
                     `.trim(),
-                    
+
                     levels: [
                         {
                             label: "none",
@@ -82,14 +76,13 @@ export function createSelectToolsHook(
         const answer = response.answers[0];
 
         if (!answer || answer.type !== "score") {
-            return tools.map(tool => tool.name);
+            throw new Error(
+                "Tool selection decision returned no score",
+            );
         }
 
         const probabilities = new Map(
-            answer.probabilities.map(item => [
-                item.label,
-                item.probability,
-            ]),
+            answer.probabilities.map(item => [item.label, item.probability]),
         );
 
         const scores = tools.map(tool => {
@@ -102,24 +95,6 @@ export function createSelectToolsHook(
             };
         });
 
-        const selectedTools = scores
-            .filter(tool => tool.selected)
-            .map(tool => tool.name);
-
-        console.log(
-            "[TOOL SELECTION] Emitting",
-            scores,
-        );
-
-
-        await emit?.({
-            event: "tool_selection",
-            data: {
-                model: "gpt-6-luna",
-                tools: scores,
-            },
-        });
-
-        return selectedTools;
+        return scores;
     };
 }

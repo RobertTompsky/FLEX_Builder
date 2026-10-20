@@ -29,14 +29,13 @@ import {
     toolCallsApi,
 } from "../../api/toolCalls";
 
-
 type RunModelStatus = | "idle" | RunStatus;
 
 type RunConfig =
     Omit<
         StartRunBody,
         | "query"
-        // | "maxExecuteConcurrency"
+    // | "maxExecuteConcurrency"
     >;
 
 type StartRunInput = {
@@ -116,17 +115,12 @@ export function createRunModel({
     const appendEvent = (
         event: AgentSSEMessage,
     ): void => {
-        events.set(
-            current => [
-                ...current,
-                event,
-            ],
-        );
-
-        applyMessageEvent(
-            messages,
+        events.set(current => [
+            ...current,
             event,
-        );
+        ]);
+
+        applyMessageEvent(messages, event);
 
         if (event.event !== "status") {
             return;
@@ -223,8 +217,7 @@ export function createRunModel({
         async (
             approvedToolCallIds: string[],
         ): Promise<void> => {
-            if (status() !== "paused"
-            ) {
+            if (status() !== "paused") {
                 throw new Error(
                     "Run is not paused",
                 );
@@ -236,16 +229,14 @@ export function createRunModel({
                 );
             }
 
-            await wrap(
-                toolCallsApi.approve({
-                    params: {
-                        chatId,
-                    },
-                    body: {
-                        approvedToolCallIds,
-                    },
-                }),
-            );
+            await wrap(toolCallsApi.approve({
+                params: {
+                    chatId,
+                },
+                body: {
+                    approvedToolCallIds,
+                },
+            }));
 
             await execute({
                 config: currentConfig,

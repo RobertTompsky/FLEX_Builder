@@ -30,11 +30,10 @@ export function listSelectToolsPolicies():
 }
 
 export function getSelectToolsHook(
-    policy: SelectToolsPolicy,
-    emit?: AgentEventHandler,
+    policy: SelectToolsPolicy
 ): SelectToolsHook {
     if (policy === "decision") {
-        return createSelectToolsHook(emit);
+        return createSelectToolsHook();
     }
 
     return selectToolsHooks[policy];

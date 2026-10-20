@@ -3,6 +3,7 @@ import type {
     AgentIdentity,
     AgentSSEMessage,
 } from "@flex-builder/shared/agent";
+import type { EventBlockCategory } from "./shared/ui/EventBlock";
 
 export type ArtifactSSEEvent = Extract<
     AgentSSEMessage,
@@ -62,6 +63,51 @@ export type SubagentToolView = {
     ToolStatus;
 };
 
+export type ToolCallView = {
+    kind: "tool_call";
+
+    category: "tool";
+
+    event: Extract<
+        AgentSSEMessage,
+        {
+            event:
+            "output_item.added";
+        }
+    >;
+
+    args: string;
+};
+
+function getToolCallArgs(
+    events: AgentSSEMessage[],
+    id: string,
+): string {
+    let args = "";
+
+    for (const event of events) {
+        if (
+            event.event ===
+            "arguments_delta" &&
+            event.data.data.id === id
+        ) {
+            args +=
+                event.data.data.delta;
+        }
+
+        if (
+            event.event ===
+            "tool_call" &&
+            event.data.data.argsId === id
+        ) {
+            args =
+                event.data.data.args;
+        }
+    }
+
+    return args;
+}
+
 
 export type ResponseStatus =
     | "in_progress"
@@ -118,18 +164,11 @@ export type ToolView = {
     NestedView[];
 };
 
-
-export type BaseEventView = {
+export type EventView = {
     kind: "event";
-
-    event:
-    AgentSSEMessage;
+    event: AgentSSEMessage;
+    category: EventBlockCategory;
 };
-
-
-export type EventView =
-    | ToolView
-    | BaseEventView;
 
 
 type RawSubagentGroup = {
@@ -709,47 +748,57 @@ export function getCurrentRoundEvents(
     return events;
 }
 
+function getEventCategory(event: AgentSSEMessage): EventBlockCategory {
+    switch (event.event) {
+        case "status":
+            return "status";
+
+        case 'output_item.added':
+            return 'model'
+
+        case "tool_call":
+            return "tool";
+
+        case "tool_selection":
+        case "pre_tool_use":
+            return "policy";
+
+        case "started":
+        case "exit":
+        case "timeout":
+        case "output_exceeded":
+            return "execution";
+
+        case "rpc_trace":
+            return event.data.data.method === "sandbox/run"
+                ? "sandbox"
+                : "rpc";
+
+        case "tool_result":
+            return "tool";
+
+        case "tool_error":
+        case "llm_error":
+            return "error";
+
+        default:
+            return "status";
+    }
+}
+
 export function buildEventViews(
     events: AgentSSEMessage[],
 ): EventView[] {
-    const {
-        argsById,
-
-        resultsByCallId,
-        errorsByCallId,
-        statusByCallId,
-
-        artifactsByCallId,
-        executionsByCallId,
-        subagentsByCallId,
-    } = collectEventData(events);
-
     const views: EventView[] = [];
-
-    const renderedCalls = new Set<string>();
 
     for (const event of events) {
         switch (event.event) {
             /*
-             * Эти события входят
-             * в агрегированный ToolView.
+             * Streaming/internal events.
              */
             case "arguments_delta":
-            case "tool_call":
+            // case "output_item.added":
             case "tool_start":
-            case "tool_result":
-            case "tool_error":
-
-            case "artifact_read":
-            case "artifact_created":
-
-            case "started":
-            case "timeout":
-            case "output_exceeded":
-            case "exit":
-            case "rpc_trace":
-
-            case "subagent_event":
 
             /*
              * Текст основного агента
@@ -759,69 +808,14 @@ export function buildEventViews(
             case "text_end":
                 continue;
 
-            case "output_item.added": {
-                const {
-                    id,
-                    callId,
-                    name,
-                } = event.data.data;
-
-                if (renderedCalls.has(callId)
-                ) {
-                    continue;
-                }
-
-                renderedCalls.add(callId);
-
-                const artifacts = artifactsByCallId.get(callId) ?? [];
-
-                const executions = executionsByCallId.get(callId) ?? [];
-
-                const subagents = [
-                    ...(
-                        subagentsByCallId
-                            .get(callId)
-                            ?.values() ??
-                        []
-                    ),
-                ].map(buildSubagentView);
-
-                const nested: NestedView[] = [
-                    ...artifacts,
-                    ...executions,
-                    ...subagents,
-                ].sort(
-                    (
-                        left,
-                        right,
-                    ) =>
-                        left.order -
-                        right.order,
-                );
-
-                views.push({
-                    kind: "tool",
-                    id,
-                    callId,
-                    name,
-                    args: argsById.get(id),
-                    result: resultsByCallId.get(callId),
-                    error: errorsByCallId.get(callId),
-                    status: statusByCallId.get(callId) ?? "pending",
-                    nested,
-                });
-
-                continue;
-            }
-
             default:
                 views.push({
                     kind: "event",
                     event,
+                    category: getEventCategory(event)
                 });
         }
     }
-
 
     return views;
 }

@@ -1,44 +1,54 @@
-import type {
-    AgentEventHandler,
-} from "@flex-builder/shared/agent";
-
 import OpenAI from "openai";
 
 import type {
     PreToolUseHook,
 } from "./hook";
-import { PRE_TOOL_USE_POLICIES } from "@flex-builder/shared/hooks";
+import { PreToolUseDecision } from "@flex-builder/shared/hooks";
+
+const MODEL = "gpt-6-luna" as const;
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 
-export function createAutoPreToolUseHook(
-    emit?: AgentEventHandler,
-): PreToolUseHook {
+const DECISIONS = [
+    "allow",
+    "ask",
+    "deny",
+] as const;
+
+function isDecision(
+    value: unknown,
+): value is PreToolUseDecision {
+    return DECISIONS.some(
+        decision => decision === value,
+    );
+}
+
+export function createAutoPreToolUseHook(): PreToolUseHook {
     return async context => {
-        const response =
-            await openai.decisions.create({
-                model: "gpt-6-luna",
-                input: [
-                    {
-                        role: "user",
-                        content: [
-                            {
-                                type: "input_text",
-                                text: `
+        const response = await openai.decisions.create({
+            model: MODEL,
+
+            input: [
+                {
+                    role: "user",
+                    content: [
+                        {
+                            type: "input_text",
+                            text: `
                                 Tool calls proposed for execution:
-                                
+
                                 ${JSON.stringify(
                                     context.toolCalls,
                                     null,
                                     2,
                                 )}
-                                `.trim(),
-                            },
-                        ],
-                    },
-                ],
+                            `.trim(),
+                        },
+                    ],
+                },
+            ],
                 questions: [
                     {
                         type: "choice",
@@ -106,74 +116,64 @@ export function createAutoPreToolUseHook(
                         ],
                     },
                 ],
-            });
+        });
 
         const answer = response.answers[0];
 
-        if (answer.type === "refusal") {
+        if (answer?.type !== "choice") {
             return {
                 decision: "ask",
                 reason: "Automatic review could not determine whether execution is safe.",
             };
         }
 
-        if (answer.type !== "choice") {
-            throw new Error(
-                `Unexpected decision answer type: ${answer.type}`,
-            );
-        }
+        const decision = answer.choice;
 
-        const probabilities = new Map(
-            answer.probabilities.map(item => [
-                String(item.value),
-                item.probability,
-            ]),
-        );
-
-        const decision = PRE_TOOL_USE_POLICIES
-            .filter(v => v !== 'auto')
-            .find(value => value === answer.choice);
-
-        if (!decision) {
+        if (!isDecision(decision)) {
             return {
                 decision: "ask",
                 reason: "Automatic review returned an unknown decision.",
             };
         }
 
-        await emit?.({
-            event: "pre_tool_use",
-            data: {
-                model: "gpt-6-luna",
-                decision,
-                confidence: answer.confidence,
-                probabilities: {
-                    allow: probabilities.get("allow") ?? 0,
-                    ask: probabilities.get("ask") ?? 0,
-                    deny: probabilities.get("deny") ?? 0,
-                },
-            },
-        });
+        const probabilities = Object.fromEntries(
+            answer.probabilities.map(
+                item => [
+                    item.value,
+                    item.probability,
+                ],
+            ),
+        );
 
-        switch (answer.choice) {
+        const review = {
+            model: MODEL,
+            confidence: answer.confidence,
+            probabilities: {
+                allow: probabilities.allow ?? 0,
+                ask: probabilities.ask ?? 0,
+                deny: probabilities.deny ?? 0,
+            },
+        };
+
+        switch (decision) {
             case "allow":
                 return {
-                    decision: "allow",
+                    decision,
+                    review,
                 };
+
             case "ask":
                 return {
-                    decision: "ask",
+                    decision,
                     reason: "Automatic review requires user approval.",
+                    review,
                 };
+
             case "deny":
                 return {
-                    decision: "deny",
+                    decision,
                     reason: "Automatic review denied execution.",
-                };
-            default:
-                return {
-                    decision: "ask",
-                    reason: "Automatic review returned an unknown decision.",
+                    review,
                 };
         }
     };

@@ -1,7 +1,7 @@
 import type {
     ResponseFunctionToolCallItem,
 } from "openai/resources/responses/responses";
-import { PreToolUsePolicy } from "@flex-builder/shared/hooks";
+import { PreToolUseResult } from "@flex-builder/shared/hooks";
 import type { Tool } from "../../../tools/types";
 import { resolveToolCall } from "../../../tools/resolveToolCall";
 
@@ -15,30 +15,6 @@ export type PreToolUseCall = {
 export type PreToolUseContext = {
     toolCalls: PreToolUseCall[];
 };
-
-export type PreToolUseDecision =
-    | "allow"
-    | "ask"
-    | "deny";
-
-type PreToolUseResultMap = {
-    allow: {
-        decision: "allow";
-    };
-    ask: {
-        decision: "ask";
-        reason?: string;
-    };
-    deny: {
-        decision: "deny";
-        reason: string;
-    };
-};
-
-export type PreToolUseResult =
-    PreToolUseResultMap[
-    PreToolUseDecision
-    ];
 
 export type PreToolUseHook = (
     context: PreToolUseContext,

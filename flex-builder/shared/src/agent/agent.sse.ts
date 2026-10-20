@@ -18,48 +18,50 @@ export type AgentSourceEvent =
   );
 
 export type ToAgentSSEMessage<
-  T extends AgentSourceEvent,
+    T extends AgentSourceEvent,
 > =
-  T extends unknown
-  ? {
-    event: T["event"];
+    T extends unknown
+        ? {
+            event: T["event"];
 
-    data: {
-      agent: AgentIdentity;
-      data: T["data"];
-    } & (
-      T extends {
-        source: infer TSource;
-      }
-      ? {
-        source: TSource;
-      }
-      : {}
-    );
-  }
-  : never;
+            data: {
+                agent: AgentIdentity;
+                timestamp: number;
+                data: T["data"];
+            } & (
+                T extends {
+                    source: infer TSource;
+                }
+                    ? {
+                        source: TSource;
+                    }
+                    : {}
+            );
+        }
+        : never;
 
 export function toAgentSSEMessage<
-  T extends AgentSourceEvent,
+    T extends AgentSourceEvent,
 >(
-  agent: AgentIdentity,
-  event: T,
+    agent: AgentIdentity,
+    event: T,
 ): ToAgentSSEMessage<T> {
-  return {
-    event: event.event,
-    data: {
-      agent,
-      data: event.data,
+    return {
+        event: event.event,
+        data: {
+            agent,
+            timestamp: Date.now(),
+            data: event.data,
 
-      ...(
-        "source" in event
-          ? {
-            source: event.source,
-          }
-          : {}
-      ),
-    },
-  } as ToAgentSSEMessage<T>;
+            ...(
+                "source" in event
+                    ? {
+                        source: event.source,
+                    }
+                    : {}
+            ),
+        },
+    } as ToAgentSSEMessage<T>;
 }
 
 export type AgentSSEMessage =

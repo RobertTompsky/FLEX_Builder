@@ -212,7 +212,7 @@ export function startRunRoute(
                             onEvent: emitSandboxEvent,
                         });
 
-                        const hooks = createHooks(policies, emitAgentEvent);
+                        const hooks = createHooks(policies);
 
                         await emitRunEvent({
                             event: "status",

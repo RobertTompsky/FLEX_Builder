@@ -50,3 +50,36 @@ export const PRE_TOOL_USE_POLICY_DEFINITIONS = {
     PreToolUsePolicy,
     PreToolUsePolicyInfo
 >;
+
+export type AutoPreToolUseReview = {
+    model: "gpt-6-luna";
+    confidence: number;
+    probabilities: Record<
+        PreToolUseDecision,
+        number
+    >;
+};
+
+export type PreToolUseEventData = {
+    callIds: string[];
+    policy: PreToolUsePolicy;
+    decision: PreToolUseDecision;
+    reason?: string;
+    review?: AutoPreToolUseReview;
+};
+
+export type PreToolUseResult = (
+    | {
+        decision: "allow";
+    }
+    | {
+        decision: "ask";
+        reason?: string;
+    }
+    | {
+        decision: "deny";
+        reason: string;
+    }
+) & {
+    review?: AutoPreToolUseReview;
+};

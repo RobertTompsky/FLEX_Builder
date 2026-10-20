@@ -30,8 +30,7 @@ const preToolUseHooks = {
     PreToolUseHook
 >;
 
-export function listPreToolUsePolicies():
-    PreToolUsePolicyInfo[] {
+export function listPreToolUsePolicies(): PreToolUsePolicyInfo[] {
     return PRE_TOOL_USE_POLICIES.map(
         (id) =>
             PRE_TOOL_USE_POLICY_DEFINITIONS[id],
@@ -40,10 +39,9 @@ export function listPreToolUsePolicies():
 
 export function getPreToolUseHook(
     policy: PreToolUsePolicy,
-    emit?: AgentEventHandler,
 ): PreToolUseHook {
     if (policy === "auto") {
-        return createAutoPreToolUseHook(emit);
+        return createAutoPreToolUseHook();
     }
 
     return preToolUseHooks[policy];

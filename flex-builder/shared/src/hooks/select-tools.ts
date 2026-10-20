@@ -33,3 +33,9 @@ export const SELECT_TOOLS_POLICY_DEFINITIONS = {
     SelectToolsPolicy,
     SelectToolsPolicyInfo
 >;
+
+export type ToolSelection = {
+    name: string;
+    selected: boolean;
+    probability?: number;
+};

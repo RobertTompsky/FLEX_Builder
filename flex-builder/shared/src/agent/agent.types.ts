@@ -1,7 +1,6 @@
 import z from 'zod'
 import { AgentConfigSchema, AgentIdentitySchema } from './agent.schemas';
-import { AgentCapabilityConfig } from '../capabilities';
-import { Chat } from '../chat';
+import type { AgentCapabilityConfig } from '../capabilities';
 
 export type AgentIdentity = z.infer<typeof AgentIdentitySchema>;
 

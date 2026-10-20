@@ -15,7 +15,4 @@ type HookRegistry = {
     }
 };
 
-export type AgentHooks = Partial<{
-    [HookName in keyof HookRegistry]:
-        HookRegistry[HookName]["hook"];
-}>;
+export type AgentHooks = Partial<HookRegistry>;
